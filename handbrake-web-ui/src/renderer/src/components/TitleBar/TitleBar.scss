@@ -1,0 +1,295 @@
+.titlebar {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0 16px;
+}
+
+.titlebar-drag-region {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    -webkit-app-region: drag;
+}
+
+.titlebar-content {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+}
+
+.titlebar-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.titlebar-logo img {
+    height: 24px;
+    width: 24px;
+    opacity: 0.9;
+}
+
+.titlebar-menu {
+    display: flex;
+    gap: 20px;
+    -webkit-app-region: no-drag;
+
+    > button, .tb-file-menu > button {
+        background: transparent;
+        border: none;
+        color: inherit;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        opacity: 0.65;
+        position: relative;
+        padding: 2px 0;
+        white-space: nowrap;
+
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 0;
+            height: 1.5px;
+            background: var(--accent-color);
+            transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 2px;
+        }
+
+        &:hover:not(.active) {
+            opacity: 1;
+            &::after { width: 100%; }
+        }
+
+        &.active {
+            color: var(--accent-color);
+            opacity: 1;
+            cursor: default;
+        }
+    }
+}
+
+// ─── File dropdown ─────────────────────────────────────────────────────────────
+.tb-file-menu {
+    position: relative;
+}
+
+.tb-dropdown {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 0;
+    min-width: 220px;
+    padding: 4px;
+    border-radius: 8px;
+    z-index: 9999;
+    animation: tbMenuIn 0.12s ease both;
+
+    .dark & {
+        background: #1c1828;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .light & {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+    }
+}
+
+@keyframes tbMenuIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.tb-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s ease;
+
+    .dark & {
+        color: rgba(255, 255, 255, 0.78);
+        &:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); color: #fff; }
+        &:disabled { color: rgba(255, 255, 255, 0.25); cursor: default; }
+    }
+
+    .light & {
+        color: rgba(0, 0, 0, 0.78);
+        &:hover:not(:disabled) { background: rgba(0, 0, 0, 0.05); color: #000; }
+        &:disabled { color: rgba(0, 0, 0, 0.28); cursor: default; }
+    }
+
+    &--danger {
+        .dark &:hover:not(:disabled) { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .light &:hover:not(:disabled) { background: rgba(239, 68, 68, 0.08); color: #dc2626; }
+    }
+}
+
+.tb-item-label {
+    font-size: 0.85rem;
+}
+
+.tb-item-shortcut {
+    font-size: 0.72rem;
+    opacity: 0.38;
+    font-family: monospace;
+    letter-spacing: 0.3px;
+}
+
+.tb-dropdown-sep {
+    height: 1px;
+    margin: 3px 4px;
+
+    .dark & { background: rgba(255, 255, 255, 0.07); }
+    .light & { background: rgba(0, 0, 0, 0.08); }
+}
+
+.titlebar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    -webkit-app-region: no-drag;
+}
+
+@keyframes toggleBounce {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.12); }
+    60%  { transform: scale(0.94); }
+    80%  { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes iconPop {
+    0%   { transform: scale(1) rotate(0deg); opacity: 0.4; }
+    40%  { transform: scale(1.22) rotate(-10deg); opacity: 1; }
+    70%  { transform: scale(0.95) rotate(5deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.toggle-switch {
+    width: 52px;
+    height: 24px;
+    background: #334155;
+    border-radius: 12px;
+    position: relative;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 5px;
+
+    .toggle-icon-sun {
+        font-size: 0.78rem;
+        color: #ffd700;
+        opacity: 0.85;
+        z-index: 1;
+        transition: opacity 0.2s ease;
+    }
+
+    .toggle-icon-moon {
+        font-size: 0.7rem;
+        color: #a5b4fc;
+        opacity: 0.75;
+        z-index: 1;
+        transition: opacity 0.2s ease;
+    }
+
+    .toggle-handle {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        position: absolute;
+        transition: left 0.3s cubic-bezier(0.25, 1.3, 0.5, 1), background 0.3s ease, box-shadow 0.3s ease;
+        z-index: 2;
+    }
+
+    &.dark .toggle-handle {
+        left: 29px;
+        background: #a5b4fc;
+        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.5);
+    }
+
+    &.light .toggle-handle {
+        left: 4px;
+        background: #ffd700;
+        box-shadow: 0 2px 6px rgba(255, 200, 0, 0.5);
+    }
+}
+
+.toggle-switch.toggling .toggle-handle {
+    animation: toggleBounce 0.45s ease both;
+}
+
+.toggle-switch.toggling .toggle-icon-sun,
+.toggle-switch.toggling .toggle-icon-moon {
+    animation: iconPop 0.4s ease both;
+}
+
+.app-wrapper.light .toggle-switch {
+    background: #cbd5e1;
+}
+
+.window-controls {
+    display: flex;
+    gap: 12px;
+    padding-right: 8px;
+}
+
+.control-btn {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: var(--transition);
+    opacity: 0.4;
+    border-radius: 6px;
+
+    &:hover {
+        opacity: 1;
+        background: transparent !important;
+    }
+
+    &.close:hover {
+        color: #ff4d4d !important;
+    }
+}
+
+.app-wrapper.dark .control-btn:hover {
+    color: white;
+}
+
+.app-wrapper.light .control-btn:hover {
+    color: #000;
+}

@@ -1,0 +1,667 @@
+.global-settings {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.gs-card--format     { flex: 0 0 auto; min-width: 90px; }
+.gs-card--resolution { flex: 1; min-width: 0; }
+.gs-card--fps        { flex: 0 0 auto; min-width: 105px; }
+.gs-card--quality    { flex: 1; min-width: 0; }
+.gs-card--codec      { flex: 2.2; min-width: 0; }
+
+// ─── Card base ─────────────────────────────────────────────────────────────────
+.gs-card {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: border-color 0.2s ease;
+
+    .dark & {
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .light & {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+}
+
+// ─── Card header ───────────────────────────────────────────────────────────────
+.gs-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gs-icon {
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+.gs-card-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    opacity: 0.45;
+    white-space: nowrap;
+}
+
+.gs-rf-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: none;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(124, 58, 237, 0.15);
+    color: var(--accent-color);
+    opacity: 1;
+}
+
+// ─── Help / Tooltip ────────────────────────────────────────────────────────────
+.gs-help-btn {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.28;
+    padding: 0;
+    font-size: 0.72rem;
+    line-height: 1;
+    transition: opacity 0.15s ease;
+    flex-shrink: 0;
+
+    &:hover {
+        opacity: 0.7;
+    }
+}
+
+.gs-tooltip-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.gs-tooltip {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 7px);
+    top: auto;
+    width: 230px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    line-height: 1.55;
+    z-index: 1000;
+    pointer-events: none;
+    white-space: normal;
+    animation: tooltipIn 0.1s ease both;
+
+    .dark & {
+        background: #1a1726;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .light & {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.14);
+        color: rgba(0, 0, 0, 0.78);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    }
+}
+
+@keyframes tooltipIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+// ─── Custom dropdown ───────────────────────────────────────────────────────────
+.gs-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.gs-dropdown-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    outline: none;
+    text-align: left;
+    transition: border-color 0.2s ease;
+
+    .dark & {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .light & {
+        background: rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.13);
+        color: rgba(0, 0, 0, 0.82);
+    }
+
+    &:hover {
+        border-color: rgba(124, 58, 237, 0.4);
+    }
+
+    .gs-dropdown--open & {
+        border-color: rgba(124, 58, 237, 0.55);
+    }
+
+    .gs-dropdown--disabled & {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+}
+
+.gs-dropdown-chevron {
+    font-size: 0.68rem;
+    flex-shrink: 0;
+    opacity: 0.45;
+    transition: transform 0.2s ease;
+
+    .gs-dropdown--open & {
+        transform: rotate(180deg);
+    }
+}
+
+.gs-dropdown-value {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gs-dropdown-menu {
+    position: absolute;
+    bottom: calc(100% + 5px);
+    top: auto;
+    left: 0;
+    right: 0;
+    border-radius: 8px;
+    padding: 4px;
+    z-index: 9100;
+    max-height: 280px;
+    overflow-y: auto;
+    animation: gsMenuIn 0.14s ease both;
+
+    .gs-dropdown--down & {
+        bottom: auto;
+        top: calc(100% + 5px);
+    }
+
+    .dark & {
+        background: #1c1828;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.65);
+    }
+
+    .light & {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.14);
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.16);
+    }
+
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+
+    .dark &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 2px;
+    }
+
+    .light &::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 2px;
+    }
+}
+
+@keyframes gsMenuIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.gs-dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    font-size: 0.8rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s ease, color 0.1s ease;
+
+    .dark & {
+        color: rgba(255, 255, 255, 0.6);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.07);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        &.active {
+            background: rgba(124, 58, 237, 0.2);
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+    }
+
+    .light & {
+        color: rgba(0, 0, 0, 0.75);
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.06);
+            color: rgba(0, 0, 0, 0.95);
+        }
+
+        &.active {
+            background: rgba(124, 58, 237, 0.12);
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+    }
+
+    &--special {
+        margin-top: 3px;
+
+        .dark & {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 8px;
+            border-radius: 0 0 5px 5px;
+            opacity: 0.65;
+
+            &:hover { opacity: 1; }
+        }
+
+        .light & {
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            padding-top: 8px;
+            opacity: 0.65;
+
+            &:hover { opacity: 1; }
+        }
+    }
+
+    &--disabled {
+        opacity: 0.28;
+        cursor: not-allowed !important;
+        pointer-events: none;
+    }
+}
+
+.gs-dropdown-group-label {
+    padding: 5px 10px 2px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    opacity: 0.3;
+    white-space: nowrap;
+}
+
+.gs-dropdown-group--sep .gs-dropdown-group-label {
+    margin-top: 3px;
+    padding-top: 8px;
+
+    .dark & { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+    .light & { border-top: 1px solid rgba(0, 0, 0, 0.06); }
+}
+
+.gs-dropdown--speed .gs-dropdown-trigger {
+    font-size: 0.82rem;
+    padding: 7px 10px;
+    opacity: 0.85;
+}
+
+// ─── Codec row: encoder + speed on one line ────────────────────────────────────
+.gs-codec-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.gs-dropdown--encoder {
+    flex: 1 1 0;
+    min-width: 0;
+
+    .gs-dropdown-menu {
+        min-width: 340px;
+    }
+}
+
+.gs-dropdown--speed {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+// ─── Dropdown item with description ───────────────────────────────────────────
+.gs-dropdown-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+}
+
+.gs-dropdown-item-main {
+    line-height: 1.3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.gs-dropdown-item-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--accent-color);
+    color: #fff;
+    opacity: 0.85;
+    line-height: 1.5;
+    flex-shrink: 0;
+}
+
+.gs-dropdown-item-desc {
+    font-size: 0.68rem;
+    line-height: 1.3;
+    opacity: 0.42;
+    font-weight: 400;
+    white-space: normal;
+}
+
+.gs-dropdown-item.active .gs-dropdown-item-desc {
+    opacity: 0.6;
+}
+
+// ─── Quality button group (legacy, unused) ─────────────────────────────────────
+.gs-quality-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+}
+
+.gs-quality-btn {
+    flex: 1;
+    min-width: 50px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 5px 8px;
+    border-radius: 7px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    .dark & {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.6);
+    }
+
+    .light & {
+        background: rgba(0, 0, 0, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        color: rgba(0, 0, 0, 0.55);
+    }
+
+    &:hover:not(:disabled) {
+        border-color: rgba(124, 58, 237, 0.4);
+        background: rgba(124, 58, 237, 0.08);
+        color: var(--accent-color);
+    }
+
+    &.active {
+        border-color: var(--accent-color);
+        background: rgba(124, 58, 237, 0.15);
+        color: var(--accent-color);
+    }
+
+    &.potato:hover:not(:disabled) {
+        border-color: rgba(239, 68, 68, 0.4);
+        background: rgba(239, 68, 68, 0.08);
+        color: #ef4444;
+    }
+
+    &.potato.active {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.12);
+        color: #ef4444;
+    }
+
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+}
+
+.gs-qbtn-label {
+    font-weight: 600;
+    font-size: 0.68rem;
+    letter-spacing: 0.3px;
+    line-height: 1;
+}
+
+.gs-qbtn-rf {
+    display: none;
+}
+
+.gs-quality-custom {
+    flex-direction: row;
+    gap: 5px;
+    flex: 0 0 auto;
+    padding: 6px 12px;
+
+    i { font-size: 0.72rem; }
+
+    .gs-qbtn-label { font-size: 0.7rem; opacity: 1; }
+}
+
+// ─── Custom quality popup ──────────────────────────────────────────────────────
+.gs-quality-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    animation: fadeIn 0.15s ease both;
+}
+
+.gs-quality-popup {
+    width: 380px;
+    padding: 28px 28px 24px;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: popupIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+    .dark & {
+        background: #18152a;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.65), var(--glow-accent);
+    }
+
+    .light & {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.14);
+    }
+}
+
+@keyframes popupIn {
+    from { opacity: 0; transform: scale(0.88) translateY(10px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+.gs-qpopup-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+
+    i { color: var(--accent-color); font-size: 1rem; }
+
+    .dark & { color: #ffffff; }
+    .light & { color: #1e293b; }
+}
+
+.gs-qpopup-subtitle {
+    font-size: 0.7rem;
+    opacity: 0.45;
+    margin-top: -8px;
+}
+
+.gs-qpopup-value {
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: var(--accent-color);
+    line-height: 1;
+}
+
+.gs-quality-slider {
+    width: 100%;
+    height: 5px;
+    appearance: none;
+    -webkit-appearance: none;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+
+    .dark & { background: rgba(255, 255, 255, 0.1); }
+    .light & { background: rgba(0, 0, 0, 0.1); }
+
+    &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--accent-color);
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(124, 58, 237, 0.55);
+        transition: box-shadow 0.15s ease, transform 0.15s ease;
+
+        &:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 16px rgba(124, 58, 237, 0.75);
+        }
+    }
+}
+
+.gs-qpopup-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.67rem;
+    opacity: 0.38;
+    margin-top: -8px;
+}
+
+.gs-qpopup-hint {
+    font-size: 0.72rem;
+    line-height: 1.5;
+    opacity: 0.5;
+    padding: 10px 12px;
+    border-radius: 7px;
+
+    .dark & { background: rgba(255, 255, 255, 0.04); }
+    .light & { background: rgba(0, 0, 0, 0.03); }
+}
+
+.gs-qpopup-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.gs-qpopup-cancel {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    transition: all 0.15s ease;
+
+    .dark & {
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        color: rgba(255, 255, 255, 0.45);
+
+        &:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+        }
+    }
+
+    .light & {
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        color: rgba(0, 0, 0, 0.45);
+
+        &:hover {
+            border-color: rgba(0, 0, 0, 0.2);
+            color: rgba(0, 0, 0, 0.8);
+        }
+    }
+}
+
+.gs-qpopup-confirm {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--accent-color);
+    color: #ffffff;
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+        background: #6d28d9;
+        box-shadow: 0 4px 14px rgba(124, 58, 237, 0.45);
+        transform: translateY(-1px);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+}

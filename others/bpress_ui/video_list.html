@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPRESS — Список видео</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="video_list.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            background: #121118;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+
+        .video-list-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body class="dark-theme">
+    <main class="container">
+        <div class="video-list-container">
+            <div class="video-list-scroll" id="videoList">
+                <div style="padding: 2rem; text-align: center; opacity: 0.5;">Загрузка данных...</div>
+            </div>
+
+            <div class="video-list-footer">
+                <div class="footer-label">SELECTED ONLY</div>
+                <button class="next-button" onclick="callBridge('ProcessNext')">
+                    NEXT <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const callBridge = async (method, param = null) => {
+            try {
+                if (window.chrome?.webview?.hostObjects?.bridge) {
+                    const bridge = window.chrome.webview.hostObjects.bridge;
+                    if (param !== null) await bridge[method](param);
+                    else await bridge[method]();
+                }
+            } catch (err) { console.error('Bridge call failed:', err); }
+        };
+
+        window.setTheme = (isDark) => {
+            if (isDark) document.body.classList.add('dark-theme');
+            else document.body.classList.remove('dark-theme');
+        };
+
+        const loadVideoData = async () => {
+            const listElement = document.getElementById('videoList');
+            try {
+                if (window.chrome?.webview?.hostObjects?.bridge) {
+                    const bridge = window.chrome.webview.hostObjects.bridge;
+                    const dataJson = await bridge.GetVideoData();
+                    const videos = JSON.parse(dataJson);
+
+                    if (videos && videos.length > 0) {
+                        listElement.innerHTML = '';
+                        videos.forEach(v => {
+                            const item = document.createElement('div');
+                            item.className = 'video-item';
+                            item.onclick = () => callBridge('OpenVideoSettings', v.id);
+                            item.innerHTML = `
+                                <div class="video-thumbnail">
+                                    <img src="${v.thumbnail}" alt="Thumbnail">
+                                </div>
+                                <div class="video-info">
+                                    <div class="video-title">${v.title}</div>
+                                    <div class="video-meta">
+                                        <i class="bi bi-clock"></i> ${v.meta}
+                                    </div>
+                                </div>
+                                <div class="video-size">${v.size}</div>
+                            `;
+                            listElement.appendChild(item);
+                        });
+                    } else {
+                        listElement.innerHTML = '<div style="padding: 2rem; text-align: center; opacity: 0.5;">Нет доступных видео</div>';
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load video data:", err);
+                listElement.innerHTML = '<div style="padding: 2rem; text-align: center;">Ошибка загрузки</div>';
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', loadVideoData);
+        // Backup load in case DOMContentLoaded fired
+        setTimeout(loadVideoData, 500); 
+    </script>
+</body>
+
+</html>

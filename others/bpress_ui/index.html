@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPRESS — Выбор источника</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        /* Fallback to ensure visibility if CSS fails */
+        body {
+            background: #121118;
+            color: #e4e6eb;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            padding: 1.5rem;
+            width: 100%;
+            height: 100%;
+        }
+
+        .drop-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .drop-area:hover,
+        .drop-area.active {
+            border-color: #007ACC;
+            background: rgba(0, 122, 204, 0.05);
+        }
+    </style>
+</head>
+
+<body class="dark-theme">
+    <main class="container">
+        <div class="drop-area" id="dropArea">
+            <div class="drop-content">
+                <div class="drop-icon">
+                    <i class="bi bi-upload"></i>
+                </div>
+                <div class="drop-text">Add file / files</div>
+            </div>
+            <div class="drop-info">
+                Вы можете выбрать один или несколько файлов для конвертации, просто перенесите их в эту область
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Inline bridge logic for maximum reliability
+        const callBridge = async (method, param = null) => {
+            try {
+                if (window.chrome?.webview?.hostObjects?.bridge) {
+                    const bridge = window.chrome.webview.hostObjects.bridge;
+                    if (param !== null) await bridge[method](param);
+                    else await bridge[method]();
+                }
+            } catch (err) { console.error('Bridge call failed:', err); }
+        };
+
+        window.setTheme = (isDark) => {
+            if (isDark) document.body.classList.add('dark-theme');
+            else document.body.classList.remove('dark-theme');
+        };
+
+        const dropArea = document.getElementById('dropArea');
+        dropArea.addEventListener('click', () => callBridge('OpenSource'));
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, (e) => {
+                e.preventDefault(); e.stopPropagation();
+                dropArea.classList.add('active');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, (e) => {
+                dropArea.classList.remove('active');
+            }, false);
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,385 @@
+.about-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+// ── Header ────────────────────────────────────────────────
+.about-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color-dark);
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.app-wrapper.light .about-header {
+    border-color: var(--border-color-light);
+}
+
+.about-logo img {
+    height: 40px;
+    filter: drop-shadow(0 0 12px rgba(0, 122, 204, 0.25));
+}
+
+.about-title-block {
+    flex: 1;
+
+    h1 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--accent-color), #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
+    }
+}
+
+.version-info {
+    font-size: 0.78rem;
+    opacity: 0.45;
+    margin-top: 3px;
+}
+
+.back-link {
+    background: var(--card-bg-dark);
+    border: 1px solid var(--border-color-dark);
+    color: inherit;
+    padding: 7px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+
+    &:hover {
+        background: var(--accent-color);
+        color: white;
+        border-color: var(--accent-color);
+    }
+}
+
+.app-wrapper.light .back-link {
+    background: var(--card-bg-light);
+    border-color: var(--border-color-light);
+}
+
+// ── Tabs ─────────────────────────────────────────────────
+.about-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 0 0;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color-dark);
+    margin-bottom: 20px;
+}
+
+.app-wrapper.light .about-tabs {
+    border-color: var(--border-color-light);
+}
+
+.about-tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: inherit;
+    padding: 8px 16px 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: var(--transition);
+    margin-bottom: -1px;
+
+    i { font-size: 0.9rem; }
+
+    &:hover { opacity: 0.8; }
+
+    &.active {
+        opacity: 1;
+        border-bottom-color: var(--accent-color);
+        color: var(--accent-color);
+    }
+}
+
+// ── Scroll area ───────────────────────────────────────────
+.about-content-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 6px;
+
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-thumb {
+        background: var(--border-color-dark);
+        border-radius: 2px;
+    }
+}
+
+.about-section {
+    max-width: 860px;
+    margin: 0 auto;
+    padding-bottom: 32px;
+}
+
+// ── About tab ─────────────────────────────────────────────
+.about-description {
+    font-size: 0.92rem;
+    line-height: 1.8;
+    opacity: 0.8;
+    margin-bottom: 24px;
+}
+
+.about-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 28px;
+
+    a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--card-bg-dark);
+        border: 1px solid var(--border-color-dark);
+        color: inherit;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 0.84rem;
+        text-decoration: none;
+        transition: var(--transition);
+        opacity: 0.7;
+
+        &:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            opacity: 1;
+        }
+    }
+}
+
+.app-wrapper.light .about-links a {
+    background: var(--card-bg-light);
+    border-color: var(--border-color-light);
+}
+
+.license-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--card-bg-dark);
+    border: 1px solid var(--border-color-dark);
+    border-left: 3px solid var(--accent-color);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.84rem;
+    line-height: 1.6;
+    opacity: 0.8;
+    margin-bottom: 32px;
+
+    i { margin-top: 2px; color: var(--accent-color); font-size: 1rem; flex-shrink: 0; }
+}
+
+.app-wrapper.light .license-notice {
+    background: var(--card-bg-light);
+    border-color: var(--border-color-light);
+    border-left-color: var(--accent-color);
+}
+
+.about-footer {
+    text-align: center;
+    padding: 24px 0 8px;
+    font-size: 0.78rem;
+    opacity: 0.35;
+    border-top: 1px solid var(--border-color-dark);
+}
+
+.app-wrapper.light .about-footer {
+    border-color: var(--border-color-light);
+}
+
+// ── Authors tab ───────────────────────────────────────────
+.authors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.author-item {
+    background: var(--card-bg-dark);
+    border: 1px solid var(--border-color-dark);
+    padding: 14px 16px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.app-wrapper.light .author-item {
+    background: var(--card-bg-light);
+    border-color: var(--border-color-light);
+}
+
+.author-name {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+
+    strong {
+        font-size: 0.9rem;
+        color: var(--text-highlight-dark);
+    }
+}
+
+.app-wrapper.light .author-name strong {
+    color: var(--text-highlight-light);
+}
+
+.author-handle {
+    font-size: 0.75rem;
+    opacity: 0.4;
+}
+
+.author-role {
+    font-size: 0.75rem;
+    color: var(--accent-color);
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+.author-contributions {
+    margin-top: 4px;
+    padding-left: 14px;
+    list-style: disc;
+
+    li {
+        font-size: 0.76rem;
+        opacity: 0.55;
+        line-height: 1.6;
+    }
+}
+
+.more-info {
+    font-size: 0.83rem;
+    opacity: 0.5;
+    font-style: italic;
+    margin-top: 4px;
+
+    a { color: var(--accent-color); }
+}
+
+// ── License tab ───────────────────────────────────────────
+.license-summary {
+    margin-bottom: 20px;
+
+    p {
+        font-size: 0.88rem;
+        line-height: 1.7;
+        opacity: 0.75;
+        margin-bottom: 10px;
+    }
+}
+
+.license-box {
+    background: #0a0a0f;
+    color: #4ade80;
+    padding: 20px;
+    border-radius: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.74rem;
+    line-height: 1.5;
+    height: 220px;
+    overflow-y: auto;
+    border: 1px solid #1e293b;
+    margin-bottom: 16px;
+
+    pre { white-space: pre-wrap; font-family: inherit; }
+
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+}
+
+.license-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--accent-color);
+        font-size: 0.83rem;
+        text-decoration: none;
+        opacity: 0.8;
+        transition: opacity 0.15s;
+
+        &:hover { opacity: 1; }
+    }
+}
+
+// ── Libraries tab ─────────────────────────────────────────
+.libraries-intro {
+    font-size: 0.87rem;
+    opacity: 0.65;
+    margin-bottom: 16px;
+    line-height: 1.6;
+
+    a { color: var(--accent-color); }
+}
+
+.libraries-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+}
+
+.library-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-bg-dark);
+    border: 1px solid var(--border-color-dark);
+    padding: 9px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: var(--transition);
+
+    &:hover {
+        border-color: var(--accent-color);
+        .library-name { color: var(--accent-color); }
+    }
+}
+
+.app-wrapper.light .library-item {
+    background: var(--card-bg-light);
+    border-color: var(--border-color-light);
+}
+
+.library-name {
+    font-size: 0.84rem;
+    font-weight: 500;
+    transition: color 0.15s;
+}
+
+.library-license {
+    font-size: 0.72rem;
+    opacity: 0.4;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+

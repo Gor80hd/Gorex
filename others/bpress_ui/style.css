@@ -1,0 +1,310 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --bg-color: #ffffff;
+    --text-color: #121212;
+    --accent-color: #007ACC;
+    --accent-glow: rgba(0, 122, 204, 0.3);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.05);
+    --drop-border: rgba(0, 0, 0, 0.1);
+    --border-radius: 12px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark-theme {
+    --bg-color: #121118;
+    --text-color: #e4e6eb;
+    --accent-color: #007ACC;
+    --accent-glow: rgba(0, 122, 204, 0.4);
+    --glass-bg: rgba(30, 30, 38, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.05);
+    --drop-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background-color 0.5s ease;
+}
+
+/* Main Content */
+.container {
+    flex: 1;
+    display: flex;
+    padding: 1rem;
+    width: 100%;
+    height: 100%;
+}
+
+.drop-area {
+    flex: 1;
+    border: 1px dashed var(--drop-border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    transition: var(--transition);
+    cursor: pointer;
+    position: relative;
+    text-align: center;
+    padding: 2rem;
+}
+
+.drop-area:hover,
+.drop-area.active {
+    border-color: var(--accent-color);
+    background: rgba(var(--accent-color), 0.01);
+}
+
+.drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.drop-icon {
+    font-size: 4rem;
+    color: var(--text-color);
+    opacity: 0.2;
+    transition: var(--transition);
+}
+
+.drop-area:hover .drop-icon {
+    opacity: 0.4;
+    transform: translateY(-5px);
+}
+
+.drop-text {
+    font-size: 0.95rem;
+    font-weight: 400;
+    opacity: 0.4;
+}
+
+.drop-info {
+    position: absolute;
+    bottom: 2.5rem;
+    max-width: 500px;
+    font-size: 0.8rem;
+    opacity: 0.35;
+    line-height: 1.4;
+}
+
+/* Animations */
+@keyframes glow {
+    0% {
+        box-shadow: inset 0 0 5px var(--accent-glow);
+    }
+
+    50% {
+        box-shadow: inset 0 0 15px var(--accent-glow);
+    }
+
+    100% {
+        box-shadow: inset 0 0 5px var(--accent-glow);
+    }
+}
+
+.drop-area.active {
+    animation: glow 1.5s infinite ease-in-out;
+    border-style: solid;
+}
+
+/* --- Video List View --- */
+
+.video-list-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.video-list-scroll {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-right: 0.8rem;
+}
+
+/* Custom Scrollbar for Video List */
+.video-list-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.video-list-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.video-list-scroll::-webkit-scrollbar-thumb {
+    background: #ffffff;
+    border-radius: 4px;
+}
+
+body:not(.dark-theme) .video-list-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+body:not(.dark-theme) .video-list-scroll::-webkit-scrollbar-thumb {
+    background: #c3c3c3;
+}
+
+.video-item {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+body:not(.dark-theme) .video-item {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.video-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    transform: translateX(4px);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body:not(.dark-theme) .video-item:hover {
+    background: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.video-thumbnail {
+    width: 180px;
+    height: 100px;
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.video-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-info {
+    flex: 1;
+    padding: 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.video-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+    letter-spacing: 0.5px;
+}
+
+.video-meta {
+    font-size: 0.70rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: 'IBM Plex Sans', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+body:not(.dark-theme) .video-meta {
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.video-size {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 2.1rem;
+    font-weight: 700;
+    padding-right: 1.5rem;
+    color: #fff;
+}
+
+body:not(.dark-theme) .video-size {
+    color: #000;
+}
+
+.video-list-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-top: 1rem;
+    padding-right: 1.2rem;
+    padding-bottom: 0.5rem;
+}
+
+.footer-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    opacity: 0.7;
+    margin-bottom: 0.4rem;
+    margin-right: 0.3rem;
+}
+
+.next-button {
+    background: linear-gradient(90deg, #c05dfc 0%, #aa36ff 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 2.5rem;
+    font-size: 1.2rem;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 400;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(170, 54, 255, 0.2);
+}
+
+.next-button:hover {
+    box-shadow: 0 6px 20px rgba(170, 54, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.next-button i {
+    font-size: 1.1rem;
+}
