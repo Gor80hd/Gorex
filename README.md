@@ -11,7 +11,7 @@ Gorex/
 ├── build/               ← HandBrakeCLI output directory (created after compilation)
 ├── contrib/             ← Third-party dependencies (built automatically)
 ├── libhb/               ← HandBrake core library (C)
-├── handbrake-web-ui/    ← BPRESS Electron UI (React + Vite)
+├── Gorex/               ← Gorex Electron UI (React + Vite)
 └── others/              ← Original HandBrake files (GTK, macOS, Windows GUI, scripts)
 ```
 
@@ -92,7 +92,7 @@ For other distros see the [HandBrake Linux Build Guide](https://handbrake.fr/doc
 ### Install dependencies
 
 ```bash
-cd handbrake-web-ui
+cd Gorex
 npm install
 ```
 
@@ -115,7 +115,7 @@ npm run pack
 npm run dist
 ```
 
-Output will be in `handbrake-web-ui/dist/`.
+Output will be in `Gorex/dist/`.
 
 ---
 
@@ -130,7 +130,7 @@ cd Gorex
 ./others/configure --launch-jobs=$(nproc) --launch
 
 # 3. Install UI dependencies
-cd handbrake-web-ui
+cd Gorex
 npm install
 
 # 4a. Run in development mode
@@ -144,7 +144,7 @@ npm run dist
 
 ## Environment variables
 
-Create a `.env` file in `handbrake-web-ui/` if you need to override the CLI path:
+Create a `.env` file in `Gorex/` if you need to override the CLI path:
 
 ```env
 # Default: ../build/HandBrakeCLI.exe (Windows) or ../build/HandBrakeCLI (Linux/macOS)

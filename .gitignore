@@ -47,8 +47,8 @@ gtk/po/*~
 # Node / Electron
 node_modules/
 **/node_modules/
-handbrake-web-ui/node_modules/
-handbrake-web-ui/dist/
+Gorex/node_modules/
+Gorex/dist/
 
 # Windows build binaries in others/
 others/win/CS/*/bin/
