@@ -26,6 +26,23 @@ function writeAppSettings(settings) {
   require("fs").writeFileSync(getSettingsFilePath(), JSON.stringify(settings, null, 2), "utf8");
 }
 const activeJobs = /* @__PURE__ */ new Map();
+function getYtdlPath() {
+  const platform = process.platform;
+  const bin = platform === "win32" ? "yt-dlp.exe" : "yt-dlp_macos";
+  if (utils.is.dev) {
+    return path.join(electron.app.getAppPath(), "resources", "ytdl", bin);
+  }
+  return path.join(path.dirname(process.execPath), "resources", "ytdl", bin);
+}
+function getDownloadDir(customOutputDir) {
+  if (customOutputDir) return customOutputDir;
+  const s = readAppSettings();
+  if (s.defaultOutputDir) return s.defaultOutputDir;
+  if (utils.is.dev) {
+    return path.join(electron.app.getAppPath(), "..", "Downloaded");
+  }
+  return path.join(path.dirname(process.execPath), "Downloaded");
+}
 function createWindow() {
   const mainWindow = new electron.BrowserWindow({
     width: 1280,
@@ -125,6 +142,162 @@ electron.app.whenReady().then(() => {
   electron.ipcMain.handle("get-default-output-dir", () => {
     const s = readAppSettings();
     return s.defaultOutputDir || electron.app.getPath("videos");
+  });
+  electron.ipcMain.handle("ytdl-get-formats", async (_, videoUrl) => {
+    const fs = require("fs");
+    const ytdlPath = getYtdlPath();
+    if (!fs.existsSync(ytdlPath)) throw new Error(`yt-dlp не найден: ${ytdlPath}`);
+    return new Promise((resolve, reject) => {
+      const child = child_process.spawn(ytdlPath, [
+        "--dump-json",
+        "--no-playlist",
+        videoUrl
+      ], { windowsHide: true });
+      let out = "";
+      let err = "";
+      child.stdout.on("data", (d) => {
+        out += d.toString();
+      });
+      child.stderr.on("data", (d) => {
+        err += d.toString();
+      });
+      child.on("close", (code) => {
+        if (code !== 0) return reject(new Error(err.trim() || `yt-dlp завершился с кодом ${code}`));
+        try {
+          const info = JSON.parse(out.trim());
+          const rawFormats = info.formats || [];
+          const formats = rawFormats.filter((f) => f.vcodec && f.vcodec !== "none").map((f) => ({
+            format_id: f.format_id,
+            ext: f.ext,
+            resolution: f.resolution || (f.width && f.height ? `${f.width}x${f.height}` : null),
+            width: f.width || null,
+            height: f.height || null,
+            fps: f.fps || null,
+            filesize: f.filesize || f.filesize_approx || null,
+            vcodec: f.vcodec,
+            acodec: f.acodec,
+            tbr: f.tbr || null,
+            format_note: f.format_note || null,
+            hasAudio: !!(f.acodec && f.acodec !== "none")
+          })).sort((a, b) => (b.height || 0) - (a.height || 0));
+          const thumbnails = info.thumbnails || [];
+          const thumbnail = info.thumbnail || (thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : null);
+          resolve({
+            title: info.title || info.id || "Видео",
+            thumbnailUrl: thumbnail,
+            formats,
+            duration: info.duration || null,
+            url: videoUrl
+          });
+        } catch (e) {
+          reject(new Error("Не удалось разобрать ответ yt-dlp: " + e.message));
+        }
+      });
+      child.on("error", reject);
+    });
+  });
+  electron.ipcMain.on("ytdl-run", (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution }) => {
+    const fs = require("fs");
+    const ytdlPath = getYtdlPath();
+    const cliPath = getCLIPath();
+    if (!fs.existsSync(ytdlPath)) {
+      event.sender.send("ytdl-exit", { id, code: 1, error: `yt-dlp не найден: ${ytdlPath}` });
+      return;
+    }
+    const resolvedDir = getDownloadDir(outputDir);
+    if (!fs.existsSync(resolvedDir)) fs.mkdirSync(resolvedDir, { recursive: true });
+    const safeBase = (outputName || "video").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/\.+$/, "").trim() || "video";
+    const fmtArg = !formatId || formatId === "best" ? "bestvideo+bestaudio/best" : `${formatId}+bestaudio/${formatId}`;
+    const outputTemplate = path.join(resolvedDir, safeBase + ".%(ext)s");
+    const ytdlArgs = [
+      "-f",
+      fmtArg,
+      "-o",
+      outputTemplate,
+      "--no-playlist",
+      "--merge-output-format",
+      "mp4",
+      "--newline",
+      url
+    ];
+    const child = child_process.spawn(ytdlPath, ytdlArgs, { windowsHide: true });
+    activeJobs.set(id, { child, outputPath: null });
+    let downloadedPath = null;
+    child.stdout.on("data", (data) => {
+      const str = data.toString();
+      event.sender.send("ytdl-output", { id, data: str });
+      const progressMatch = str.match(/\[download\]\s+([\d.]+)%/);
+      if (progressMatch) {
+        const progress = parseFloat(progressMatch[1]);
+        event.sender.send("ytdl-progress", { id, progress });
+      }
+      const destMatch = str.match(/\[download\] Destination:\s+(.+)/);
+      if (destMatch) downloadedPath = destMatch[1].trim();
+      const mergeMatch = str.match(/\[Merger\] Merging formats into "(.+)"/);
+      if (mergeMatch) downloadedPath = mergeMatch[1].trim();
+      const alreadyMatch = str.match(/\[download\] (.+) has already been downloaded/);
+      if (alreadyMatch) downloadedPath = alreadyMatch[1].trim();
+    });
+    child.stderr.on("data", (data) => {
+      event.sender.send("ytdl-output", { id, data: data.toString() });
+    });
+    child.on("error", (err) => {
+      activeJobs.delete(id);
+      event.sender.send("ytdl-exit", { id, code: 1, error: err.message });
+    });
+    child.on("close", (code) => {
+      activeJobs.delete(id);
+      if (code !== 0) {
+        event.sender.send("ytdl-exit", { id, code, outputPath: null });
+        return;
+      }
+      if (!downloadedPath || !fs.existsSync(downloadedPath)) {
+        try {
+          const files = fs.readdirSync(resolvedDir);
+          const matching = files.filter((f) => f.startsWith(safeBase + ".") || f.startsWith(safeBase + " (")).map((f) => ({ f, mtime: fs.statSync(path.join(resolvedDir, f)).mtimeMs })).sort((a, b) => b.mtime - a.mtime);
+          if (matching.length > 0) downloadedPath = path.join(resolvedDir, matching[0].f);
+        } catch (_) {
+        }
+      }
+      if (convertAfterDownload && downloadedPath && fs.existsSync(downloadedPath) && fs.existsSync(cliPath)) {
+        event.sender.send("ytdl-exit", { id, code: 0, outputPath: downloadedPath, converting: true });
+        const s = conversionSettings || { format: "av_mp4", encoder: "x265", encoderSpeed: "slow", quality: "medium", fps: "source", resolution: "source" };
+        const rawBase = (outputName || safeBase).replace(/_converted(\s*\(\d+\))?$/i, "").trimEnd();
+        const convertedBase = rawBase + "_converted";
+        const ext = FORMAT_EXT[s.format] || "mp4";
+        let convertedPath = path.join(resolvedDir, convertedBase + "." + ext);
+        if (fs.existsSync(convertedPath)) {
+          let c = 1;
+          while (fs.existsSync(path.join(resolvedDir, `${convertedBase} (${c}).${ext}`))) c++;
+          convertedPath = path.join(resolvedDir, `${convertedBase} (${c}).${ext}`);
+        }
+        const args = buildCliArgs(downloadedPath, convertedPath, s, videoResolution);
+        const stderrLines = [];
+        const hbChild = child_process.spawn(cliPath, args);
+        activeJobs.set(id + "_cvt", { child: hbChild, outputPath: convertedPath });
+        hbChild.stdout.on("data", (d) => {
+          const str = d.toString();
+          let pv = null;
+          const em = str.match(/Encoding:.*?([\d.]+)\s*%/);
+          if (em) {
+            pv = parseFloat(em[1]);
+          } else {
+            const all = [...str.matchAll(/([\d.]+)\s*%/g)];
+            if (all.length > 0) pv = parseFloat(all[all.length - 1][1]);
+          }
+          if (pv !== null && pv <= 100) event.sender.send("cli-progress", { id, progress: pv });
+        });
+        hbChild.stderr.on("data", (d) => {
+          stderrLines.push(d.toString());
+        });
+        hbChild.on("close", (hbCode) => {
+          activeJobs.delete(id + "_cvt");
+          event.sender.send("cli-exit", { id, code: hbCode, outputPath: convertedPath, stderr: stderrLines.join("") });
+        });
+      } else {
+        event.sender.send("ytdl-exit", { id, code: 0, outputPath: downloadedPath });
+      }
+    });
   });
   electron.ipcMain.handle("get-video-data", async (event, filePaths) => {
     const ffmpeg = require("fluent-ffmpeg");

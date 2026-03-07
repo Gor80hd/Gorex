@@ -2,6 +2,41 @@ import { useState, useEffect } from 'react'
 import './ListPage.scss'
 import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, ENCODER_GROUPS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS } from '../../components/GlobalSettings/GlobalSettings'
 
+// ─── yt-dlp format helpers ─────────────────────────────────────────────────────
+function formatFileSize(bytes) {
+    if (!bytes) return null
+    const mb = bytes / (1024 * 1024)
+    if (mb < 1024) return mb.toFixed(0) + ' MB'
+    return (mb / 1024).toFixed(1) + ' GB'
+}
+
+function formatFormatLabel(f) {
+    const res = f.resolution || (f.height ? f.height + 'p' : null)
+    const ext = (f.ext || '').toUpperCase()
+    const fps = f.fps ? ` ${f.fps}fps` : ''
+    const size = formatFileSize(f.filesize) ? ` ~${formatFileSize(f.filesize)}` : ''
+    const audio = f.hasAudio ? '' : ' (видео)'
+    const note = f.format_note ? ` ${f.format_note}` : ''
+    return [res, ext, fps, note, audio, size].filter(Boolean).join(' ').trim() || f.format_id
+}
+
+function buildYtdlFormatOptions(formats) {
+    const opts = [{ value: 'best', label: 'Лучшее качество (авто)' }]
+    if (!formats || !formats.length) return opts
+    // Dedup: keep best bitrate per resolution+ext combo
+    const seen = new Map()
+    for (const f of formats) {
+        const key = `${f.height || 0}_${f.ext}`
+        const prev = seen.get(key)
+        if (!prev || (f.tbr || 0) > (prev.tbr || 0)) seen.set(key, f)
+    }
+    const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0))
+    for (const f of sorted) {
+        opts.push({ value: f.format_id, label: formatFormatLabel(f), format: f })
+    }
+    return opts
+}
+
 // ─── Transformation tags helper ────────────────────────────────────────────────
 const ENCODER_SHORT = {
     x264: 'H.264', x264_10bit: 'H.264 10b',
@@ -117,10 +152,19 @@ const VSP_TABS = [
     { id: 'filters', label: 'Фильтры',    icon: 'bi-sliders' },
     { id: 'hdr',     label: 'HDR / Мета', icon: 'bi-stars' },
 ]
+const VSP_TABS_YTDL = [
+    { id: 'download', label: 'Загрузка',   icon: 'bi-cloud-arrow-down' },
+    { id: 'video',    label: 'Видео',      icon: 'bi-camera-video' },
+    { id: 'audio',    label: 'Аудио',      icon: 'bi-music-note-beamed' },
+    { id: 'filters',  label: 'Фильтры',    icon: 'bi-sliders' },
+    { id: 'hdr',      label: 'HDR / Мета', icon: 'bi-stars' },
+]
 
-function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset }) {
-    const [draft, setDraft] = useState(video.customSettings || { ...globalSettings })
-    const [activeTab, setActiveTab] = useState('video')
+function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle }) {
+    const isYtdl = !!video.isYtdlItem
+    const tabs = isYtdl ? VSP_TABS_YTDL : VSP_TABS
+    const [draft, setDraft] = useState(video.customSettings || video.conversionSettings || { ...globalSettings })
+    const [activeTab, setActiveTab] = useState(isYtdl ? 'download' : 'video')
 
     const update = (key, val) => setDraft(prev => ({ ...prev, [key]: val }))
 
@@ -149,8 +193,26 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset })
         options: g.encoders.map(e => ({ value: e.value, label: e.label, desc: e.desc }))
     }))
 
-    const handleSave = () => { onSave(video.id, draft); onClose() }
+    const handleSave = () => {
+        if (isYtdl) {
+            onYtdlConvertToggle(video.id, draft._convertAfterDownload ?? !!video.convertAfterDownload)
+            // Strip internal flag before persisting as conversionSettings
+            const { _convertAfterDownload: _, ...cleanDraft } = draft
+            onSave(video.id, cleanDraft)
+        } else {
+            onSave(video.id, draft)
+        }
+        onClose()
+    }
     const handleReset = () => { onReset(video.id); onClose() }
+
+    // For yt-dlp: local state for convert toggle (managed through draft)
+    const convertAfterDownload = isYtdl
+        ? (draft._convertAfterDownload !== undefined ? draft._convertAfterDownload : !!video.convertAfterDownload)
+        : false
+
+    const ytdlFormatOpts = isYtdl ? buildYtdlFormatOptions(video.ytdlFormats) : []
+    const selectedYtdlFmt = isYtdl ? (video.ytdlSelectedFormat || 'best') : 'best'
 
     return (
         <div className="vsp-overlay" onClick={onClose}>
@@ -162,7 +224,9 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset })
                         <img className="vsp-thumb" src={video.thumbnail} alt="" />
                         <div className="vsp-title-block">
                             <span className="vsp-title">{video.title}</span>
-                            <span className="vsp-subtitle">Индивидуальные настройки конвертации</span>
+                            <span className="vsp-subtitle">
+                                {isYtdl ? 'Настройки загрузки и конвертации' : 'Индивидуальные настройки конвертации'}
+                            </span>
                         </div>
                     </div>
                     <button className="vsp-close" onClick={onClose}>
@@ -173,10 +237,10 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset })
                 {/* ── Body: sidebar + content ── */}
                 <div className="vsp-body">
                     <div className="vsp-sidebar">
-                        {VSP_TABS.map(tab => (
+                        {tabs.map(tab => (
                             <button
                                 key={tab.id}
-                                className={`vsp-tab${activeTab === tab.id ? ' active' : ''}`}
+                                className={`vsp-tab${activeTab === tab.id ? ' active' : ''}${isYtdl && tab.id !== 'download' && !convertAfterDownload ? ' vsp-tab--dim' : ''}`}
                                 onClick={() => setActiveTab(tab.id)}
                             >
                                 <i className={`bi ${tab.icon}`}></i>
@@ -186,6 +250,34 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset })
                     </div>
 
                     <div className="vsp-content">
+
+                        {/* ═══ DOWNLOAD (yt-dlp only) ═══ */}
+                        {activeTab === 'download' && isYtdl && (
+                            <div className="vsp-section">
+                                <VspSectionHeader icon="bi-cloud-arrow-down" title="Формат загрузки" />
+                                <VspRow label="Качество / формат" hint="Выберите разрешение и формат для скачивания">
+                                    <PanelSelect
+                                        value={selectedYtdlFmt}
+                                        options={ytdlFormatOpts}
+                                        onChange={v => onYtdlFormatChange(video.id, v)}
+                                    />
+                                </VspRow>
+
+                                <VspSectionHeader icon="bi-arrow-repeat" title="Конвертация после загрузки" />
+                                <VspRow label="Конвертировать файл" hint="После загрузки запустить HandBrake конвертацию (настройки — во вкладках Видео/Аудио)">
+                                    <VspToggle
+                                        value={convertAfterDownload}
+                                        onChange={v => setDraft(prev => ({ ...prev, _convertAfterDownload: v }))}
+                                    />
+                                </VspRow>
+                                {!convertAfterDownload && (
+                                    <div className="vsp-notice">
+                                        <i className="bi bi-info-circle"></i>
+                                        Вкладки Видео / Аудио / Фильтры доступны только если включена конвертация.
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* ═══ VIDEO ═══ */}
                         {activeTab === 'video' && (
@@ -533,7 +625,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset })
 
                 {/* ── Footer ── */}
                 <div className="vsp-footer">
-                    {video.customSettings && (
+                    {(video.customSettings || video.conversionSettings) && !isYtdl && (
                         <button className="vsp-reset-btn" onClick={handleReset}>
                             <i className="bi bi-arrow-counterclockwise"></i>
                             Сбросить (глобальные)
@@ -558,6 +650,7 @@ function ListPage({
     onSettingsChange, onStartEncoding, onStop,
     outputMode, customOutputDir, defaultOutputDir, onOutputModeChange,
     onAddFiles, onRemoveVideo, onClearQueue, onRenameOutput, onVideoSettingsChange,
+    onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings,
     isDraggingOnList, onListDragEnter, onListDragLeave, onListDragOver, onListDrop,
     gpuVendor, encodingStartTime
 }) {
@@ -590,6 +683,15 @@ function ListPage({
 
     const customCount = videos.filter(v => v.customSettings).length
     const globalCount = videos.length - customCount
+
+    const hasOnlyDownloads = videos.length > 0 && videos.every(v => v.isYtdlItem)
+    const hasRegular = videos.some(v => !v.isYtdlItem)
+    const hasDownloads = videos.some(v => v.isYtdlItem)
+    const allReady = videos.every(v =>
+        v.isYtdlItem ? ['format_select', 'error'].includes(v.status) : ['ready', 'done', 'error'].includes(v.status)
+    )
+
+    const startBtnLabel = hasOnlyDownloads ? 'СКАЧАТЬ' : hasDownloads ? 'ЗАПУСТИТЬ' : 'КОНВЕРТИРОВАТЬ'
 
     const editingVideo = editingVideoId !== null ? videos.find(v => v.id === editingVideoId) : null
 
@@ -624,16 +726,24 @@ function ListPage({
                 onDrop={onListDrop}
             >
                 <div className={`video-list-scroll ${isDraggingOnList ? 'blurred' : ''}`}>
-                    {videos.map(v => (
+                    {videos.map(v => {
+                        const isActive = ['encoding', 'downloading', 'converting'].includes(v.status)
+                        return (
                         <div
                             key={v.id}
-                            className={`video-item ${v.status} ${theme}${v.customSettings ? ' has-custom-settings' : ''}`}
-                            onClick={() => !isEncoding && v.status !== 'encoding' && setEditingVideoId(v.id)}
-                            style={(!isEncoding && v.status !== 'encoding') ? { cursor: 'pointer' } : {}}
+                            className={`video-item ${v.status} ${theme}${(v.customSettings || (v.isYtdlItem && v.conversionSettings)) ? ' has-custom-settings' : ''}`}
+                            style={{
+                                ...(v.downloadService ? {
+                                    borderColor: `color-mix(in srgb, ${v.downloadService.color} 40%, transparent)`,
+                                    background: `color-mix(in srgb, ${v.downloadService.color} 8%, transparent)`
+                                } : {}),
+                                ...(!isEncoding && !isActive ? { cursor: 'pointer' } : {})
+                            }}
+                            onClick={() => !isEncoding && !isActive && setEditingVideoId(v.id)}
                         >
                             <div className="video-thumbnail">
                                 <img src={v.thumbnail} alt="Thumbnail" />
-                                {v.status === 'encoding' && (
+                                {isActive && (
                                     <div className="encoding-overlay">
                                         <div className="spinner"></div>
                                     </div>
@@ -642,13 +752,13 @@ function ListPage({
                             <div className="video-info">
                                 <div className="video-title-row">
                                     <div className="video-title">{v.title}</div>
-                                    {v.customSettings && (
+                                    {(v.customSettings || (v.isYtdlItem && v.conversionSettings)) && (
                                         <span className="vtag custom-tag">
                                             <i className="bi bi-sliders2"></i>
                                             Инд.
                                         </span>
                                     )}
-                                    {!isEncoding && v.status !== 'encoding' && (
+                                    {!isEncoding && !isActive && (
                                         editingId === v.id
                                             ? <input
                                                 className="output-name-input"
@@ -670,6 +780,12 @@ function ListPage({
                                     )}
                                 </div>
                                 <div className="video-tags">
+                                    {v.downloadService && (
+                                        <span className="vtag download-svc-tag" style={{ background: `color-mix(in srgb, ${v.downloadService.color} 18%, transparent)`, color: v.downloadService.color }}>
+                                            <i className={`bi ${v.downloadService.icon}`}></i>
+                                            {v.downloadService.name}
+                                        </span>
+                                    )}
                                     {v.container && <span className="vtag fmt"><i className="bi bi-file-earmark-play"></i>{v.container}</span>}
                                     {v.resolution && <span className="vtag"><i className="bi bi-aspect-ratio"></i>{v.resolution}</span>}
                                     {v.videoCodec && <span className="vtag"><i className="bi bi-cpu"></i>{v.videoCodec}</span>}
@@ -679,8 +795,40 @@ function ListPage({
                                     {v.bitrate && <span className="vtag bitrate"><i className="bi bi-speedometer2"></i>{v.bitrate}</span>}
                                     {v.duration && <span className="vtag duration"><i className="bi bi-clock"></i>{v.duration}</span>}
                                 </div>
-                                {(() => {
-                                    const effectiveSettings = v.customSettings || settings
+
+                                {/* ── yt-dlp inline controls ── */}
+                                {v.isYtdlItem && v.status !== 'done' && (
+                                    <div className="ytdl-controls" onClick={e => e.stopPropagation()}>
+                                        <div className="ytdl-format-row">
+                                            <i className="bi bi-cloud-arrow-down ytdl-icon"></i>
+                                            <span className="ytdl-label">Формат:</span>
+                                            <select
+                                                className="ytdl-format-select"
+                                                value={v.ytdlSelectedFormat || 'best'}
+                                                onChange={e => onYtdlFormatChange(v.id, e.target.value)}
+                                                disabled={isEncoding}
+                                            >
+                                                {buildYtdlFormatOptions(v.ytdlFormats).map(opt => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="ytdl-convert-row">
+                                            <VspToggle
+                                                value={!!v.convertAfterDownload}
+                                                onChange={val => onYtdlConvertToggle(v.id, val)}
+                                                disabled={isEncoding}
+                                            />
+                                            <span className="ytdl-label">Конвертировать после загрузки</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── conversion transform tags (non-ytdl, or ytdl with convert) ── */}
+                                {(!v.isYtdlItem || v.convertAfterDownload) && (() => {
+                                    const effectiveSettings = v.isYtdlItem
+                                        ? (v.conversionSettings || settings)
+                                        : (v.customSettings || settings)
                                     const transformTags = getTransformTags(v, effectiveSettings)
                                     if (!transformTags.length) return null
                                     return (
@@ -697,13 +845,17 @@ function ListPage({
                                 <div className="video-progress">
                                     <div className="progress-bar-bg">
                                         <div
-                                            className="progress-bar-fill"
+                                            className={`progress-bar-fill${v.status === 'downloading' ? ' progress-bar-fill--download' : v.status === 'converting' ? ' progress-bar-fill--convert' : ''}`}
                                             style={{ width: `${v.progress}%` }}
                                         ></div>
                                     </div>
-                                    <span className="progress-text">{v.progress.toFixed(1)}%</span>
+                                    <span className="progress-text">
+                                        {v.status === 'downloading' ? `↓ ${v.progress.toFixed(1)}%` :
+                                         v.status === 'converting' ? `⚙ ${v.progress.toFixed(1)}%` :
+                                         `${v.progress.toFixed(1)}%`}
+                                    </span>
                                 </div>
-                                {v.status === 'encoding' && v.startTime && (
+                                {(v.status === 'encoding' || v.status === 'downloading' || v.status === 'converting') && v.startTime && (
                                     <div className="video-time-info">
                                         <span className="vtime elapsed">
                                             <i className="bi bi-clock-history"></i>
@@ -730,6 +882,7 @@ function ListPage({
                                 {v.status === 'done'
                                     ? <i className="bi bi-check-circle-fill success"></i>
                                     : (() => {
+                                        if (v.isYtdlItem) return null
                                         const effectiveSettings = v.customSettings || settings
                                         const estimated = v.status !== 'encoding'
                                             ? estimateOutputSize(v, effectiveSettings)
@@ -746,7 +899,7 @@ function ListPage({
                                         )
                                     })()
                                 }
-                                {v.status !== 'encoding' && !isEncoding && (
+                                {v.status !== 'encoding' && v.status !== 'downloading' && v.status !== 'converting' && !isEncoding && (
                                     <button
                                         className="delete-video-btn"
                                         onClick={e => { e.stopPropagation(); onRemoveVideo(v.id) }}
@@ -756,7 +909,8 @@ function ListPage({
                                 )}
                             </div>
                         </div>
-                    ))}
+                        )
+                    })}
                 </div>
                 {isDraggingOnList && (
                     <div className="list-drop-overlay">
@@ -769,41 +923,63 @@ function ListPage({
             </div>
 
             <div className="list-bottom-panel">
+                {/* Header adapts to content type */}
                 <div className="list-bottom-header">
-                    <span className="list-bottom-title">Глобальные настройки конвертации</span>
+                    <span className="list-bottom-title">
+                        {hasOnlyDownloads
+                            ? 'Настройки загрузки'
+                            : hasDownloads
+                                ? 'Глобальные настройки конвертации'
+                                : 'Глобальные настройки конвертации'}
+                    </span>
                 </div>
 
-                <GlobalSettings
-                    settings={settings}
-                    onChange={onSettingsChange}
-                    videos={videos}
-                    disabled={isEncoding}
-                    gpuVendor={gpuVendor}
-                />
+                {/* Show conversion GlobalSettings only if there are regular (non-ytdl) videos */}
+                {hasRegular && (
+                    <GlobalSettings
+                        settings={settings}
+                        onChange={onSettingsChange}
+                        videos={videos.filter(v => !v.isYtdlItem)}
+                        disabled={isEncoding}
+                        gpuVendor={gpuVendor}
+                    />
+                )}
+
+                {/* Notice when mixed queue */}
+                {hasRegular && hasDownloads && (
+                    <div className="ytdl-global-notice">
+                        <i className="bi bi-info-circle-fill"></i>
+                        {videos.filter(v => v.isYtdlItem).length} файл(ов) для загрузки — у каждого свои настройки (откройте карточку).
+                    </div>
+                )}
 
                 <div className="list-bottom-actions">
                     <div className="list-output-section">
                         <div className="list-output-top">
-                            <span className="list-output-label">Папка для сохранения</span>
-                            <GsSelect
-                                value={outputMode}
-                                options={[
-                                    { value: 'default', label: 'По умолчанию' },
-                                    { value: 'custom',  label: 'Своя папка' },
-                                    { value: 'source',  label: 'Исходный путь' },
-                                ]}
-                                onChange={onOutputModeChange}
-                                disabled={isEncoding}
-                                className="list-output-mode-dropdown"
-                            />
+                            <span className="list-output-label">
+                                {hasOnlyDownloads ? 'Папка для загрузки' : 'Папка для сохранения'}
+                            </span>
+                            {!hasOnlyDownloads && (
+                                <GsSelect
+                                    value={outputMode}
+                                    options={[
+                                        { value: 'default', label: 'По умолчанию' },
+                                        { value: 'custom',  label: 'Своя папка' },
+                                        { value: 'source',  label: 'Исходный путь' },
+                                    ]}
+                                    onChange={onOutputModeChange}
+                                    disabled={isEncoding}
+                                    className="list-output-mode-dropdown"
+                                />
+                            )}
                         </div>
                         <div className="list-output-path-row">
                             <div className="list-output-path-display">
                                 {outputMode === 'custom'
-                                    ? (customOutputDir || '—')
+                                    ? (customOutputDir || 'Downloaded (рядом с программой)')
                                     : outputMode === 'source'
                                         ? 'Исходный путь файла'
-                                        : (defaultOutputDir || 'По умолчанию')}
+                                        : (defaultOutputDir || 'Downloaded (рядом с программой)')}
                             </div>
                             <button
                                 className="list-folder-btn"
@@ -822,7 +998,7 @@ function ListPage({
                         disabled={isEncoding}
                         style={isEncoding ? { display: 'none' } : {}}
                     >
-                        КОНВЕРТИРОВАТЬ
+                        {startBtnLabel}
                         <i className="bi bi-arrow-right"></i>
                     </button>
                     {isEncoding && (
@@ -838,11 +1014,15 @@ function ListPage({
 
                 <div className="list-bottom-status">
                     <span>
-                        {globalCount > 0 && (
+                        {hasDownloads && (
+                            <><i className="bi bi-cloud-arrow-down"></i>&nbsp;<b>{videos.filter(v => v.isYtdlItem).length}</b>&nbsp;загрузок</>
+                        )}
+                        {hasDownloads && hasRegular && <>&nbsp;&nbsp;·&nbsp;&nbsp;</>}
+                        {hasRegular && globalCount > 0 && (
                             <><i className="bi bi-globe2"></i>&nbsp;<b>{globalCount}</b>&nbsp;{globalCount === 1 ? 'файл' : globalCount < 5 ? 'файла' : 'файлов'} по глобальным</>
                         )}
-                        {globalCount > 0 && customCount > 0 && <>&nbsp;&nbsp;·&nbsp;&nbsp;</>}
-                        {customCount > 0 && (
+                        {hasRegular && globalCount > 0 && customCount > 0 && <>&nbsp;&nbsp;·&nbsp;&nbsp;</>}
+                        {hasRegular && customCount > 0 && (
                             <><i className="bi bi-sliders2"></i>&nbsp;<b>{customCount}</b>&nbsp;{customCount === 1 ? 'файл' : customCount < 5 ? 'файла' : 'файлов'} по индивидуальным</>
                         )}
                         {videos.some(v => v.status === 'done') && (
@@ -875,8 +1055,10 @@ function ListPage({
                     video={editingVideo}
                     globalSettings={settings}
                     onClose={() => setEditingVideoId(null)}
-                    onSave={onVideoSettingsChange}
-                    onReset={(id) => onVideoSettingsChange(id, null)}
+                    onSave={editingVideo.isYtdlItem ? onYtdlConversionSettings : onVideoSettingsChange}
+                    onReset={(id) => editingVideo.isYtdlItem ? onYtdlConversionSettings(id, null) : onVideoSettingsChange(id, null)}
+                    onYtdlFormatChange={onYtdlFormatChange}
+                    onYtdlConvertToggle={onYtdlConvertToggle}
                 />
             )}
         </div>

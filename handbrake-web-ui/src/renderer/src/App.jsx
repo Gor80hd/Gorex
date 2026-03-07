@@ -47,6 +47,7 @@ function App() {
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     })
     const [isLoading, setIsLoading] = useState(false)
+    const [loadingMessage, setLoadingMessage] = useState(null)
     const [outputMode, setOutputMode] = useState('default')
     const [customOutputDir, setCustomOutputDir] = useState(() => {
         try {
@@ -62,7 +63,7 @@ function App() {
 
     useEffect(() => { videosRef.current = videos }, [videos])
 
-    const loadAndAddVideos = async (paths) => {
+    const loadAndAddVideos = async (paths, downloadService = false) => {
         if (!paths || paths.length === 0) return
         setIsLoading(true)
         try {
@@ -72,7 +73,8 @@ function App() {
                 id: nextIdRef.current++,
                 progress: 0,
                 status: 'ready',
-                customSettings: null
+                customSettings: null,
+                downloadService: downloadService && typeof downloadService === 'object' ? downloadService : null
             }))
             setVideos(prev => {
                 const updated = [...prev, ...newVideos]
@@ -114,6 +116,53 @@ function App() {
 
     const handleVideoSettingsChange = (id, settings) => {
         setVideos(prev => prev.map(v => v.id === id ? { ...v, customSettings: settings } : v))
+    }
+
+    const handleDownload = async (url, service) => {
+        setIsLoading(true)
+        setLoadingMessage({ title: 'Получение форматов...', subtitle: 'Запрашиваем информацию о видео' })
+        try {
+            const info = await window.api.ytdlGetFormats(url)
+            const safeOutputName = (info.title || 'video')
+                .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+                .replace(/\.+$/, '')
+                .trim() || 'video'
+            const newVideo = {
+                id: nextIdRef.current++,
+                isYtdlItem: true,
+                ytdlUrl: url,
+                ytdlFormats: info.formats,
+                ytdlSelectedFormat: 'best',
+                title: info.title,
+                outputName: safeOutputName,
+                thumbnail: info.thumbnailUrl,
+                status: 'format_select',
+                progress: 0,
+                downloadService: service,
+                convertAfterDownload: false,
+                conversionSettings: null,
+                customSettings: null,
+            }
+            setVideos(prev => [...prev, newVideo])
+            setView('list')
+        } catch (err) {
+            console.error('Failed to fetch yt-dlp formats:', err)
+        } finally {
+            setIsLoading(false)
+            setLoadingMessage(null)
+        }
+    }
+
+    const handleYtdlFormatChange = (id, formatId) => {
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, ytdlSelectedFormat: formatId } : v))
+    }
+
+    const handleYtdlConvertToggle = (id, val) => {
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, convertAfterDownload: val } : v))
+    }
+
+    const handleYtdlConversionSettings = (id, settings) => {
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, conversionSettings: settings } : v))
     }
 
     const toggleTheme = () => {
@@ -308,6 +357,35 @@ function App() {
             }
         })
 
+        window.api.onYtdlProgress(({ id, progress }) => {
+            setVideos(prev => prev.map(v =>
+                v.id === id
+                    ? { ...v, progress, status: 'downloading', startTime: v.startTime ?? Date.now() }
+                    : v
+            ))
+        })
+
+        window.api.onYtdlExit(({ id, code, converting }) => {
+            if (converting) {
+                // Download finished, conversion phase starting
+                setVideos(prev => prev.map(v =>
+                    v.id === id ? { ...v, progress: 0, status: 'converting', startTime: Date.now() } : v
+                ))
+            } else {
+                setVideos(prev => {
+                    const updated = prev.map(v => v.id === id
+                        ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
+                        : v
+                    )
+                    if (!updated.some(v => ['encoding', 'downloading', 'converting'].includes(v.status))) {
+                        setIsEncoding(false)
+                        setEncodingStartTime(null)
+                    }
+                    return updated
+                })
+            }
+        })
+
         window.api.onCliExit(({ id, code, stderr }) => {
             progressStateRef.current.delete(id)
             setVideos(prev => {
@@ -315,7 +393,7 @@ function App() {
                     ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
                     : v
                 )
-                if (!updated.some(v => v.status === 'encoding')) {
+                if (!updated.some(v => ['encoding', 'downloading', 'converting'].includes(v.status))) {
                     setIsEncoding(false)
                     setEncodingStartTime(null)
                 }
@@ -371,6 +449,9 @@ function App() {
                         onClearQueue={handleClearQueue}
                         onRenameOutput={handleRenameOutput}
                         onVideoSettingsChange={handleVideoSettingsChange}
+                        onYtdlFormatChange={handleYtdlFormatChange}
+                        onYtdlConvertToggle={handleYtdlConvertToggle}
+                        onYtdlConversionSettings={handleYtdlConversionSettings}
                         isDraggingOnList={isDraggingOnList}
                         onListDragEnter={handleListDragEnter}
                         onListDragLeave={handleListDragLeave}
@@ -387,6 +468,7 @@ function App() {
                         onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={handleDrop}
+                        onDownload={handleDownload}
                     />
                 )
         }
@@ -414,8 +496,8 @@ function App() {
             {isLoading && (
                 <div className={`loading-overlay ${theme}`}>
                     <div className="loading-popup">
-                        <div className="loading-popup-title">Анализ файлов...</div>
-                        <div className="loading-popup-subtitle">Считываем метаданные видео</div>
+                        <div className="loading-popup-title">{loadingMessage?.title ?? 'Анализ файлов...'}</div>
+                        <div className="loading-popup-subtitle">{loadingMessage?.subtitle ?? 'Считываем метаданные видео'}</div>
                         <div className="loading-bar-track">
                             <div className="loading-bar-fill"></div>
                         </div>

@@ -397,6 +397,105 @@
     background: var(--accent-color);
     border-radius: 2px;
     transition: width 0.3s ease;
+
+    &--download {
+        background: #3b82f6;
+    }
+
+    &--convert {
+        background: #f59e0b;
+    }
+}
+
+// ─── yt-dlp inline controls ────────────────────────────────────────────────────
+.ytdl-controls {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+}
+
+.ytdl-format-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ytdl-convert-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ytdl-icon {
+    font-size: 0.8rem;
+    opacity: 0.6;
+}
+
+.ytdl-label {
+    font-size: 0.72rem;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
+.ytdl-format-select {
+    font-size: 0.75rem;
+    font-family: inherit;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color-dark);
+    background: rgba(0, 0, 0, 0.25);
+    color: inherit;
+    cursor: pointer;
+    max-width: 220px;
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+.app-wrapper.light .ytdl-format-select {
+    border-color: var(--border-color-light);
+    background: rgba(0, 0, 0, 0.06);
+}
+
+// ─── Global notice for mixed queues ───────────────────────────────────────────
+.ytdl-global-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    font-size: 0.75rem;
+    opacity: 0.85;
+    margin-bottom: 4px;
+
+    i { color: #3b82f6; font-size: 0.8rem; }
+}
+
+// ─── VSP notice (inside panel) ────────────────────────────────────────────────
+.vsp-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px dashed rgba(245, 158, 11, 0.3);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    opacity: 0.85;
+    margin-top: 8px;
+
+    i { color: #f59e0b; flex-shrink: 0; }
+}
+
+.vsp-tab--dim {
+    opacity: 0.35 !important;
 }
 
 .progress-text {

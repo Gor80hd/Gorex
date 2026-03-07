@@ -49,6 +49,11 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | `onCliExit(cb)`               | `cli-exit`      | on           | `{ id, code, outputPath }`           |
 | `onCliOutput(cb)`             | `cli-output`    | on           | Сырой stdout HandBrake               |
 | `onCliError(cb)`              | `cli-error`     | on           | Сырой stderr HandBrake               |
+| `ytdlGetFormats(url)`         | `ytdl-get-formats` | invoke    | Получить форматы без загрузки        |
+| `ytdlRun({id, url, …})`       | `ytdl-run`      | send         | Скачать + (опц.) конвертировать      |
+| `onYtdlProgress(cb)`          | `ytdl-progress` | on           | `{ id, progress }` % загрузки        |
+| `onYtdlExit(cb)`              | `ytdl-exit`     | on           | `{ id, code, outputPath, converting }` |
+| `onYtdlOutput(cb)`            | `ytdl-output`   | on           | Сырой stdout yt-dlp                  |
 | `minimize/maximize/close()`   | `window-*`      | send         | Управление окном                     |
 
 ---
@@ -86,7 +91,7 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | `--scan`                   | flag        | Только сканировать, не кодировать                      |
 | `--main-feature`           | flag        | Автоматически выбрать главный title (DVD/BD)           |
 | `--keep-duplicate-titles`  | flag        | Не отбрасывать дубли title (только Blu-ray)            |
-| `-c / --chapters <range>`  | string      | Диапазон глав: `1-3`, `5`, default = all              |
+| `-c / --chapters <range>`  | string      | Диапазон глав: `1-3`, `5`, default = all               |
 | `--angle <N>`              | int         | Угол записи (DVD/BD multi-angle)                       |
 | `--previews <N:bool>`      | string      | Кол-во превью:сохранять_на_диск (def: `10:0`)          |
 | `--start-at-preview <N>`   | int         | Начать кодирование с N-го превью                       |
@@ -98,7 +103,7 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | Флаг CLI                   | Тип     | Описание                                              |
 |----------------------------|---------|-------------------------------------------------------|
 | `-o / --output <path>`     | path    | Выходной файл                                         |
-| `-f / --format <fmt>`      | string  | Контейнер: `av_mp4`, `av_mkv`, `av_webm`             |
+| `-f / --format <fmt>`      | string  | Контейнер: `av_mp4`, `av_mkv`, `av_webm`              |
 | `-m / --markers`           | flag    | Добавить главы (chapter markers)                      |
 | `--no-markers`             | flag    | Отключить главы из пресета                            |
 | `-O / --optimize`          | flag    | Оптимизировать MP4 для HTTP-стриминга (fast start)    |
@@ -107,7 +112,7 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | `--align-av`               | flag    | Выровнять старт аудио и видео                         |
 | `--keep-metadata`          | flag    | Сохранить метаданные источника                        |
 | `--no-metadata`            | flag    | Не копировать метаданные                              |
-| `--inline-parameter-sets`  | flag    | SPS/PPS inline (для adaptive streaming / HLS)        |
+| `--inline-parameter-sets`  | flag    | SPS/PPS inline (для adaptive streaming / HLS)         |
 
 ### 2.4 Видео (Video)
 
@@ -120,10 +125,10 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | `--encoder-tune-list <enc>`     | string   | Список тюнингов для кодека                          |
 | `--encoder-profile <name>`      | string   | Профиль (main, high, main10, etc.)                  |
 | `--encoder-profile-list <enc>`  | string   | Список профилей для кодека                          |
-| `--encoder-level <name>`        | string   | Уровень (4.0, 4.1, 5.0, etc.)                      |
+| `--encoder-level <name>`        | string   | Уровень (4.0, 4.1, 5.0, etc.)                       |
 | `--encoder-level-list <enc>`    | string   | Список уровней для кодека                           |
 | `-x / --encopts <k=v:k=v>`      | string   | Дополнительные опции кодека (mencoder-style)        |
-| `-q / --quality <float>`        | float    | CRF/CQ: качество (H.264: 22.0, H.265: 28.0)        |
+| `-q / --quality <float>`        | float    | CRF/CQ: качество (H.264: 22.0, H.265: 28.0)         |
 | `-b / --vb <kbps>`              | int      | Битрейт видео в кбит/с                              |
 | `--multi-pass`                  | flag     | Двухпроходное кодирование                           |
 | `--no-multi-pass`               | flag     | Отключить multi-pass                                |
@@ -142,10 +147,10 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | Флаг CLI                          | Тип     | Описание                                           |
 |-----------------------------------|---------|----------------------------------------------------|
 | `--audio-lang-list <langs>`       | string  | Список языков аудио через запятую (ISO 639-2)      |
-| `--all-audio`                     | flag    | Добавить все дорожки по языковому списку            |
-| `--first-audio`                   | flag    | Выбрать первую дорожку по языковому списку          |
+| `--all-audio`                     | flag    | Добавить все дорожки по языковому списку           |
+| `--first-audio`                   | flag    | Выбрать первую дорожку по языковому списку         |
 | `-a / --audio <tracks>`           | string  | Номера дорожек: `1,2,3` или `none`                 |
-| `-E / --aencoder <codecs>`        | string  | Аудиокодек(и): `av_aac`, `mp3`, `ac3`, `copy:ac3` |
+| `-E / --aencoder <codecs>`        | string  | Аудиокодек(и): `av_aac`, `mp3`, `ac3`, `copy:ac3`  |
 | `--audio-copy-mask <codecs>`      | string  | Разрешённые кодеки при copy-passthru               |
 | `--audio-fallback <codec>`        | string  | Фолбэк при невозможности copy                      |
 | `-B / --ab <kbps>`                | int     | Битрейт аудио (на дорожку через запятую)           |
@@ -157,7 +162,7 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | `-D / --drc <float>`              | float   | Dynamic Range Compression: 1.0–4.0                 |
 | `--gain <dB>`                     | float   | Усиление/ослабление аудио в dB                     |
 | `--adither <type>`                | string  | Дизеринг перед кодированием                        |
-| `--keep-aname`                    | flag    | Сохранить имена аудиодорожек из источника           |
+| `--keep-aname`                    | flag    | Сохранить имена аудиодорожек из источника          |
 | `--no-keep-aname`                 | flag    | Не сохранять имена                                 |
 | `--automatic-naming-behaviour <t>`| string  | `off`, `unnamed`, `all`                            |
 | `-A / --aname <names>`            | string  | Имена дорожек через запятую                        |
@@ -185,7 +190,7 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 
 | Флаг CLI                       | Тип     | Описание                                           |
 |--------------------------------|---------|----------------------------------------------------|
-| `--subtitle-lang-list <langs>` | string  | Список языков субтитров                             |
+| `--subtitle-lang-list <langs>` | string  | Список языков субтитров                            |
 | `--all-subtitles`              | flag    | Все субтитры по языковому списку                   |
 | `--first-subtitle`             | flag    | Первые субтитры по языковому списку                |
 | `-s / --subtitle <tracks>`     | string  | Номера дорожек субтитров                           |
@@ -255,7 +260,7 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 | `vp8`          | libvpx VP8                           | Все            |
 | `vp9`          | libvpx VP9                           | Все            |
 | `vp9_10bit`    | libvpx VP9 10-бит                    | Все            |
-| `theora`       | libtheora                             | Все            |
+| `theora`       | libtheora                             | Все           |
 | `nvenc_h264`   | NVIDIA NVENC H.264                   | NVIDIA GPU     |
 | `nvenc_h265`   | NVIDIA NVENC H.265                   | NVIDIA GPU     |
 | `nvenc_av1`    | NVIDIA NVENC AV1                     | NVIDIA GPU     |
@@ -428,9 +433,52 @@ const [encoderPreset, setEncoderPreset] = useState('medium')
     <option value="av_mkv">MKV</option>
     <option value="av_webm">WebM</option>
 </select>
-<input type="range" min="0" max="51" step="0.5"
-    value={videoQuality} onChange={e => onQualityChange(parseFloat(e.target.value))} />
+
+---
+
+## 8. youtube-dl — ядро для скачивания видео
+
+Расположение в проекте: `handbrake-web-ui/resources/ytdl/`
+
+### 8.1 Что такое youtube-dl
+
+youtube-dl — кроссплатформенный CLI-инструмент для скачивания видео с сотен платформ (YouTube, Twitter/X, Instagram, Vimeo, SoundCloud, Reddit и др.). Источник: https://github.com/ytdl-org/youtube-dl.
+
+В BPRESS используется как встроенный бинарник — отдельный сервер не нужен. Электрон запускает его как дочерний процесс напрямую.
+
+### 8.2 Расположение бинарников
+
 ```
+resources/ytdl/
+├── youtube-dl.exe   ← Windows
+└── youtube-dl       ← macOS / Linux
+```
+
+Бинарник выбирается автоматически по `process.platform`. Путь резолвится через `getYtdlPath()` в `src/main/index.js`.
+
+### 8.3 IPC — `ytdl-download`
+
+| Параметр | Тип     | Описание                         |
+|:---------|:--------|:---------------------------------|
+| `url`    | string  | URL видео для скачивания         |
+
+**Возвращает:** абсолютный путь к скачанному файлу в папке `temp`.
+
+Алгоритм:
+1. `--get-filename` — определить целевой путь без скачивания
+2. Скачать по тому же шаблону `-o ytdl-%(title)s.%(ext)s`
+3. Проверить что файл существует и размер > 512 байт
+4. Вернуть путь — App.jsx передаёт его в `loadAndAddVideos`
+
+### 8.4 Ключевые флаги
+
+| Флаг               | Описание                              |
+|:-------------------|:--------------------------------------|
+| `--no-playlist`    | Скачать только одно видео, не плейлист |
+| `-o <template>`    | Шаблон имени выходного файла           |
+| `--get-filename`   | Вывести resolved путь без скачивания   |
+
+---
 
 ### Шаг 4: Передать в runCli через IPC
 ```js

@@ -36,6 +36,10 @@
         {
           "from": "../build/HandBrakeCLI.exe",
           "to": "HandBrakeCLI.exe"
+        },
+        {
+          "from": "resources/ytdl",
+          "to": "resources/ytdl"
         }
       ]
     },

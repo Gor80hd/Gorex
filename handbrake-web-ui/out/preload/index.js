@@ -33,7 +33,21 @@ const api = {
   minimize: () => electron.ipcRenderer.send("window-minimize"),
   maximize: () => electron.ipcRenderer.send("window-maximize"),
   close: () => electron.ipcRenderer.send("window-close"),
-  openDevTools: () => electron.ipcRenderer.send("open-devtools")
+  openDevTools: () => electron.ipcRenderer.send("open-devtools"),
+  ytdlGetFormats: (url) => electron.ipcRenderer.invoke("ytdl-get-formats", url),
+  ytdlRun: (args) => electron.ipcRenderer.send("ytdl-run", args),
+  onYtdlProgress: (callback) => {
+    electron.ipcRenderer.removeAllListeners("ytdl-progress");
+    electron.ipcRenderer.on("ytdl-progress", (_, data) => callback(data));
+  },
+  onYtdlExit: (callback) => {
+    electron.ipcRenderer.removeAllListeners("ytdl-exit");
+    electron.ipcRenderer.on("ytdl-exit", (_, data) => callback(data));
+  },
+  onYtdlOutput: (callback) => {
+    electron.ipcRenderer.removeAllListeners("ytdl-output");
+    electron.ipcRenderer.on("ytdl-output", (_, data) => callback(data));
+  }
 };
 if (process.contextIsolated) {
   try {
