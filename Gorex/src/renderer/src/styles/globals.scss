@@ -430,8 +430,8 @@ body {
 }
 
 .onboarding-card {
-    width: min(600px, calc(100vw - 48px));
-    padding: 40px 48px 44px;
+    width: min(560px, calc(100vw - 48px));
+    padding: 36px 44px 40px;
     border-radius: 20px;
     display: flex;
     flex-direction: column;
@@ -483,6 +483,11 @@ body {
         border-radius: 3px;
         background: var(--accent-color) !important;
     }
+
+    &.done {
+        .dark & { background: rgba(124, 58, 237, 0.4); }
+        .light & { background: rgba(124, 58, 237, 0.35); }
+    }
 }
 
 .onboarding-step {
@@ -491,6 +496,90 @@ body {
     flex-direction: column;
     align-items: center;
     animation: pageIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+
+    &.ob-dir-fwd { animation-name: obSlideInFwd; }
+    &.ob-dir-bwd { animation-name: obSlideInBwd; }
+}
+
+@keyframes obSlideInFwd {
+    from { opacity: 0; transform: translateX(28px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes obSlideInBwd {
+    from { opacity: 0; transform: translateX(-28px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+// ---- Slide icon ----
+
+.ob-slide-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin-bottom: 20px;
+    color: var(--ob-accent, var(--accent-color));
+    background: color-mix(in srgb, var(--ob-accent, var(--accent-color)) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ob-accent, var(--accent-color)) 25%, transparent);
+}
+
+// ---- Feature points ----
+
+.ob-points {
+    list-style: none;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.ob-point {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    animation: obPointIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+
+    .dark & {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+    }
+    .light & {
+        background: rgba(0, 0, 0, 0.025);
+        border: 1px solid rgba(0, 0, 0, 0.055);
+    }
+}
+
+@keyframes obPointIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.ob-point-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: var(--ob-accent, var(--accent-color));
+    background: color-mix(in srgb, var(--ob-accent, var(--accent-color)) 12%, transparent);
+}
+
+.ob-point-text {
+    font-size: 13px;
+    line-height: 1.5;
+
+    .dark & { color: rgba(255, 255, 255, 0.75); }
+    .light & { color: rgba(15, 23, 42, 0.75); }
 }
 
 .onboarding-title {
@@ -664,6 +753,7 @@ body {
     align-items: center;
     width: 100%;
     gap: 12px;
+    margin-top: 24px;
 }
 
 .onboarding-btn-primary {

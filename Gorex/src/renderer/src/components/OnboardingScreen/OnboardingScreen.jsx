@@ -3,59 +3,135 @@ import { useLanguage } from '../../i18n'
 import logoWhite from '../../assets/images/logo_white.svg'
 import logoColor from '../../assets/images/logo.svg'
 
-const ONBOARD = {
-    en: {
-        step1Title: 'Choose your language',
-        step1Sub: 'You can change it later in Settings',
-        next: 'Continue',
-        back: 'Back',
-        step2Title: 'Welcome to Gorex',
-        step2Sub: 'A video tool built on the power of HandBrake and yt-dlp — designed for people.',
-        feat1Icon: 'bi-film',
-        feat1Title: 'Convert video files',
-        feat1Desc: 'Drag & drop your files and transcode them with GPU acceleration, codec fine-tuning, audio and subtitle control — powered under the hood by HandBrake.',
-        feat2Icon: 'bi-cloud-arrow-down',
-        feat2Title: 'Download from the web',
-        feat2Desc: 'Paste a YouTube, TikTok or Twitter link and grab it in the best quality — with optional conversion right after, all in one place.',
-        feat3Icon: 'bi-lightning-charge',
-        feat3Title: 'A tool worth using',
-        feat3Desc: 'Gorex is not a wrapper. It is a concept: a product that respects your time and works exactly the way a video professional expects.',
-        start: 'Get Started',
-    },
-    ru: {
-        step1Title: 'Выберите язык',
-        step1Sub: 'Вы сможете изменить его позже в Настройках',
-        next: 'Продолжить',
-        back: 'Назад',
-        step2Title: 'Добро пожаловать в Gorex',
-        step2Sub: 'Видеоинструмент, построенный на мощи HandBrake и yt-dlp — созданный для людей.',
-        feat1Icon: 'bi-film',
-        feat1Title: 'Конвертация видео',
-        feat1Desc: 'Перетащи файлы и перекодируй с GPU-ускорением, тонкой настройкой кодеков, аудио и субтитрами — под капотом работает HandBrake.',
-        feat2Icon: 'bi-cloud-arrow-down',
-        feat2Title: 'Загрузка из сети',
-        feat2Desc: 'Вставь ссылку YouTube, TikTok или Twitter и скачай в лучшем качестве — с конвертацией сразу после, всё в одном месте.',
-        feat3Icon: 'bi-lightning-charge',
-        feat3Title: 'Инструмент, которым приятно работать',
-        feat3Desc: 'Gorex — это не обёртка. Это концепция: продукт, который уважает твоё время и работает именно так, как ожидает профессионал в видео.',
-        start: 'Начать работу',
-    },
+const SLIDES = {
+    en: [
+        {
+            icon: 'bi-palette2',
+            accent: '#7c3aed',
+            title: 'Design that respects you',
+            sub: 'Most video tools look like they were made in 2005. Gorex is different.',
+            points: [
+                { icon: 'bi-moon-stars', text: 'Dark and light themes, clean and spacious layout' },
+                { icon: 'bi-stars', text: 'Smooth animations and transitions — every interaction feels polished' },
+                { icon: 'bi-grid-1x2', text: 'Every element has its place — nothing is in the way' },
+            ],
+        },
+        {
+            icon: 'bi-hand-index-thumb',
+            accent: '#0ea5e9',
+            title: 'Works the way you think',
+            sub: 'No manuals, no guessing. Open, drop, run.',
+            points: [
+                { icon: 'bi-file-earmark-arrow-down', text: 'Drag & drop files — they\'re ready in seconds' },
+                { icon: 'bi-sliders', text: 'Sensible defaults — tweak only what you need' },
+                { icon: 'bi-check2-circle', text: 'Each file in the queue can have its own settings' },
+            ],
+        },
+        {
+            icon: 'bi-lightning-charge-fill',
+            accent: '#f59e0b',
+            title: 'Fast. Very fast.',
+            sub: 'Gorex gets out of the way and lets your hardware do the work.',
+            points: [
+                { icon: 'bi-gpu-card', text: 'GPU encoding — NVENC, QSV, AMF detected automatically' },
+                { icon: 'bi-stack', text: 'Full queue processing — all files, one click' },
+                { icon: 'bi-bar-chart-line', text: 'Real-time progress per file, no surprises' },
+            ],
+        },
+        {
+            icon: 'bi-boxes',
+            accent: '#10b981',
+            title: 'One tool for everything',
+            sub: 'Convert local files or grab video straight from the web.',
+            points: [
+                { icon: 'bi-cloud-arrow-down', text: 'YouTube, TikTok, Twitter — paste link, download done' },
+                { icon: 'bi-film', text: 'MP4, MKV, WebM — all major formats and codecs' },
+                { icon: 'bi-scissors', text: 'Time clipping, subtitles, filters, HDR metadata' },
+            ],
+        },
+    ],
+    ru: [
+        {
+            icon: 'bi-palette2',
+            accent: '#7c3aed',
+            title: 'Дизайн, который уважает тебя',
+            sub: 'Большинство видеоинструментов выглядят как 2005 год. Gorex — нет.',
+            points: [
+                { icon: 'bi-moon-stars', text: 'Тёмная и светлая темы, чистый и просторный интерфейс' },
+                { icon: 'bi-stars', text: 'Плавные анимации и переходы — каждое действие ощущается отточенным' },
+                { icon: 'bi-grid-1x2', text: 'Каждый элемент на своём месте — ничто не мешает работе' },
+            ],
+        },
+        {
+            icon: 'bi-hand-index-thumb',
+            accent: '#0ea5e9',
+            title: 'Работает так, как ты думаешь',
+            sub: 'Никаких мануалов, никаких догадок. Открыл, перетащил, запустил.',
+            points: [
+                { icon: 'bi-file-earmark-arrow-down', text: 'Drag & drop файлов — готово за секунды' },
+                { icon: 'bi-sliders', text: 'Умные настройки по умолчанию — меняй только нужное' },
+                { icon: 'bi-check2-circle', text: 'Каждый файл в очереди может иметь свои настройки' },
+            ],
+        },
+        {
+            icon: 'bi-lightning-charge-fill',
+            accent: '#f59e0b',
+            title: 'Быстро. Очень быстро.',
+            sub: 'Gorex уходит в сторону и даёт железу делать своё дело.',
+            points: [
+                { icon: 'bi-gpu-card', text: 'GPU-кодирование — NVENC, QSV, AMF определяются автоматически' },
+                { icon: 'bi-stack', text: 'Полная очередь — все файлы, один клик' },
+                { icon: 'bi-bar-chart-line', text: 'Прогресс в реальном времени по каждому файлу' },
+            ],
+        },
+        {
+            icon: 'bi-boxes',
+            accent: '#10b981',
+            title: 'Один инструмент для всего',
+            sub: 'Конвертируй локальные файлы или забирай видео прямо из сети.',
+            points: [
+                { icon: 'bi-cloud-arrow-down', text: 'YouTube, TikTok, Twitter — вставь ссылку, готово' },
+                { icon: 'bi-film', text: 'MP4, MKV, WebM — все основные форматы и кодеки' },
+                { icon: 'bi-scissors', text: 'Обрезка, субтитры, фильтры, HDR-метаданные' },
+            ],
+        },
+    ],
 }
+
+const LABELS = {
+    en: { step1Title: 'Choose your language', step1Sub: 'You can change it later in Settings', next: 'Continue', back: 'Back', start: 'Get Started', skip: 'Skip' },
+    ru: { step1Title: 'Выберите язык', step1Sub: 'Вы сможете изменить его позже в Настройках', next: 'Продолжить', back: 'Назад', start: 'Начать работу', skip: 'Пропустить' },
+}
+
+const TOTAL = 5 // 1 lang + 4 slides
+
+const ONBOARD = null // legacy, replaced by SLIDES + LABELS
 
 export default function OnboardingScreen({ theme, onDone }) {
     const { setLang } = useLanguage()
     const [step, setStep] = useState(1)
     const [selectedLang, setSelectedLang] = useState('en')
+    const [animKey, setAnimKey] = useState(0)
+    const [dir, setDir] = useState(1)
 
-    const T = ONBOARD[selectedLang]
+    const L = LABELS[selectedLang]
+    const slides = SLIDES[selectedLang]
+    const slideIndex = step - 2 // 0..3
+
+    const go = (nextStep) => {
+        setDir(nextStep > step ? 1 : -1)
+        setAnimKey(k => k + 1)
+        setStep(nextStep)
+    }
 
     const handleNext = () => {
-        setLang(selectedLang)
-        setStep(2)
+        if (step === 1) setLang(selectedLang)
+        if (step < TOTAL) go(step + 1)
+        else onDone()
     }
 
     const handleBack = () => {
-        setStep(1)
+        if (step > 1) go(step - 1)
     }
 
     return (
@@ -66,80 +142,80 @@ export default function OnboardingScreen({ theme, onDone }) {
                 </div>
 
                 <div className="onboarding-steps">
-                    <span className={`onboarding-dot${step === 1 ? ' active' : ''}`} />
-                    <span className={`onboarding-dot${step === 2 ? ' active' : ''}`} />
+                    {Array.from({ length: TOTAL }).map((_, i) => (
+                        <span key={i} className={`onboarding-dot${step === i + 1 ? ' active' : step > i + 1 ? ' done' : ''}`} />
+                    ))}
                 </div>
 
-                {step === 1 && (
-                    <div className="onboarding-step" key="step1">
-                        <h2 className="onboarding-title">{T.step1Title}</h2>
-                        <p className="onboarding-sub">{T.step1Sub}</p>
+                <div className={`onboarding-step ob-dir-${dir > 0 ? 'fwd' : 'bwd'}`} key={animKey}>
+                    {step === 1 && (
+                        <>
+                            <h2 className="onboarding-title">{L.step1Title}</h2>
+                            <p className="onboarding-sub">{L.step1Sub}</p>
 
-                        <div className="onboarding-lang-grid">
-                            <button
-                                className={`onboarding-lang-card${selectedLang === 'en' ? ' selected' : ''}`}
-                                onClick={() => setSelectedLang('en')}
-                            >
-                                <span className="onboarding-lang-flag">EN</span>
-                                <span className="onboarding-lang-name">English</span>
-                                {selectedLang === 'en' && (
-                                    <span className="onboarding-lang-check">
-                                        <i className="bi bi-check2" />
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                className={`onboarding-lang-card${selectedLang === 'ru' ? ' selected' : ''}`}
-                                onClick={() => setSelectedLang('ru')}
-                            >
-                                <span className="onboarding-lang-flag">RU</span>
-                                <span className="onboarding-lang-name">Русский</span>
-                                {selectedLang === 'ru' && (
-                                    <span className="onboarding-lang-check">
-                                        <i className="bi bi-check2" />
-                                    </span>
-                                )}
-                            </button>
-                        </div>
+                            <div className="onboarding-lang-grid">
+                                <button
+                                    className={`onboarding-lang-card${selectedLang === 'en' ? ' selected' : ''}`}
+                                    onClick={() => setSelectedLang('en')}
+                                >
+                                    <span className="onboarding-lang-flag">EN</span>
+                                    <span className="onboarding-lang-name">English</span>
+                                    {selectedLang === 'en' && (
+                                        <span className="onboarding-lang-check"><i className="bi bi-check2" /></span>
+                                    )}
+                                </button>
+                                <button
+                                    className={`onboarding-lang-card${selectedLang === 'ru' ? ' selected' : ''}`}
+                                    onClick={() => setSelectedLang('ru')}
+                                >
+                                    <span className="onboarding-lang-flag">RU</span>
+                                    <span className="onboarding-lang-name">Русский</span>
+                                    {selectedLang === 'ru' && (
+                                        <span className="onboarding-lang-check"><i className="bi bi-check2" /></span>
+                                    )}
+                                </button>
+                            </div>
+                        </>
+                    )}
 
-                        <button className="onboarding-btn-primary" onClick={handleNext}>
-                            {T.next}
-                            <i className="bi bi-arrow-right" />
+                    {step >= 2 && (
+                        <>
+                            <div className="ob-slide-icon" style={{ '--ob-accent': slides[slideIndex].accent }}>
+                                <i className={`bi ${slides[slideIndex].icon}`} />
+                            </div>
+                            <h2 className="onboarding-title">{slides[slideIndex].title}</h2>
+                            <p className="onboarding-sub">{slides[slideIndex].sub}</p>
+
+                            <ul className="ob-points">
+                                {slides[slideIndex].points.map((p, i) => (
+                                    <li key={i} className="ob-point" style={{ animationDelay: `${i * 80}ms` }}>
+                                        <span className="ob-point-icon" style={{ '--ob-accent': slides[slideIndex].accent }}>
+                                            <i className={`bi ${p.icon}`} />
+                                        </span>
+                                        <span className="ob-point-text">{p.text}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </>
+                    )}
+                </div>
+
+                <div className="onboarding-footer">
+                    {step > 1 ? (
+                        <button className="onboarding-btn-ghost" onClick={handleBack}>
+                            <i className="bi bi-arrow-left" />
+                            {L.back}
                         </button>
-                    </div>
-                )}
-
-                {step === 2 && (
-                    <div className="onboarding-step" key="step2">
-                        <h2 className="onboarding-title">{T.step2Title}</h2>
-                        <p className="onboarding-sub">{T.step2Sub}</p>
-
-                        <div className="onboarding-features">
-                            {[
-                                { icon: T.feat1Icon, title: T.feat1Title, desc: T.feat1Desc },
-                                { icon: T.feat2Icon, title: T.feat2Title, desc: T.feat2Desc },
-                                { icon: T.feat3Icon, title: T.feat3Title, desc: T.feat3Desc },
-                            ].map((f, i) => (
-                                <div key={i} className="onboarding-feature-card">
-                                    <i className={`bi ${f.icon} onboarding-feature-icon`} />
-                                    <div className="onboarding-feature-title">{f.title}</div>
-                                    <div className="onboarding-feature-desc">{f.desc}</div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="onboarding-footer">
-                            <button className="onboarding-btn-ghost" onClick={handleBack}>
-                                <i className="bi bi-arrow-left" />
-                                {T.back}
-                            </button>
-                            <button className="onboarding-btn-primary" onClick={onDone}>
-                                {T.start}
-                                <i className="bi bi-arrow-right" />
-                            </button>
-                        </div>
-                    </div>
-                )}
+                    ) : (
+                        <button className="onboarding-btn-ghost" onClick={onDone}>
+                            {L.skip}
+                        </button>
+                    )}
+                    <button className="onboarding-btn-primary" onClick={handleNext}>
+                        {step === TOTAL ? L.start : L.next}
+                        <i className={`bi ${step === TOTAL ? 'bi-check2' : 'bi-arrow-right'}`} />
+                    </button>
+                </div>
             </div>
         </div>
     )
