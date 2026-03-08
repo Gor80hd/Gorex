@@ -1,16 +1,18 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import logoWhite from '../../assets/images/logo_white.svg'
 import logoDark from '../../assets/images/logo.svg'
+import { useLanguage } from '../../i18n'
 import './TitleBar.scss'
 
 function TitleBar({
     onOpen, theme, toggleTheme, onViewChange, currentView,
     isEncoding, isPaused, hasVideos,
-    onStartEncoding, onPause, onStop, onClearQueue
+    onStartEncoding, onPause, onStop, onClearQueue, onOpenCliConsole
 }) {
     const [toggling, setToggling] = useState(false)
     const [fileMenuOpen, setFileMenuOpen] = useState(false)
     const fileMenuRef = useRef(null)
+    const { t } = useLanguage()
 
     const handleToggle = useCallback(() => {
         setToggling(true)
@@ -48,19 +50,19 @@ function TitleBar({
                                 className={fileMenuOpen ? 'active' : ''}
                                 onClick={() => setFileMenuOpen(v => !v)}
                             >
-                                Файл
+                                {t('menuFile')}
                             </button>
                             {fileMenuOpen && (
                                 <div className="tb-dropdown">
                                     <button className="tb-dropdown-item" onClick={() => menuAction(() => { onViewChange('source'); onOpen() })}>
-                                        <span className="tb-item-label">Открыть источник</span>
+                                        <span className="tb-item-label">{t('menuOpenSource')}</span>
                                     </button>
                                     <button
                                         className="tb-dropdown-item tb-dropdown-item--danger"
                                         disabled={!hasVideos || isEncoding}
                                         onClick={() => menuAction(onClearQueue)}
                                     >
-                                        <span className="tb-item-label">Очистить очередь</span>
+                                        <span className="tb-item-label">{t('menuClearQueue')}</span>
                                     </button>
                                     <div className="tb-dropdown-sep"></div>
                                     <button
@@ -68,29 +70,29 @@ function TitleBar({
                                         disabled={!hasVideos || isEncoding}
                                         onClick={() => menuAction(onStartEncoding)}
                                     >
-                                        <span className="tb-item-label">Начать кодирование</span>
+                                        <span className="tb-item-label">{t('menuStartEncoding')}</span>
                                     </button>
                                     <button
                                         className="tb-dropdown-item"
                                         disabled={!isEncoding}
                                         onClick={() => menuAction(onPause)}
                                     >
-                                        <span className="tb-item-label">{isPaused ? 'Продолжить' : 'Пауза'}</span>
+                                        <span className="tb-item-label">{isPaused ? t('menuResume') : t('menuPause')}</span>
                                     </button>
                                     <button
                                         className="tb-dropdown-item tb-dropdown-item--danger"
                                         disabled={!isEncoding}
                                         onClick={() => menuAction(onStop)}
                                     >
-                                        <span className="tb-item-label">Стоп</span>
+                                        <span className="tb-item-label">{t('menuStop')}</span>
                                     </button>
                                     <div className="tb-dropdown-sep"></div>
                                     <button className="tb-dropdown-item" onClick={() => menuAction(() => window.api.close())}>
-                                        <span className="tb-item-label">Выход</span>
+                                        <span className="tb-item-label">{t('menuExit')}</span>
                                     </button>
                                     <div className="tb-dropdown-sep"></div>
-                                    <button className="tb-dropdown-item" onClick={() => menuAction(() => window.api.openDevTools())}>
-                                        <span className="tb-item-label">Консоль отладки</span>
+                                    <button className="tb-dropdown-item" onClick={() => menuAction(() => onOpenCliConsole())}>
+                                        <span className="tb-item-label">{t('menuDebugConsole')}</span>
                                     </button>
                                 </div>
                             )}
@@ -98,12 +100,12 @@ function TitleBar({
                         <button
                             className={currentView === 'settings' ? 'active' : ''}
                             onClick={() => onViewChange('settings')}
-                        >Настройки</button>
+                        >{t('navSettings')}</button>
                         <button
                             className={currentView === 'about' ? 'active' : ''}
                             onClick={() => onViewChange('about')}
                         >
-                            О программе
+                            {t('navAbout')}
                         </button>
                     </nav>
                 </div>

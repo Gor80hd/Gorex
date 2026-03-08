@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import './ListPage.scss'
 import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, ENCODER_GROUPS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS } from '../../components/GlobalSettings/GlobalSettings'
+import { useLanguage } from '../../i18n'
 
 // ─── Service detection (shared with SourcePage) ────────────────────────────────
 const SERVICE_MAP = {
@@ -69,15 +70,15 @@ function getCodecLabel(f) {
     return VCODEC_LABEL[base] || f.vcodec.split('.')[0]
 }
 
-function formatFormatLabel(f) {
+function formatFormatLabel(f, t) {
     const res = f.height ? f.height + 'p' : (f.resolution || null)
     const ext = f.ext ? f.ext.toUpperCase() : null
     const audioOnly = !f.vcodec || f.vcodec === 'none'
-    if (audioOnly) return ['Только аудио', ext].filter(Boolean).join(' ')
+    if (audioOnly) return [t ? t('audioOnlyLabel') : 'Audio only', ext].filter(Boolean).join(' ')
     return [res, ext].filter(Boolean).join(' ') || f.format_id
 }
 
-function buildFormatTags(f) {
+function buildFormatTags(f, t) {
     const tags = []
     const codec = getCodecLabel(f)
     if (codec)   tags.push({ key: 'enc', icon: 'bi-cpu',           label: codec,          cls: 'tr-enc' })
@@ -85,11 +86,11 @@ function buildFormatTags(f) {
     const sz = formatFileSize(f.filesize)
     if (sz)      tags.push({ key: 'sz',  icon: 'bi-hdd',           label: '~' + sz,       cls: 'tr-size' })
     if (!f.vcodec || f.vcodec === 'none')
-                 tags.push({ key: 'aud', icon: 'bi-music-note',    label: 'аудио',        cls: 'tr-aud' })
+                 tags.push({ key: 'aud', icon: 'bi-music-note',    label: t ? t('audioOnlyTag') : 'audio', cls: 'tr-aud' })
     return tags
 }
 
-function buildYtdlFormatGroups(formats) {
+function buildYtdlFormatGroups(formats, t) {
     if (!formats || !formats.length) return []
     // Dedup: keep best bitrate per resolution+codec combo
     const seen = new Map()
@@ -100,7 +101,7 @@ function buildYtdlFormatGroups(formats) {
         if (!prev || (f.tbr || 0) > (prev.tbr || 0)) seen.set(key, f)
     }
     const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0))
-    return [{ label: 'Доступные форматы', options: sorted.map(f => ({ value: f.format_id, label: formatFormatLabel(f), tags: buildFormatTags(f) })) }]
+    return [{ label: t ? t('availableFormats') : 'Available formats', options: sorted.map(f => ({ value: f.format_id, label: formatFormatLabel(f, t), tags: buildFormatTags(f, t) })) }]
 }
 
 // ─── Transformation tags helper ────────────────────────────────────────────────
@@ -118,7 +119,7 @@ const ENCODER_SHORT = {
 const FORMAT_LABEL = { av_mp4: 'MP4', av_mkv: 'MKV', av_webm: 'WebM', av_mov: 'MOV' }
 const RES_LABEL = { '4k': '4K', '1440p': '1440p', '1080p': '1080p', '720p': '720p', '480p': '480p' }
 
-function getTransformTags(video, s) {
+function getTransformTags(video, s, t) {
     const tags = []
     if (!s) return tags
     // Format
@@ -126,19 +127,19 @@ function getTransformTags(video, s) {
     // Encoder
     if (s.encoder) tags.push({ key: 'enc',   icon: 'bi-cpu',              label: ENCODER_SHORT[s.encoder] || s.encoder, cls: 'tr-enc' })
     // Resolution
-    if (s.resolution && s.resolution !== 'source') tags.push({ key: 'res',   icon: 'bi-aspect-ratio',     label: '→ ' + (RES_LABEL[s.resolution] || s.resolution), cls: 'tr-res' })
+    if (s.resolution && s.resolution !== 'source') tags.push({ key: 'res',   icon: 'bi-aspect-ratio',     label: '\u2192 ' + (RES_LABEL[s.resolution] || s.resolution), cls: 'tr-res' })
     // FPS
-    if (s.fps && s.fps !== 'source') tags.push({ key: 'fps',   icon: 'bi-camera-video',     label: '→ ' + s.fps + ' fps', cls: 'tr-fps' })
+    if (s.fps && s.fps !== 'source') tags.push({ key: 'fps',   icon: 'bi-camera-video',     label: '\u2192 ' + s.fps + ' fps', cls: 'tr-fps' })
     // Audio codec
     const audioShort = (s.audioCodec || 'av_aac').replace('av_', '').replace('fdk_', '').toUpperCase().replace('COPY:', '').replace('COPY', 'Passthru')
     tags.push({ key: 'aud',   icon: 'bi-music-note',        label: audioShort, cls: 'tr-aud' })
     // Filters
-    if (s.grayscale)                       tags.push({ key: 'gray',  icon: 'bi-circle-half',      label: 'ЧБ',    cls: 'tr-filter' })
-    if (s.rotate && s.rotate !== '0')      tags.push({ key: 'rot',   icon: 'bi-arrow-clockwise',  label: s.rotate === 'hflip' ? 'Отражение' : s.rotate + '°', cls: 'tr-filter' })
-    if (s.deinterlace && s.deinterlace !== 'off') tags.push({ key: 'deint', icon: 'bi-layout-split',     label: 'Деинтерлейс', cls: 'tr-filter' })
-    if (s.denoise && s.denoise !== 'off')  tags.push({ key: 'dn',    icon: 'bi-snow',             label: 'Шумодав', cls: 'tr-filter' })
-    if (s.sharpen && s.sharpen !== 'off')  tags.push({ key: 'sh',    icon: 'bi-stars',            label: 'Резкость', cls: 'tr-filter' })
-    if (s.deblock && s.deblock !== 'off')  tags.push({ key: 'db',    icon: 'bi-bounding-box',     label: 'Деблок', cls: 'tr-filter' })
+    if (s.grayscale)                       tags.push({ key: 'gray',  icon: 'bi-circle-half',      label: t ? t('filterTagGrayscale') : 'B&W',    cls: 'tr-filter' })
+    if (s.rotate && s.rotate !== '0')      tags.push({ key: 'rot',   icon: 'bi-arrow-clockwise',  label: s.rotate === 'hflip' ? (t ? t('filterTagFlip') : 'Flip') : s.rotate + '\u00b0', cls: 'tr-filter' })
+    if (s.deinterlace && s.deinterlace !== 'off') tags.push({ key: 'deint', icon: 'bi-layout-split',     label: t ? t('filterTagDeinterlace') : 'Deinterlace', cls: 'tr-filter' })
+    if (s.denoise && s.denoise !== 'off')  tags.push({ key: 'dn',    icon: 'bi-snow',             label: t ? t('filterTagDenoise') : 'Denoise', cls: 'tr-filter' })
+    if (s.sharpen && s.sharpen !== 'off')  tags.push({ key: 'sh',    icon: 'bi-stars',            label: t ? t('filterTagSharpen') : 'Sharpen', cls: 'tr-filter' })
+    if (s.deblock && s.deblock !== 'off')  tags.push({ key: 'db',    icon: 'bi-bounding-box',     label: t ? t('filterTagDeblock') : 'Deblock', cls: 'tr-filter' })
     return tags
 }
 
@@ -154,7 +155,7 @@ const AUDIO_CODECS = [
     { value: 'flac16',      label: 'FLAC 16-bit' },
     { value: 'flac24',      label: 'FLAC 24-bit' },
     { value: 'opus',        label: 'Opus' },
-    { value: 'copy',        label: 'Passthru (авто)' },
+    { value: 'copy',        label: 'Passthru (auto)' },
     { value: 'copy:aac',    label: 'AAC Passthru' },
     { value: 'copy:ac3',    label: 'AC3 Passthru' },
     { value: 'copy:eac3',   label: 'E-AC3 Passthru' },
@@ -208,27 +209,442 @@ function formatTime(sec) {
     return `${m}:${String(ss).padStart(2, '0')}`
 }
 
+// ─── Time input helpers ────────────────────────────────────────────────────────
+function timeToInput(sec) {
+    if (sec == null) return ''
+    const s = Math.max(0, Math.floor(sec))
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const ss = s % 60
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+    return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+}
+
+function parseTimeInput(str) {
+    const parts = str.trim().split(':').map(p => parseInt(p, 10))
+    if (parts.some(isNaN)) return null
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    if (parts.length === 2) return parts[0] * 60 + parts[1]
+    if (parts.length === 1) return parts[0]
+    return null
+}
+
+// ─── YouTube iframe postMessage helpers ─────────────────────────────────────
+function ytSeek(iframeEl, sec) {
+    if (!iframeEl?.contentWindow) return
+    iframeEl.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'seekTo', args: [Math.max(0, sec), true] }),
+        'https://www.youtube.com'
+    )
+}
+
+// ─── TimeRangeSelector component ──────────────────────────────────────────────
+function getYouTubeId(url) {
+    try {
+        const u = new URL(url)
+        if (u.hostname === 'youtu.be') return u.pathname.slice(1)
+        if (u.hostname.includes('youtube.com')) return u.searchParams.get('v')
+    } catch {}
+    return null
+}
+
+function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, videoUrl, onChange }) {
+    const { t } = useLanguage()
+    const trackRef = useRef(null)
+    const draggingRef = useRef(null) // 'start' | 'end'
+    const iframeRef = useRef(null)
+    const timeRef = useRef(0)       // local time counter for playhead
+    const pollRef = useRef(null)
+
+    const dur = duration || 1
+    const effectiveStart = clipStart ?? 0
+    const effectiveEnd = clipEnd ?? dur
+
+    const [startInput, setStartInput] = useState(timeToInput(effectiveStart))
+    const [endInput, setEndInput] = useState(timeToInput(effectiveEnd))
+    const [startInputError, setStartInputError] = useState(false)
+    const [endInputError, setEndInputError] = useState(false)
+    const [hoverTime, setHoverTime] = useState(null)
+    const [hoverPct, setHoverPct] = useState(0)
+    const [embedSec, setEmbedSec] = useState(null) // null = player hidden
+    const [currentTime, setCurrentTime] = useState(null) // playhead position
+
+    // Sync inputs when external values change
+    useEffect(() => { setStartInput(timeToInput(clipStart ?? 0)) }, [clipStart])
+    useEffect(() => { setEndInput(timeToInput(clipEnd ?? dur)) }, [clipEnd, dur])
+
+    // Playhead tracking via YouTube postMessage events
+    useEffect(() => {
+        if (embedSec === null) {
+            clearInterval(pollRef.current)
+            pollRef.current = null
+            setCurrentTime(null)
+            return
+        }
+        timeRef.current = embedSec
+        setCurrentTime(embedSec)
+
+        const onMessage = (e) => {
+            if (e.origin !== 'https://www.youtube.com') return
+            let data
+            try { data = JSON.parse(e.data) } catch { return }
+            if (data.event === 'onStateChange') {
+                if (data.info === 1) { // playing
+                    clearInterval(pollRef.current)
+                    pollRef.current = setInterval(() => {
+                        timeRef.current = Math.min(timeRef.current + 0.2, dur)
+                        setCurrentTime(timeRef.current)
+                    }, 200)
+                } else { // paused / buffering / ended
+                    clearInterval(pollRef.current)
+                }
+            }
+        }
+        window.addEventListener('message', onMessage)
+        return () => {
+            window.removeEventListener('message', onMessage)
+            clearInterval(pollRef.current)
+        }
+    }, [embedSec, dur])
+
+    // Cleanup on unmount
+    useEffect(() => () => { clearInterval(pollRef.current) }, [])
+
+    const seekPlayer = (sec) => {
+        ytSeek(iframeRef.current, sec)
+        timeRef.current = sec
+        setCurrentTime(sec)
+    }
+
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
+
+    const posFromEvent = useCallback((e) => {
+        const rect = trackRef.current?.getBoundingClientRect()
+        if (!rect) return 0
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left
+        return clamp(x / rect.width, 0, 1)
+    }, [])
+
+    const handleTrackMouseDown = useCallback((e, handle) => {
+        e.preventDefault()
+        draggingRef.current = handle
+
+        const onMove = (ev) => {
+            const pos = posFromEvent(ev)
+            const sec = Math.round(pos * dur)
+            if (draggingRef.current === 'start') {
+                const newStart = clamp(sec, 0, (clipEnd ?? dur) - 1)
+                onChange(newStart, clipEnd ?? dur)
+                seekPlayer(newStart)
+            } else {
+                const newEnd = clamp(sec, (clipStart ?? 0) + 1, dur)
+                onChange(clipStart ?? 0, newEnd)
+                seekPlayer(newEnd)
+            }
+        }
+
+        const onUp = () => {
+            draggingRef.current = null
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+            window.removeEventListener('touchmove', onMove)
+            window.removeEventListener('touchend', onUp)
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+        window.addEventListener('touchmove', onMove, { passive: false })
+        window.addEventListener('touchend', onUp)
+    }, [dur, clipStart, clipEnd, onChange, posFromEvent])
+
+    const handleTrackMouseMove = useCallback((e) => {
+        const pos = posFromEvent(e)
+        setHoverTime(Math.round(pos * dur))
+        setHoverPct(pos * 100)
+    }, [dur, posFromEvent])
+
+    const handleStartInputBlur = () => {
+        const s = parseTimeInput(startInput)
+        if (s === null || s < 0 || s >= (clipEnd ?? dur)) {
+            setStartInputError(true)
+            setStartInput(timeToInput(clipStart ?? 0))
+            return
+        }
+        setStartInputError(false)
+        onChange(s, clipEnd ?? dur)
+    }
+
+    const handleEndInputBlur = () => {
+        const s = parseTimeInput(endInput)
+        if (s === null || s <= (clipStart ?? 0) || s > dur) {
+            setEndInputError(true)
+            setEndInput(timeToInput(clipEnd ?? dur))
+            return
+        }
+        setEndInputError(false)
+        onChange(clipStart ?? 0, s)
+    }
+
+    const handleInputKeyDown = (e, handler) => {
+        if (e.key === 'Enter') { e.target.blur(); handler() }
+        if (e.key === 'Escape') e.target.blur()
+    }
+
+    const selectChapter = (ch) => {
+        onChange(Math.round(ch.start_time), Math.round(ch.end_time))
+    }
+
+    const isFullRange = effectiveStart === 0 && effectiveEnd >= dur - 1
+    const selectedSec = Math.max(0, effectiveEnd - effectiveStart)
+
+    const startPct = (effectiveStart / dur) * 100
+    const endPct   = (effectiveEnd   / dur) * 100
+
+    const ytId = videoUrl ? getYouTubeId(videoUrl) : null
+
+    const openAtTime = (sec) => {
+        if (!videoUrl) return
+        let url = videoUrl
+        if (ytId) url = `https://www.youtube.com/watch?v=${ytId}&t=${Math.floor(sec)}s`
+        window.open(url, '_blank')
+    }
+
+    return (
+        <div className="trs-root">
+            {/* ─ Preview / embed ─ */}
+            {(thumbnail || ytId) && (
+                <div className="trs-preview-area">
+                    {/* YouTube iframe embed – shown when a preview button is clicked */}
+                    {ytId && embedSec !== null ? (
+                        <div className="trs-embed-wrap">
+                            <iframe
+                                ref={iframeRef}
+                                className="trs-embed"
+                                src={`https://www.youtube.com/embed/${ytId}?start=${Math.floor(embedSec)}&autoplay=1&enablejsapi=1&controls=1&rel=0`}
+                                allow="autoplay; encrypted-media; picture-in-picture"
+                                allowFullScreen
+                                title="Preview"
+                            />
+                            <button
+                                className="trs-embed-close"
+                                onClick={() => setEmbedSec(null)}
+                                title={t('trsClosePlayer')}
+                                type="button"
+                            >
+                                <i className="bi bi-x-lg" />
+                            </button>
+                        </div>
+                    ) : (
+                        /* Static thumbnail with two preview buttons */
+                        <div className="trs-thumb-area">
+                            {thumbnail && (
+                                <div className="trs-thumb-wrap">
+                                    <img src={thumbnail} alt="" className="trs-thumb-img" />
+                                    <div className="trs-thumb-overlay">
+                                        <span className="trs-thumb-range">
+                                            <i className="bi bi-scissors" />
+                                            {isFullRange ? t('trsFullVideo') : `${timeToInput(effectiveStart)} — ${timeToInput(effectiveEnd)} (${timeToInput(selectedSec)})`}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            {ytId && (
+                                <div className="trs-thumb-btns">
+                                    <button
+                                        className="trs-thumb-play-btn trs-thumb-play-btn--start"
+                                        onClick={() => setEmbedSec(effectiveStart)}
+                                        type="button"
+                                    >
+                                        <i className="bi bi-play-fill" />
+                                        {t('trsFrom')} {timeToInput(effectiveStart)}
+                                    </button>
+                                    <button
+                                        className="trs-thumb-play-btn trs-thumb-play-btn--end"
+                                        onClick={() => setEmbedSec(effectiveEnd)}
+                                        type="button"
+                                    >
+                                        <i className="bi bi-play-fill" />
+                                        {t('trsTo')} {timeToInput(effectiveEnd)}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ─ Track ─ */}
+            <div className="trs-track-wrap">
+                <div
+                    className="trs-track"
+                    ref={trackRef}
+                    onMouseMove={handleTrackMouseMove}
+                    onMouseLeave={() => setHoverTime(null)}
+                    onClick={(e) => {
+                        if (embedSec === null) return
+                        seekPlayer(Math.round(posFromEvent(e) * dur))
+                    }}
+                >
+                    {/* Shaded outside region (left) */}
+                    <div className="trs-outside trs-outside--left" style={{ width: `${startPct}%` }} />
+                    {/* Shaded outside region (right) */}
+                    <div className="trs-outside trs-outside--right" style={{ left: `${endPct}%`, width: `${100 - endPct}%` }} />
+                    {/* Selected region */}
+                    <div
+                        className="trs-region"
+                        style={{ left: `${startPct}%`, width: `${endPct - startPct}%` }}
+                    />
+                    {/* Chapter markers */}
+                    {(chapters || []).map((ch, i) => (
+                        <div
+                            key={i}
+                            className="trs-chapter-mark"
+                            style={{ left: `${(ch.start_time / dur) * 100}%` }}
+                            title={ch.title}
+                        />
+                    ))}
+                    {/* Start handle */}
+                    <div
+                        className="trs-handle trs-handle--start"
+                        style={{ left: `${startPct}%` }}
+                        onMouseDown={e => handleTrackMouseDown(e, 'start')}
+                        onTouchStart={e => handleTrackMouseDown(e, 'start')}
+                    >
+                        <div className="trs-handle-inner" />
+                    </div>
+                    {/* End handle */}
+                    <div
+                        className="trs-handle trs-handle--end"
+                        style={{ left: `${endPct}%` }}
+                        onMouseDown={e => handleTrackMouseDown(e, 'end')}
+                        onTouchStart={e => handleTrackMouseDown(e, 'end')}
+                    >
+                        <div className="trs-handle-inner" />
+                    </div>
+                    {/* Playhead */}
+                    {currentTime !== null && (
+                        <div
+                            className="trs-playhead"
+                            style={{ left: `${(currentTime / dur) * 100}%` }}
+                        />
+                    )}
+                    {/* Hover time tooltip */}
+                    {hoverTime !== null && (
+                        <div
+                            className="trs-hover-tip"
+                            style={{ left: `${hoverPct}%` }}
+                        >
+                            {timeToInput(hoverTime)}
+                        </div>
+                    )}
+                </div>
+                {/* Duration ticks */}
+                <div className="trs-ticks">
+                    <span>0:00</span>
+                    <span>{timeToInput(Math.round(dur / 4))}</span>
+                    <span>{timeToInput(Math.round(dur / 2))}</span>
+                    <span>{timeToInput(Math.round(dur * 3 / 4))}</span>
+                    <span>{timeToInput(dur)}</span>
+                </div>
+            </div>
+
+            {/* ─ Inputs ─ */}
+            <div className="trs-inputs">
+                <div className="trs-input-group">
+                    <label className="trs-input-label">
+                        <i className="bi bi-skip-start-fill" /> {t('trsFrom')}
+                    </label>
+                    <input
+                        className={`trs-input${startInputError ? ' trs-input--error' : ''}`}
+                        type="text"
+                        value={startInput}
+                        placeholder="0:00"
+                        onChange={e => { setStartInput(e.target.value); setStartInputError(false) }}
+                        onBlur={handleStartInputBlur}
+                        onKeyDown={e => handleInputKeyDown(e, handleStartInputBlur)}
+                        spellCheck={false}
+                    />
+                </div>
+
+                <div className="trs-duration-badge">
+                    <i className="bi bi-scissors" />
+                    {isFullRange ? t('trsFullVideo') : timeToInput(selectedSec)}
+                </div>
+
+                <div className="trs-input-group">
+                    <label className="trs-input-label">
+                        <i className="bi bi-skip-end-fill" /> {t('trsTo')}
+                    </label>
+                    <input
+                        className={`trs-input${endInputError ? ' trs-input--error' : ''}`}
+                        type="text"
+                        value={endInput}
+                        placeholder={timeToInput(dur)}
+                        onChange={e => { setEndInput(e.target.value); setEndInputError(false) }}
+                        onBlur={handleEndInputBlur}
+                        onKeyDown={e => handleInputKeyDown(e, handleEndInputBlur)}
+                        spellCheck={false}
+                    />
+                </div>
+
+                {!isFullRange && (
+                    <button
+                        className="trs-reset-btn"
+                        onClick={() => onChange(0, dur)}
+                        title={t('trsRemoveClip')}
+                    >
+                        <i className="bi bi-x-lg" />
+                    </button>
+                )}
+            </div>
+
+            {/* ─ Chapter tags ─ */}
+            {chapters && chapters.length > 0 && (
+                <div className="trs-chapters">
+                    <span className="trs-chapters-label"><i className="bi bi-bookmark-fill" /> {t('trsChapters')}</span>
+                    <div className="trs-chapter-tags">
+                        {chapters.map((ch, i) => {
+                            const isActive = Math.abs(effectiveStart - ch.start_time) < 2 && Math.abs(effectiveEnd - ch.end_time) < 2
+                            return (
+                                <button
+                                    key={i}
+                                    className={`trs-chapter-tag${isActive ? ' active' : ''}`}
+                                    onClick={() => selectChapter(ch)}
+                                    title={`${timeToInput(ch.start_time)} – ${timeToInput(ch.end_time)}`}
+                                >
+                                    <span className="trs-chapter-time">{timeToInput(ch.start_time)}</span>
+                                    <span className="trs-chapter-title">{ch.title}</span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
 // ─── Panel-scoped select (always opens downward) ───────────────────────────
 const PanelSelect = (props) => <GsSelect direction="down" {...props} />
 
 // ─── Video Settings Panel ──────────────────────────────────────────────────────
-const VSP_TABS = [
-    { id: 'video',     label: 'Видео',      icon: 'bi-camera-video' },
-    { id: 'audio',     label: 'Аудио',      icon: 'bi-music-note-beamed' },
-    { id: 'subtitles', label: 'Субтитры',   icon: 'bi-badge-cc' },
-    { id: 'filters',   label: 'Фильтры',    icon: 'bi-sliders' },
-    { id: 'hdr',       label: 'HDR / Мета', icon: 'bi-stars' },
-]
-const VSP_TABS_YTDL = [
-    { id: 'download',  label: 'Загрузка',   icon: 'bi-cloud-arrow-down' },
-    { id: 'video',     label: 'Видео',      icon: 'bi-camera-video' },
-    { id: 'audio',     label: 'Аудио',      icon: 'bi-music-note-beamed' },
-    { id: 'subtitles', label: 'Субтитры',   icon: 'bi-badge-cc' },
-    { id: 'filters',   label: 'Фильтры',    icon: 'bi-sliders' },
-    { id: 'hdr',       label: 'HDR / Мета', icon: 'bi-stars' },
-]
-
-function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle }) {
+function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange }) {
+    const { t } = useLanguage()
+    const VSP_TABS = [
+        { id: 'video',     label: t('tabVideo'),     icon: 'bi-camera-video' },
+        { id: 'audio',     label: t('tabAudio'),     icon: 'bi-music-note-beamed' },
+        { id: 'subtitles', label: t('tabSubtitles'), icon: 'bi-badge-cc' },
+        { id: 'filters',   label: t('tabFilters'),   icon: 'bi-sliders' },
+        { id: 'hdr',       label: t('tabHdr'),       icon: 'bi-stars' },
+    ]
+    const VSP_TABS_YTDL = [
+        { id: 'download',  label: t('vspTabDownload'), icon: 'bi-cloud-arrow-down' },
+        { id: 'video',     label: t('tabVideo'),       icon: 'bi-camera-video' },
+        { id: 'audio',     label: t('tabAudio'),       icon: 'bi-music-note-beamed' },
+        { id: 'subtitles', label: t('tabSubtitles'),   icon: 'bi-badge-cc' },
+        { id: 'filters',   label: t('tabFilters'),     icon: 'bi-sliders' },
+        { id: 'hdr',       label: t('tabHdr'),         icon: 'bi-stars' },
+    ]
     const isYtdl = !!video.isYtdlItem
     const tabs = isYtdl ? VSP_TABS_YTDL : VSP_TABS
     const [draft, setDraft] = useState(video.customSettings || video.conversionSettings || { ...globalSettings })
@@ -247,6 +663,20 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             const audioCodec = draft.audioCodec || 'av_aac'
             if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
                 patch.audioCodec = 'opus'
+            }
+        } else {
+            const disabledFormats = ENCODER_DISABLED_FORMATS[draft.encoder]
+            if (disabledFormats?.has(fmt)) {
+                const speeds = ENCODER_PRESETS.x265
+                patch.encoder = 'x265'
+                patch.encoderSpeed = speeds?.find(s => s.value === 'slow')?.value
+                    ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? 'slow'
+            }
+            if (fmt === 'av_mp4' || fmt === 'av_mov') {
+                const audioCodec = draft.audioCodec || 'av_aac'
+                if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                    patch.audioCodec = 'av_aac'
+                }
             }
         }
         setDraft(prev => ({ ...prev, ...patch }))
@@ -293,7 +723,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         <div className="vsp-title-block">
                             <span className="vsp-title">{video.title}</span>
                             <span className="vsp-subtitle">
-                                {isYtdl ? 'Настройки загрузки и конвертации' : 'Индивидуальные настройки конвертации'}
+                                {isYtdl ? t('vspDownloadTitle') : t('vspConvTitle')}}
                             </span>
                         </div>
                     </div>
@@ -322,8 +752,8 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {/* ═══ DOWNLOAD (yt-dlp only) ═══ */}
                         {activeTab === 'download' && isYtdl && (
                             <div className="vsp-section">
-                                <VspSectionHeader icon="bi-cloud-arrow-down" title="Формат загрузки" />
-                                <VspRow label="Качество / формат" hint="Выберите разрешение и формат для скачивания">
+                                <VspSectionHeader icon="bi-cloud-arrow-down" title={t('vspDownloadFormat')} />
+                                <VspRow label={t('vspQualityFormat')} hint={t('vspHintQualityFormat')}>
                                     <PanelSelect
                                         value={selectedYtdlFmt}
                                         groups={ytdlFormatGroups}
@@ -331,8 +761,26 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-arrow-repeat" title="Конвертация после загрузки" />
-                                <VspRow label="Конвертировать файл" hint="После загрузки запустить HandBrake конвертацию (настройки — во вкладках Видео/Аудио)">
+                                {/* ── Time range clip ── */}
+                                {video.ytdlDuration > 0 && (
+                                    <>
+                                        <VspSectionHeader icon="bi-scissors" title={t('vspTimeClip')} />
+                                        <div className="vsp-clip-wrap">
+                                            <TimeRangeSelector
+                                                duration={video.ytdlDuration}
+                                                chapters={video.ytdlChapters || []}
+                                                clipStart={video.clipStart ?? null}
+                                                clipEnd={video.clipEnd ?? null}
+                                                thumbnail={video.thumbnail}
+                                                videoUrl={video.ytdlUrl}
+                                                onChange={(s, e) => onYtdlClipChange(video.id, s, e)}
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                <VspSectionHeader icon="bi-arrow-repeat" title={t('vspConvertAfterDl')} />
+                                <VspRow label={t('vspConvertFile')} hint={t('vspHintConvertFile')}>
                                     <VspToggle
                                         value={convertAfterDownload}
                                         onChange={v => setDraft(prev => ({ ...prev, _convertAfterDownload: v }))}
@@ -341,7 +789,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                 {!convertAfterDownload && (
                                     <div className="vsp-notice">
                                         <i className="bi bi-info-circle"></i>
-                                        Вкладки Видео / Аудио / Фильтры доступны только если включена конвертация.
+                                        {t('vspConvertNotice')}
                                     </div>
                                 )}
                             </div>
@@ -350,25 +798,22 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {/* ═══ VIDEO ═══ */}
                         {activeTab === 'video' && (
                             <div className="vsp-section">
-                                <VspSectionHeader icon="bi-file-earmark-play" title="Контейнер" />
-                                <VspRow label="Формат" hint="Контейнер для выходного файла">
+                                <VspSectionHeader icon="bi-file-earmark-play" title={t('sectionContainer')} />
+                                <VspRow label={t('rowFormat')} hint={t('hintFormat')}>
                                     <PanelSelect
                                         value={draft.format}
-                                        options={(() => {
-                                            const disabledSet = ENCODER_DISABLED_FORMATS[draft.encoder] || new Set()
-                                            return [
-                                                { value: 'av_mp4',  label: 'MP4',  disabled: disabledSet.has('av_mp4') },
-                                                { value: 'av_mkv',  label: 'MKV' },
-                                                { value: 'av_webm', label: 'WebM', disabled: disabledSet.has('av_webm') },
-                                                { value: 'av_mov',  label: 'MOV',  disabled: disabledSet.has('av_mov') },
-                                            ]
-                                        })()}
+                                        options={[
+                                            { value: 'av_mp4',  label: 'MP4' },
+                                            { value: 'av_mkv',  label: 'MKV' },
+                                            { value: 'av_webm', label: 'WebM' },
+                                            { value: 'av_mov',  label: 'MOV' },
+                                        ]}
                                         onChange={handleFormatChange}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-cpu" title="Кодировщик" />
-                                <VspRow label="Видеокодек" hint="Алгоритм сжатия видео">
+                                <VspSectionHeader icon="bi-cpu" title={t('sectionEncoder')} />
+                                <VspRow label={t('rowVideoCodec')} hint={t('hintVideoCodec')}>
                                     <PanelSelect
                                         value={draft.encoder}
                                         groups={encoderGroups.map(g => ({
@@ -386,7 +831,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     />
                                 </VspRow>
                                 {speedPresets.length > 0 && (
-                                    <VspRow label="Скорость / пресет" hint="Соотношение скорость↔эффективность кодека">
+                                    <VspRow label={t('rowSpeedPreset')} hint={t('hintSpeedPreset')}>
                                         <PanelSelect
                                             value={draft.encoderSpeed}
                                             options={speedPresets}
@@ -395,17 +840,17 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     </VspRow>
                                 )}
 
-                                <VspSectionHeader icon="bi-sliders2" title="Качество" />
-                                <VspRow label="Режим качества" hint="Предустановка или точное значение RF/CRF">
+                                <VspSectionHeader icon="bi-sliders2" title={t('sectionQuality')} />
+                                <VspRow label={t('rowQualityMode')} hint={t('hintQualityMode')}>
                                     <PanelSelect
                                         value={draft.quality}
                                         options={[
                                             { value: 'lossless', label: `Lossless (RF ${rfTable.min})` },
-                                            { value: 'high',     label: `Высокое (RF ${rfTable.high})` },
-                                            { value: 'medium',   label: `Среднее (RF ${rfTable.medium})` },
-                                            { value: 'low',      label: `Низкое (RF ${rfTable.low})` },
-                                            { value: 'potato',   label: `Максимальное сжатие (RF ${rfTable.potato})` },
-                                            { value: 'custom',   label: draft.quality === 'custom' ? `Своё (RF ${draft.customQuality})` : 'Своё значение...' },
+                                            { value: 'high',     label: `${t('qualityHigh')} (RF ${rfTable.high})` },
+                                            { value: 'medium',   label: `${t('qualityMedium')} (RF ${rfTable.medium})` },
+                                            { value: 'low',      label: `${t('qualityLow')} (RF ${rfTable.low})` },
+                                            { value: 'potato',   label: `${t('qualityPotato')} (RF ${rfTable.potato})` },
+                                            { value: 'custom',   label: draft.quality === 'custom' ? `${t('qualityCustomLabel')} (RF ${draft.customQuality})` : t('qualityCustomEmpty') },
                                         ]}
                                         onChange={v => update('quality', v)}
                                     />
@@ -413,7 +858,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                 {draft.quality === 'custom' && (
                                     <VspRow
                                         label={`RF / CRF: ${draft.customQuality}`}
-                                        hint={`${rfTable.min} (лучше качество) — ${rfTable.max} (хуже)`}
+                                        hint={`${rfTable.min} (${t('vspQualityHint')}) — ${rfTable.max} (${t('vspQualityHintWorse')})`}
                                     >
                                         <div className="vsp-slider-wrap">
                                             <span className="vsp-slider-edge">{rfTable.min}</span>
@@ -431,12 +876,12 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     </VspRow>
                                 )}
 
-                                <VspSectionHeader icon="bi-aspect-ratio" title="Разрешение и частота кадров" />
-                                <VspRow label="Разрешение" hint="Максимальное разрешение (масштабирование вниз)">
+                                <VspSectionHeader icon="bi-aspect-ratio" title={t('sectionResFps')} />
+                                <VspRow label={t('rowResolution')} hint={t('hintResolution')}>
                                     <PanelSelect
                                         value={draft.resolution}
                                         options={[
-                                            { value: 'source', label: 'По исходному' },
+                                            { value: 'source', label: t('resSource') },
                                             { value: '4k',     label: '4K (2160p)' },
                                             { value: '1440p',  label: '2K (1440p)' },
                                             { value: '1080p',  label: '1080p (Full HD)' },
@@ -446,45 +891,45 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                         onChange={v => update('resolution', v)}
                                     />
                                 </VspRow>
-                                <VspRow label="Частота кадров" hint="Целевой FPS выходного видео">
+                                <VspRow label={t('rowFps')} hint={t('hintFps')}>
                                     <PanelSelect
                                         value={draft.fps}
                                         options={[
-                                            { value: 'source', label: 'По исходному' },
+                                            { value: 'source', label: t('fpsSource') },
                                             { value: '60',     label: '60 fps' },
                                             { value: '30',     label: '30 fps' },
                                             { value: '25',     label: '25 fps (PAL)' },
-                                            { value: '24',     label: '24 fps (кино)' },
+                                            { value: '24',     label: t('fpsCinema') },
                                             { value: '23.976', label: '23.976 fps (NTSC)' },
                                         ]}
                                         onChange={v => update('fps', v)}
                                     />
                                 </VspRow>
-                                <VspRow label="Режим FPS" hint="VFR = переменный, CFR = постоянный, PFR = с ограничением">
+                                <VspRow label={t('rowFpsMode')} hint={t('hintFpsMode')}>
                                     <PanelSelect
                                         value={draft.fpsMode || 'vfr'}
                                         options={[
-                                            { value: 'vfr', label: 'VFR — переменный (рекомендован)' },
-                                            { value: 'cfr', label: 'CFR — постоянный' },
-                                            { value: 'pfr', label: 'PFR — с пиковым ограничением' },
+                                            { value: 'vfr', label: t('fpsVfr') },
+                                            { value: 'cfr', label: t('fpsCfr') },
+                                            { value: 'pfr', label: t('fpsPfr') },
                                         ]}
                                         onChange={v => update('fpsMode', v)}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-lightning-charge" title="Аппаратное ускорение" />
-                                <VspRow label="Аппаратное декодирование" hint="NVDEC / QSV разгружает CPU при чтении источника">
+                                <VspSectionHeader icon="bi-lightning-charge" title={t('sectionHwAccel')} />
+                                <VspRow label={t('rowHwDecoding')} hint={t('hintHwDecodingVsp')}>
                                     <PanelSelect
                                         value={draft.hwDecoding || 'none'}
                                         options={[
-                                            { value: 'none',  label: 'Отключено (программное)' },
+                                            { value: 'none',  label: t('hwDecodingNone') },
                                             { value: 'nvdec', label: 'NVDEC (NVIDIA)' },
                                             { value: 'qsv',   label: 'Quick Sync (Intel)' },
                                         ]}
                                         onChange={v => update('hwDecoding', v)}
                                     />
                                 </VspRow>
-                                <VspRow label="Двухпроходное кодирование" hint="2-pass: лучше распределяет битрейт, кодирует в 2× дольше">
+                                <VspRow label={t('rowMultiPass')} hint={t('hintMultiPass')}>
                                     <VspToggle value={!!draft.multiPass} onChange={v => update('multiPass', v)} />
                                 </VspRow>
                             </div>
@@ -493,8 +938,8 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {/* ═══ AUDIO ═══ */}
                         {activeTab === 'audio' && (
                             <div className="vsp-section">
-                                <VspSectionHeader icon="bi-music-note-beamed" title="Кодек аудио" />
-                                <VspRow label="Аудиокодек" hint="Кодек для аудиодорожки выходного файла">
+                                <VspSectionHeader icon="bi-music-note-beamed" title={t('sectionAudioCodec')} />
+                                <VspRow label={t('rowAudioCodec')} hint={t('hintAudioCodec')}>
                                     <PanelSelect
                                         value={draft.audioCodec || 'av_aac'}
                                         options={AUDIO_CODECS.map(c => ({
@@ -507,15 +952,15 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
 
                                 {!isPassthru && (
                                     <>
-                                        <VspSectionHeader icon="bi-speaker" title="Параметры аудио" />
-                                        <VspRow label="Битрейт" hint="Битрейт аудиодорожки в кбит/с">
+                                        <VspSectionHeader icon="bi-speaker" title={t('sectionAudioParams')} />
+                                        <VspRow label={t('rowBitrate')} hint={t('hintBitrate')}>
                                             <PanelSelect
                                                 value={draft.audioBitrate || '160'}
                                                 options={[
                                                     { value: '64',  label: '64 kbps' },
                                                     { value: '96',  label: '96 kbps' },
                                                     { value: '128', label: '128 kbps' },
-                                                    { value: '160', label: '160 kbps (по умолчанию)' },
+                                                    { value: '160', label: `160 kbps (${t('bitrateDefault')})` },
                                                     { value: '192', label: '192 kbps' },
                                                     { value: '256', label: '256 kbps' },
                                                     { value: '320', label: '320 kbps' },
@@ -523,12 +968,12 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                                 onChange={v => update('audioBitrate', v)}
                                             />
                                         </VspRow>
-                                        <VspRow label="Микшинг" hint="Количество каналов в выходной аудиодорожке">
+                                        <VspRow label={t('rowMixdown')} hint={t('hintMixdown')}>
                                             <PanelSelect
                                                 value={draft.audioMixdown || 'stereo'}
                                                 options={[
-                                                    { value: 'mono',    label: 'Моно (1.0)' },
-                                                    { value: 'stereo',  label: 'Стерео (2.0)' },
+                                                    { value: 'mono',    label: t('mixMono') },
+                                                    { value: 'stereo',  label: t('mixStereo') },
                                                     { value: 'dpl2',    label: 'Dolby Pro Logic II' },
                                                     { value: '5point1', label: 'Surround 5.1' },
                                                     { value: '6point1', label: 'Surround 6.1' },
@@ -537,11 +982,11 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                                 onChange={v => update('audioMixdown', v)}
                                             />
                                         </VspRow>
-                                        <VspRow label="Частота дискретизации" hint="Sample rate аудио">
+                                        <VspRow label={t('rowSampleRate')} hint={t('hintSampleRate')}>
                                             <PanelSelect
                                                 value={draft.audioSampleRate || 'auto'}
                                                 options={[
-                                                    { value: 'auto',  label: 'Авто (по исходному)' },
+                                                    { value: 'auto',  label: t('srAuto') },
                                                     { value: '22.05', label: '22.05 kHz' },
                                                     { value: '32',    label: '32 kHz' },
                                                     { value: '44.1',  label: '44.1 kHz' },
@@ -554,11 +999,11 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     </>
                                 )}
 
-                                <VspSectionHeader icon="bi-collection-play" title="Метаданные файла" />
-                                <VspRow label="Метки глав (Chapter markers)" hint="Добавлять chapter markers в контейнер">
+                                <VspSectionHeader icon="bi-collection-play" title={t('sectionFileMetadata')} />
+                                <VspRow label={t('rowChapterMarkers')} hint={t('hintChapterMarkers')}>
                                     <VspToggle value={draft.chapterMarkers !== false} onChange={v => update('chapterMarkers', v)} />
                                 </VspRow>
-                                <VspRow label="Оптимизировать MP4 (fast start)" hint="Moov-атом в начале файла — для HTTP стриминга. Только MP4.">
+                                <VspRow label={t('rowOptimizeMp4')} hint={t('hintOptimizeMp4')}>
                                     <VspToggle
                                         value={!!draft.optimizeMP4}
                                         onChange={v => update('optimizeMP4', v)}
@@ -571,61 +1016,61 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {/* ═══ SUBTITLES ═══ */}
                         {activeTab === 'subtitles' && (
                             <div className="vsp-section">
-                                <VspSectionHeader icon="bi-badge-cc" title="Дорожки субтитров" />
-                                <VspRow label="Субтитры" hint="Какие дорожки субтитров включить в выходной файл">
+                                <VspSectionHeader icon="bi-badge-cc" title={t('sectionSubtitleTracks')} />
+                                <VspRow label={t('rowSubtitles')} hint={t('hintSubtitles')}>
                                     <PanelSelect
                                         value={draft.subtitleMode || 'none'}
                                         options={[
-                                            { value: 'none',        label: 'Не включать' },
-                                            { value: 'first',       label: 'Первая дорожка' },
-                                            { value: 'all',         label: 'Все дорожки' },
-                                            { value: 'scan_forced', label: 'Авто (принудительные / иностранные)' },
+                                            { value: 'none',        label: t('subNone') },
+                                            { value: 'first',       label: t('subFirst') },
+                                            { value: 'all',         label: t('subAll') },
+                                            { value: 'scan_forced', label: t('subScanForced') },
                                         ]}
                                         onChange={v => update('subtitleMode', v)}
                                     />
                                 </VspRow>
                                 {draft.subtitleMode !== 'none' && draft.subtitleMode !== 'all' && (
-                                    <VspRow label="Вшивать субтитры" hint="Субтитры рендерятся прямо в кадр (burn-in). Не требует поддержки контейнером">
+                                    <VspRow label={t('rowSubtitleBurn')} hint={t('hintSubtitleBurn')}>
                                         <VspToggle value={!!draft.subtitleBurn} onChange={v => update('subtitleBurn', v)} />
                                     </VspRow>
                                 )}
                                 {draft.subtitleMode !== 'none' && !draft.subtitleBurn && draft.subtitleMode !== 'all' && (
-                                    <VspRow label="Субтитры по умолчанию" hint="Отметить дорожку как выбранную по умолчанию в плеере">
+                                    <VspRow label={t('rowSubtitleDefault')} hint={t('hintSubtitleDefaultShort')}>
                                         <VspToggle value={!!draft.subtitleDefault} onChange={v => update('subtitleDefault', v)} />
                                     </VspRow>
                                 )}
 
-                                <VspSectionHeader icon="bi-translate" title="Язык субтитров" />
-                                <VspRow label="Предпочитаемый язык" hint="Нативный язык: при наличии такой дорожки, она будет выбрана автоматически">
+                                <VspSectionHeader icon="bi-translate" title={t('sectionSubtitleLang')} />
+                                <VspRow label={t('rowSubtitleLang')} hint={t('hintSubtitleLang')}>
                                     <PanelSelect
                                         value={draft.subtitleLanguage || 'any'}
                                         options={[
-                                            { value: 'any', label: 'Любой (не фильтровать)' },
-                                            { value: 'eng', label: 'Английский (eng)' },
-                                            { value: 'rus', label: 'Русский (rus)' },
-                                            { value: 'jpn', label: 'Японский (jpn)' },
-                                            { value: 'chi', label: 'Китайский (chi)' },
-                                            { value: 'kor', label: 'Корейский (kor)' },
-                                            { value: 'fra', label: 'Французский (fra)' },
-                                            { value: 'deu', label: 'Немецкий (deu)' },
-                                            { value: 'spa', label: 'Испанский (spa)' },
-                                            { value: 'por', label: 'Португальский (por)' },
-                                            { value: 'ita', label: 'Итальянский (ita)' },
-                                            { value: 'ara', label: 'Арабский (ara)' },
+                                            { value: 'any', label: t('subLangAny') },
+                                            { value: 'eng', label: t('subLangEng') },
+                                            { value: 'rus', label: t('subLangRus') },
+                                            { value: 'jpn', label: t('subLangJpn') },
+                                            { value: 'chi', label: t('subLangChi') },
+                                            { value: 'kor', label: t('subLangKor') },
+                                            { value: 'fra', label: t('subLangFra') },
+                                            { value: 'deu', label: t('subLangDeu') },
+                                            { value: 'spa', label: t('subLangSpa') },
+                                            { value: 'por', label: t('subLangPor') },
+                                            { value: 'ita', label: t('subLangIta') },
+                                            { value: 'ara', label: t('subLangAra') },
                                         ]}
                                         onChange={v => update('subtitleLanguage', v)}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-file-earmark-text" title="Внешний файл субтитров" />
-                                <VspRow label="Файл субтитров" hint="Прикрепить внешний файл .srt / .ass / .ssa">
+                                <VspSectionHeader icon="bi-file-earmark-text" title={t('sectionSubtitleExt')} />
+                                <VspRow label={t('rowSubtitleExtFile')} hint={t('hintSubtitleExtFile')}>
                                     <div className="vsp-file-pick">
                                         {draft.subtitleExternalFile ? (
                                             <span className="vsp-file-pick__name" title={draft.subtitleExternalFile}>
                                                 {draft.subtitleExternalFile.split(/[\\/]/).pop()}
                                             </span>
                                         ) : (
-                                            <span className="vsp-file-pick__empty">Не выбран</span>
+                                            <span className="vsp-file-pick__empty">{t('subExtFileEmpty')}</span>
                                         )}
                                         <button
                                             className="vsp-file-pick__btn"
@@ -641,7 +1086,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                             <button
                                                 className="vsp-file-pick__clear"
                                                 type="button"
-                                                title="Убрать файл"
+                                                title={t('removeFile')}
                                                 onClick={() => update('subtitleExternalFile', '')}
                                             >
                                                 <i className="bi bi-x-lg"></i>
@@ -650,12 +1095,12 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     </div>
                                 </VspRow>
                                 {draft.subtitleExternalFile && (
-                                    <VspRow label="Вшить внешние субтитры" hint="Рендерить сабы прямо в кадр (burn-in), иначе — как отдельная дорожка">
+                                    <VspRow label={t('rowSubtitleExtBurn')} hint={t('hintSubtitleExtBurn')}>
                                         <VspToggle value={!!draft.subtitleBurn} onChange={v => update('subtitleBurn', v)} />
                                     </VspRow>
                                 )}
                                 {draft.subtitleExternalFile && !draft.subtitleBurn && (
-                                    <VspRow label="Субтитры по умолчанию" hint="Отметить как выбранную по умолчанию в плеере">
+                                    <VspRow label={t('rowSubtitleDefault')} hint={t('hintSubtitleDefaultShort')}>
                                         <VspToggle value={!!draft.subtitleDefault} onChange={v => update('subtitleDefault', v)} />
                                     </VspRow>
                                 )}
@@ -665,87 +1110,87 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {/* ═══ FILTERS ═══ */}
                         {activeTab === 'filters' && (
                             <div className="vsp-section">
-                                <VspSectionHeader icon="bi-intersect" title="Деинтерлейс" />
-                                <VspRow label="Деинтерлейс" hint="Устраняет гребёнку от чересстрочной развёртки">
+                                <VspSectionHeader icon="bi-intersect" title={t('sectionDeinterlace')} />
+                                <VspRow label={t('rowDeinterlace')} hint={t('hintDeinterlace')}>
                                     <PanelSelect
                                         value={draft.deinterlace || 'off'}
                                         options={[
-                                            { value: 'off',           label: 'Отключён' },
-                                            { value: 'yadif_default', label: 'Yadif — стандартный' },
-                                            { value: 'yadif_bob',     label: 'Yadif Bob (двойной FPS)' },
-                                            { value: 'bwdif_default', label: 'BWDif — стандартный' },
-                                            { value: 'bwdif_bob',     label: 'BWDif Bob (двойной FPS)' },
+                                            { value: 'off',           label: t('deintOff') },
+                                            { value: 'yadif_default', label: t('deintYadif') },
+                                            { value: 'yadif_bob',     label: t('deintYadifBob') },
+                                            { value: 'bwdif_default', label: t('deintBwdif') },
+                                            { value: 'bwdif_bob',     label: t('deintBwdifBob') },
                                         ]}
                                         onChange={v => update('deinterlace', v)}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-snow2" title="Шумоподавление" />
-                                <VspRow label="Денойз" hint="Убирает видеошум. Требует дополнительного времени.">
+                                <VspSectionHeader icon="bi-snow2" title={t('sectionDenoise')} />
+                                <VspRow label={t('rowDenoise')} hint={t('hintDenoise')}>
                                     <PanelSelect
                                         value={draft.denoise || 'off'}
                                         options={[
-                                            { value: 'off',                label: 'Отключено' },
-                                            { value: 'nlmeans_ultralight', label: 'NL-Means — минимальный' },
-                                            { value: 'nlmeans_light',      label: 'NL-Means — лёгкий' },
-                                            { value: 'nlmeans_medium',     label: 'NL-Means — средний' },
-                                            { value: 'nlmeans_strong',     label: 'NL-Means — сильный' },
-                                            { value: 'hqdn3d_light',       label: 'HQ 3D — лёгкий' },
-                                            { value: 'hqdn3d_medium',      label: 'HQ 3D — средний' },
-                                            { value: 'hqdn3d_strong',      label: 'HQ 3D — сильный' },
+                                            { value: 'off',                label: t('denoiseOff') },
+                                            { value: 'nlmeans_ultralight', label: t('denoiseNlUltralight') },
+                                            { value: 'nlmeans_light',      label: t('denoiseNlLight') },
+                                            { value: 'nlmeans_medium',     label: t('denoiseNlMedium') },
+                                            { value: 'nlmeans_strong',     label: t('denoiseNlStrong') },
+                                            { value: 'hqdn3d_light',       label: t('denoiseHqLight') },
+                                            { value: 'hqdn3d_medium',      label: t('denoiseHqMedium') },
+                                            { value: 'hqdn3d_strong',      label: t('denoiseHqStrong') },
                                         ]}
                                         onChange={v => update('denoise', v)}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-grid-3x3" title="Деблокинг" />
-                                <VspRow label="Деблокинг" hint="Убирает блочные артефакты от кодека источника">
+                                <VspSectionHeader icon="bi-grid-3x3" title={t('sectionDeblock')} />
+                                <VspRow label={t('rowDeblock')} hint={t('hintDeblock')}>
                                     <PanelSelect
                                         value={draft.deblock || 'off'}
                                         options={[
-                                            { value: 'off',        label: 'Отключён' },
-                                            { value: 'ultralight', label: 'Минимальный' },
-                                            { value: 'light',      label: 'Лёгкий' },
-                                            { value: 'medium',     label: 'Средний' },
-                                            { value: 'strong',     label: 'Сильный' },
-                                            { value: 'stronger',   label: 'Максимальный' },
+                                            { value: 'off',        label: t('deblockOff') },
+                                            { value: 'ultralight', label: t('deblockUltralight') },
+                                            { value: 'light',      label: t('deblockLight') },
+                                            { value: 'medium',     label: t('deblockMedium') },
+                                            { value: 'strong',     label: t('deblockStrong') },
+                                            { value: 'stronger',   label: t('deblockStronger') },
                                         ]}
                                         onChange={v => update('deblock', v)}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-zoom-in" title="Резкость" />
-                                <VspRow label="Повышение резкости" hint="Unsharp Mask или Laplacian Sharpen">
+                                <VspSectionHeader icon="bi-zoom-in" title={t('sectionSharpen')} />
+                                <VspRow label={t('rowSharpen')} hint={t('hintSharpen')}>
                                     <PanelSelect
                                         value={draft.sharpen || 'off'}
                                         options={[
-                                            { value: 'off',                 label: 'Отключено' },
-                                            { value: 'unsharp_ultralight',  label: 'Unsharp — минимальный' },
-                                            { value: 'unsharp_light',       label: 'Unsharp — лёгкий' },
-                                            { value: 'unsharp_medium',      label: 'Unsharp — средний' },
-                                            { value: 'unsharp_strong',      label: 'Unsharp — сильный' },
-                                            { value: 'lapsharp_ultralight', label: 'Lapsharp — минимальный' },
-                                            { value: 'lapsharp_light',      label: 'Lapsharp — лёгкий' },
-                                            { value: 'lapsharp_medium',     label: 'Lapsharp — средний' },
-                                            { value: 'lapsharp_strong',     label: 'Lapsharp — сильный' },
+                                            { value: 'off',                 label: t('sharpenOff') },
+                                            { value: 'unsharp_ultralight',  label: t('sharpenUnsharpUltralight') },
+                                            { value: 'unsharp_light',       label: t('sharpenUnsharpLight') },
+                                            { value: 'unsharp_medium',      label: t('sharpenUnsharpMedium') },
+                                            { value: 'unsharp_strong',      label: t('sharpenUnsharpStrong') },
+                                            { value: 'lapsharp_ultralight', label: t('sharpenLapUltralight') },
+                                            { value: 'lapsharp_light',      label: t('sharpenLapLight') },
+                                            { value: 'lapsharp_medium',     label: t('sharpenLapMedium') },
+                                            { value: 'lapsharp_strong',     label: t('sharpenLapStrong') },
                                         ]}
                                         onChange={v => update('sharpen', v)}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-camera" title="Трансформация кадра" />
-                                <VspRow label="Чёрно-белый режим" hint="Удаляет цветовую информацию (grayscale)">
+                                <VspSectionHeader icon="bi-camera" title={t('sectionFrameTransform')} />
+                                <VspRow label={t('rowGrayscale')} hint={t('hintGrayscale')}>
                                     <VspToggle value={!!draft.grayscale} onChange={v => update('grayscale', v)} />
                                 </VspRow>
-                                <VspRow label="Поворот / отражение" hint="Повернуть или отразить кадр">
+                                <VspRow label={t('rowRotate')} hint={t('hintRotate')}>
                                     <PanelSelect
                                         value={draft.rotate || '0'}
                                         options={[
-                                            { value: '0',     label: 'Без поворота' },
-                                            { value: '90',    label: '90° по часовой' },
-                                            { value: '180',   label: '180°' },
-                                            { value: '270',   label: '270° (90° против часовой)' },
-                                            { value: 'hflip', label: 'Горизонтальное отражение' },
+                                            { value: '0',     label: t('rotateNone') },
+                                            { value: '90',    label: t('rotate90') },
+                                            { value: '180',   label: t('rotate180') },
+                                            { value: '270',   label: t('rotate270') },
+                                            { value: 'hflip', label: t('rotateHflip') },
                                         ]}
                                         onChange={v => update('rotate', v)}
                                     />
@@ -756,25 +1201,25 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {/* ═══ HDR / META ═══ */}
                         {activeTab === 'hdr' && (
                             <div className="vsp-section">
-                                <VspSectionHeader icon="bi-brightness-high" title="HDR" />
-                                <VspRow label="Динамические метаданные HDR" hint="Передать HDR10+ или Dolby Vision metadata в выходной файл">
+                                <VspSectionHeader icon="bi-brightness-high" title={t('sectionHdr')} />
+                                <VspRow label={t('rowHdrMetadata')} hint={t('hintHdrMetadata')}>
                                     <PanelSelect
                                         value={draft.hdrMetadata || 'off'}
                                         options={[
-                                            { value: 'off',         label: 'Отключено' },
+                                            { value: 'off',         label: t('hdrOff') },
                                             { value: 'hdr10plus',   label: 'HDR10+' },
                                             { value: 'dolbyvision', label: 'Dolby Vision' },
-                                            { value: 'all',         label: 'Все (HDR10+ и Dolby Vision)' },
+                                            { value: 'all',         label: t('hdrAll') },
                                         ]}
                                         onChange={v => update('hdrMetadata', v)}
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-tag" title="Метаданные файла" />
-                                <VspRow label="Сохранять метаданные" hint="Копировать теги, описание, обложку из источника">
+                                <VspSectionHeader icon="bi-tag" title={t('sectionFileMeta')} />
+                                <VspRow label={t('rowKeepMetadata')} hint={t('hintKeepMetadataShort')}>
                                     <VspToggle value={!!draft.keepMetadata} onChange={v => update('keepMetadata', v)} />
                                 </VspRow>
-                                <VspRow label="Inline Parameter Sets" hint="SPS/PPS inline в каждом кадре — требуется для HLS-стриминга">
+                                <VspRow label={t('rowInlineParamSets')} hint={t('hintInlineParamSets')}>
                                     <VspToggle value={!!draft.inlineParamSets} onChange={v => update('inlineParamSets', v)} />
                                 </VspRow>
                             </div>
@@ -788,14 +1233,14 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                     {(video.customSettings || video.conversionSettings) && !isYtdl && (
                         <button className="vsp-reset-btn" onClick={handleReset}>
                             <i className="bi bi-arrow-counterclockwise"></i>
-                            Сбросить (глобальные)
+                            {t('vspResetBtn')}
                         </button>
                     )}
                     <div className="vsp-footer-right">
-                        <button className="vsp-cancel-btn" onClick={onClose}>Отмена</button>
+                        <button className="vsp-cancel-btn" onClick={onClose}>{t('cancel')}</button>
                         <button className="vsp-save-btn" onClick={handleSave}>
                             <i className="bi bi-check2"></i>
-                            Применить
+                            {t('apply')}
                         </button>
                     </div>
                 </div>
@@ -810,7 +1255,7 @@ function ListPage({
     onSettingsChange, onStartEncoding, onStop,
     outputMode, customOutputDir, defaultOutputDir, onOutputModeChange,
     onAddFiles, onDownload, onRemoveVideo, onClearQueue, onRenameOutput, onVideoSettingsChange,
-    onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings,
+    onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings, onYtdlClipChange,
     isDraggingOnList, onListDragEnter, onListDragLeave, onListDragOver, onListDrop,
     gpuVendor, encodingStartTime
 }) {
@@ -821,6 +1266,7 @@ function ListPage({
     const [addUrl, setAddUrl] = useState('')
     const [isAddingUrl, setIsAddingUrl] = useState(false)
     const [addUrlError, setAddUrlError] = useState('')
+    const { t } = useLanguage()
 
     useEffect(() => {
         if (!isEncoding) return
@@ -857,7 +1303,7 @@ function ListPage({
             await onDownload(addUrlTrimmed, addUrlService)
             setAddUrl('')
         } catch (err) {
-            setAddUrlError(err?.message || 'Ошибка')
+            setAddUrlError(err?.message || t('error'))
         } finally {
             setIsAddingUrl(false)
         }
@@ -875,7 +1321,7 @@ function ListPage({
         v.isYtdlItem ? ['format_select', 'error'].includes(v.status) : ['ready', 'done', 'error'].includes(v.status)
     )
 
-    const startBtnLabel = hasOnlyDownloads ? 'СКАЧАТЬ' : hasDownloads ? 'ЗАПУСТИТЬ' : 'КОНВЕРТИРОВАТЬ'
+    const startBtnLabel = hasOnlyDownloads ? t('btnDownload') : hasDownloads ? t('btnStart') : t('btnConvert')
 
     const editingVideo = editingVideoId !== null ? videos.find(v => v.id === editingVideoId) : null
 
@@ -897,7 +1343,7 @@ function ListPage({
                         <input
                             className="list-url-input"
                             type="url"
-                            placeholder="Ссылка для загрузки (YouTube, TikTok ...)"
+                            placeholder={t('urlPlaceholder')}
                             value={addUrl}
                             onChange={e => { setAddUrl(e.target.value); setAddUrlError('') }}
                             onKeyDown={e => e.key === 'Enter' && handleAddUrl()}
@@ -909,7 +1355,7 @@ function ListPage({
                             className="list-url-btn"
                             onClick={handleAddUrl}
                             disabled={!addUrlTrimmed || isAddingUrl || addUrlUnsupported || isEncoding}
-                            title="Добавить в очередь"
+                            title={t('addToQueueTitle')}
                         >
                             {isAddingUrl ? <span className="list-url-spinner" /> : <i className="bi bi-cloud-arrow-down-fill" />}
                         </button>
@@ -918,7 +1364,7 @@ function ListPage({
                         className="add-button"
                         onClick={onAddFiles}
                         disabled={isEncoding}
-                        title="Добавить файлы"
+                        title={t('addFilesTitle')}
                     >
                         <i className="bi bi-plus-lg"></i>
                     </button>
@@ -926,7 +1372,7 @@ function ListPage({
                         className="add-button clear-button"
                         onClick={onClearQueue}
                         disabled={isEncoding}
-                        title="Очистить очередь"
+                        title={t('clearQueueTitle')}
                     >
                         <i className="bi bi-trash3"></i>
                     </button>
@@ -976,7 +1422,7 @@ function ListPage({
                                     {(v.customSettings || (v.isYtdlItem && v.conversionSettings)) && (
                                         <span className="vtag custom-tag">
                                             <i className="bi bi-sliders2"></i>
-                                            Инд.
+                                            {t('indCustomTag')}
                                         </span>
                                     )}
                                     {!isEncoding && !isActive && (
@@ -993,7 +1439,7 @@ function ListPage({
                                             : <button
                                                 className="rename-btn"
                                                 onClick={e => { e.stopPropagation(); startEdit(v) }}
-                                                title="Переименовать выходной файл"
+                                                title={t('renameFileTitle')}
                                             >
                                                 <i className="bi bi-pencil"></i>
                                                 <span>{v.outputName || v.title}</span>
@@ -1020,11 +1466,11 @@ function ListPage({
                                             <div className="ytdl-controls">
                                                 <div className="ytdl-format-row">
                                                     <i className="bi bi-cloud-arrow-down ytdl-icon"></i>
-                                                    <span className="ytdl-label">Формат:</span>
+                                                    <span className="ytdl-label">{t('ytdlFormatLabel')}</span>
                                                     <span onClick={e => e.stopPropagation()}>
                                                         <GsSelect
                                                             className="ytdl-format-gs"
-                                                            groups={buildYtdlFormatGroups(v.ytdlFormats)}
+                                                            groups={buildYtdlFormatGroups(v.ytdlFormats, t)}
                                                             value={v.ytdlSelectedFormat || ''}
                                                             onChange={val => onYtdlFormatChange(v.id, val)}
                                                             disabled={isEncoding}
@@ -1038,7 +1484,7 @@ function ListPage({
                                                             disabled={isEncoding}
                                                         />
                                                     </span>
-                                                    <span className="ytdl-label">Конвертировать</span>
+                                                    <span className="ytdl-label">{t('ytdlConvertLabel')}</span>
                                                 </div>
                                                 {fmtTags.length > 0 && (
                                                     <span className="ytdl-fmt-tags">
@@ -1059,7 +1505,7 @@ function ListPage({
                                     const effectiveSettings = v.isYtdlItem
                                         ? (v.conversionSettings || settings)
                                         : (v.customSettings || settings)
-                                    const transformTags = getTransformTags(v, effectiveSettings)
+                                    const transformTags = getTransformTags(v, effectiveSettings, t)
                                     if (!transformTags.length) return null
                                     return (
                                         <div className="video-transform-tags">
@@ -1107,11 +1553,21 @@ function ListPage({
                                         </span>
                                     </div>
                                 )}
+                                {v.status === 'error' && v.startTime && v.endTime && (
+                                    <div className="video-time-info error">
+                                        <span className="vtime error">
+                                            <i className="bi bi-exclamation-circle"></i>
+                                            {formatTime((v.endTime - v.startTime) / 1000)}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             <div className="video-size">
                                 {v.status === 'done'
                                     ? <i className="bi bi-check-circle-fill success"></i>
-                                    : (() => {
+                                    : v.status === 'error'
+                                        ? <i className="bi bi-x-circle-fill error-icon"></i>
+                                        : (() => {
                                         if (v.isYtdlItem) return null
                                         const effectiveSettings = v.customSettings || settings
                                         const estimated = v.status !== 'encoding'
@@ -1146,7 +1602,7 @@ function ListPage({
                     <div className="list-drop-overlay">
                         <div className="list-drop-inner">
                             <i className="bi bi-plus-circle"></i>
-                            <span>ДОБАВИТЬ В ОЧЕРЕДЬ</span>
+                            <span>{t('addToQueueLabel')}</span>
                         </div>
                     </div>
                 )}
@@ -1157,10 +1613,10 @@ function ListPage({
                 <div className="list-bottom-header">
                     <span className="list-bottom-title">
                         {hasOnlyDownloads
-                            ? 'Настройки загрузки'
+                            ? t('downloadSettings')
                             : hasDownloads
-                                ? 'Глобальные настройки конвертации'
-                                : 'Глобальные настройки конвертации'}
+                                ? t('globalConvSettings')
+                                : t('globalConvSettings')}
                     </span>
                 </div>
 
@@ -1179,7 +1635,7 @@ function ListPage({
                 {hasRegular && hasDownloads && (
                     <div className="ytdl-global-notice">
                         <i className="bi bi-info-circle-fill"></i>
-                        {videos.filter(v => v.isYtdlItem).length} файл(ов) для загрузки — у каждого свои настройки (откройте карточку).
+                        {videos.filter(v => v.isYtdlItem).length} {t('mixedQueueNotice')}
                     </div>
                 )}
 
@@ -1187,15 +1643,15 @@ function ListPage({
                     <div className="list-output-section">
                         <div className="list-output-top">
                             <span className="list-output-label">
-                                {hasOnlyDownloads ? 'Папка для загрузки' : 'Папка для сохранения'}
+                                {hasOnlyDownloads ? t('downloadFolder') : t('saveFolder')}
                             </span>
                             {!hasOnlyDownloads && (
                                 <GsSelect
                                     value={outputMode}
                                     options={[
-                                        { value: 'default', label: 'По умолчанию' },
-                                        { value: 'custom',  label: 'Своя папка' },
-                                        { value: 'source',  label: 'Исходный путь' },
+                                        { value: 'default', label: t('outputDefault') },
+                                        { value: 'custom',  label: t('outputCustom') },
+                                        { value: 'source',  label: t('outputSource') },
                                     ]}
                                     onChange={onOutputModeChange}
                                     disabled={isEncoding}
@@ -1206,10 +1662,10 @@ function ListPage({
                         <div className="list-output-path-row">
                             <div className="list-output-path-display">
                                 {outputMode === 'custom'
-                                    ? (customOutputDir || 'Downloaded (рядом с программой)')
+                                    ? (customOutputDir || t('downloadsFolderDefault'))
                                     : outputMode === 'source'
-                                        ? 'Исходный путь файла'
-                                        : (defaultOutputDir || 'Downloaded (рядом с программой)')}
+                                        ? t('outputSourcePath')
+                                        : (defaultOutputDir || t('downloadsFolderDefault'))}
                             </div>
                             <button
                                 className="list-folder-btn"
@@ -1245,18 +1701,18 @@ function ListPage({
                 <div className="list-bottom-status">
                     <span>
                         {hasDownloads && (
-                            <><i className="bi bi-cloud-arrow-down"></i>&nbsp;<b>{videos.filter(v => v.isYtdlItem).length}</b>&nbsp;загрузок</>
+                            <><i className="bi bi-cloud-arrow-down"></i>&nbsp;<b>{videos.filter(v => v.isYtdlItem).length}</b>&nbsp;{t('countDownloads')}</>
                         )}
                         {hasDownloads && hasRegular && <>&nbsp;&nbsp;·&nbsp;&nbsp;</>}
                         {hasRegular && globalCount > 0 && (
-                            <><i className="bi bi-globe2"></i>&nbsp;<b>{globalCount}</b>&nbsp;{globalCount === 1 ? 'файл' : globalCount < 5 ? 'файла' : 'файлов'} по глобальным</>
+                            <><i className="bi bi-globe2"></i>&nbsp;<b>{globalCount}</b>&nbsp;{globalCount === 1 ? t('countInQueue1') : globalCount < 5 ? t('countInQueue234') : t('countInQueueMany')} {t('countByGlobal')}</>
                         )}
                         {hasRegular && globalCount > 0 && customCount > 0 && <>&nbsp;&nbsp;·&nbsp;&nbsp;</>}
                         {hasRegular && customCount > 0 && (
-                            <><i className="bi bi-sliders2"></i>&nbsp;<b>{customCount}</b>&nbsp;{customCount === 1 ? 'файл' : customCount < 5 ? 'файла' : 'файлов'} по индивидуальным</>
+                            <><i className="bi bi-sliders2"></i>&nbsp;<b>{customCount}</b>&nbsp;{customCount === 1 ? t('countInQueue1') : customCount < 5 ? t('countInQueue234') : t('countInQueueMany')} {t('countByCustom')}</>
                         )}
                         {videos.some(v => v.status === 'done') && (
-                            <>&nbsp;&nbsp;·&nbsp;&nbsp;{videos.filter(v => v.status === 'done').length} готово</>
+                            <>&nbsp;&nbsp;·&nbsp;&nbsp;{videos.filter(v => v.status === 'done').length} {t('countDone')}</>
                         )}
                         {isEncoding && encodingStartTime && (() => {
                             const elapsed = (tickNow - encodingStartTime) / 1000
@@ -1276,7 +1732,7 @@ function ListPage({
                             )
                         })()}
                     </span>
-                    <span>{videos.length} {videos.length === 1 ? 'файл' : videos.length < 5 ? 'файла' : 'файлов'} в очереди</span>
+                    <span>{videos.length} {videos.length === 1 ? t('countInQueue1') : videos.length < 5 ? t('countInQueue234') : t('countInQueueMany')}</span>
                 </div>
             </div>
 
@@ -1289,6 +1745,7 @@ function ListPage({
                     onReset={(id) => editingVideo.isYtdlItem ? onYtdlConversionSettings(id, null) : onVideoSettingsChange(id, null)}
                     onYtdlFormatChange={onYtdlFormatChange}
                     onYtdlConvertToggle={onYtdlConvertToggle}
+                    onYtdlClipChange={onYtdlClipChange}
                 />
             )}
         </div>

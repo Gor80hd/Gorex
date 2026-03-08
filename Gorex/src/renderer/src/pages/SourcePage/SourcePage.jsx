@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import logoWhite from '../../assets/images/logo_white.svg'
 import logoDark from '../../assets/images/logo.svg'
+import { useLanguage } from '../../i18n'
 import './SourcePage.scss'
 
 // Supported services: hostname (without www.) → { name, icon (Bootstrap Icons class), color }
@@ -60,6 +61,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
     const [isDownloading, setIsDownloading] = useState(false)
     const [dlError, setDlError] = useState('')
     const [dlHint, setDlHint] = useState('')
+    const { t } = useLanguage()
 
     const trimmed = url.trim()
     const hasUrl = trimmed.length > 0
@@ -76,7 +78,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
             await onDownload(trimmed, service)
             setUrl('')
         } catch (err) {
-            setDlError(err?.message || 'Ошибка запроса форматов')
+            setDlError(err?.message || t('dlErrorDefault'))
         } finally {
             setIsDownloading(false)
         }
@@ -105,6 +107,41 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
 
     return (
         <div className="source-wrapper">
+            <div className="dl-zone">
+                <span className="dl-zone-label">{t('dlFromWeb')}</span>
+                <div className="dl-bar">
+                    <div className={`dl-input-wrap${isUnsupported ? ' dl-input-wrap--error' : ''}${service ? ' dl-input-wrap--ok' : ''}`}>
+                        <span className="dl-input-icon">{iconEl}</span>
+                        <input
+                            className="dl-input"
+                            type="url"
+                            placeholder={t('dlPlaceholder')}
+                            value={url}
+                            onChange={handleChange}
+                            onKeyDown={handleKeyDown}
+                            disabled={isDownloading}
+                            spellCheck={false}
+                        />
+                        {service && <span className="dl-service-label">{service.name}</span>}
+                        <button
+                            className="dl-btn"
+                            onClick={handleDownload}
+                            disabled={!trimmed || isDownloading || isUnsupported}
+                        >
+                            {isDownloading
+                                ? <span className="dl-spinner" />
+                                : <><i className="bi bi-cloud-arrow-down-fill" /><span>{t('dlDownload')}</span></>
+                            }
+                        </button>
+                    </div>
+
+                    {isUnsupported && !dlError && (
+                        <span className="dl-hint">{t('dlUnsupported')}</span>
+                    )}
+                    {dlError && <span className="dl-hint dl-hint--error">{dlError}</span>}
+                </div>
+            </div>
+
             <div
                 className={`drop-area ${isDragging ? 'active' : ''} ${theme}`}
                 onClick={onSelectFiles}
@@ -120,45 +157,10 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                             alt="Logo"
                         />
                     </div>
-                    <div className="drop-text-large">Добавить файл / файлы</div>
+                    <div className="drop-text-large">{t('dropZoneTitle')}</div>
                 </div>
                 <div className="drop-info-large">
-                    Вы можете выбрать один или несколько файлов для конвертации, просто перенесите их в эту область
-                </div>
-            </div>
-
-            <div className="dl-zone">
-                <span className="dl-zone-label">Или скачайте из сети</span>
-                <div className="dl-bar">
-                    <div className={`dl-input-wrap${isUnsupported ? ' dl-input-wrap--error' : ''}${service ? ' dl-input-wrap--ok' : ''}`}>
-                        <span className="dl-input-icon">{iconEl}</span>
-                        <input
-                            className="dl-input"
-                            type="url"
-                            placeholder="Вставьте ссылку (YouTube, TikTok, Twitter ...)"
-                            value={url}
-                            onChange={handleChange}
-                            onKeyDown={handleKeyDown}
-                            disabled={isDownloading}
-                            spellCheck={false}
-                        />
-                        {service && <span className="dl-service-label">{service.name}</span>}
-                        <button
-                            className="dl-btn"
-                            onClick={handleDownload}
-                            disabled={!trimmed || isDownloading || isUnsupported}
-                        >
-                            {isDownloading
-                                ? <span className="dl-spinner" />
-                                : <><i className="bi bi-cloud-arrow-down-fill" /><span>Скачать</span></>
-                            }
-                        </button>
-                    </div>
-
-                    {isUnsupported && !dlError && (
-                        <span className="dl-hint">Сервис не поддерживается</span>
-                    )}
-                    {dlError && <span className="dl-hint dl-hint--error">{dlError}</span>}
+                    {t('dropZoneHint')}
                 </div>
             </div>
         </div>

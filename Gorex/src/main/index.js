@@ -246,11 +246,19 @@ app.whenReady().then(() => {
                         }
                     }
 
+                    // Normalize chapters
+                    const chapters = (info.chapters || []).map(ch => ({
+                        title: ch.title || '',
+                        start_time: ch.start_time ?? 0,
+                        end_time: ch.end_time ?? (info.duration || 0)
+                    }))
+
                     resolve({
                         title: info.title || info.id || 'Видео',
                         thumbnailUrl: thumbnailBase64,
                         formats,
                         duration: info.duration || null,
+                        chapters,
                         url: videoUrl
                     })
                 } catch (e) {
@@ -262,7 +270,7 @@ app.whenReady().then(() => {
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
-    ipcMain.on('ytdl-run', (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution }) => {
+    ipcMain.on('ytdl-run', (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration }) => {
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
         const cliPath = getCLIPath()
@@ -297,30 +305,96 @@ app.whenReady().then(() => {
 
         const outputTemplate = join(downloadDir, safeBase + '.%(ext)s')
 
+        // Build time-clipping arguments if a partial range is requested
+        const hasClip = (clipStart != null && clipStart > 0) || (clipEnd != null)
+        const secToTimestamp = (s) => {
+            const sec = Math.max(0, Math.floor(s))
+            const h = Math.floor(sec / 3600)
+            const m = Math.floor((sec % 3600) / 60)
+            const ss = sec % 60
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+        }
+
         const ytdlArgs = [
             '-f', fmtArg,
             '-o', outputTemplate,
             '--no-playlist',
             '--merge-output-format', 'mp4',
             '--newline',
-            url
         ]
+
+        if (hasClip) {
+            const fromTs = secToTimestamp(clipStart ?? 0)
+            const toTs = clipEnd != null ? secToTimestamp(clipEnd) : 'inf'
+            ytdlArgs.push('--download-sections', `*${fromTs}-${toTs}`)
+            // Note: --force-keyframes-at-cuts is intentionally omitted — it runs ffmpeg
+            // to probe keyframes before downloading begins, which blocks all progress output.
+        }
+
+        ytdlArgs.push(url)
+
+        console.log('[yt-dlp] spawn:', ytdlPath)
+        console.log('[yt-dlp] args:', ytdlArgs.join(' '))
 
         const child = spawn(ytdlPath, ytdlArgs, { windowsHide: true })
         activeJobs.set(id, { child, outputPath: null })
 
         let downloadedPath = null
+        // Tracks fragment download phases so progress doesn't reset between video/audio streams
+        let fragPhase = 0
+        let fragPhaseOffset = 0
+        let lastFragTotal = 0
+        // Total duration in seconds for ffmpeg time-based progress (used with --download-sections)
+        const clipDuration = (clipEnd != null)
+            ? Math.max(1, clipEnd - (clipStart ?? 0))
+            : (ytdlDuration ?? null)
 
-        child.stdout.on('data', (data) => {
-            const str = data.toString()
-            event.sender.send('ytdl-output', { id, data: str })
-
-            // Progress: [download]  25.5% of  123.45MiB
+        const parseProgress = (str, fromStderr) => {
+            // Percentage-based: [download]  25.5% of  123.45MiB
             const progressMatch = str.match(/\[download\]\s+([\d.]+)%/)
             if (progressMatch) {
                 const progress = parseFloat(progressMatch[1])
                 event.sender.send('ytdl-progress', { id, progress })
+                return
             }
+            // Fragment-based: [download] Downloading fragment 3 of 47
+            const fragMatch = str.match(/\[download\] Downloading fragment (\d+) of (\d+)/)
+            if (fragMatch) {
+                const current = parseInt(fragMatch[1], 10)
+                const total = parseInt(fragMatch[2], 10)
+                if (total > 0) {
+                    // Detect phase change (e.g., video stream -> audio stream)
+                    if (total !== lastFragTotal && lastFragTotal > 0) {
+                        fragPhase++
+                        fragPhaseOffset = fragPhase * 50 // each phase contributes 50% (video + audio = 100%)
+                    }
+                    lastFragTotal = total
+                    const phaseProgress = (current / total) * (lastFragTotal > 0 ? 50 : 100)
+                    const progress = Math.min(99, fragPhaseOffset + phaseProgress)
+                    event.sender.send('ytdl-progress', { id, progress })
+                }
+                return
+            }
+            // ffmpeg time-based progress: frame= 55 fps=0.0 ... time=00:00:02.04 ...
+            // Emitted on stderr when yt-dlp uses --download-sections (pipes through ffmpeg)
+            if (fromStderr && clipDuration && str.includes('time=')) {
+                const timeMatch = str.match(/time=(\d+):(\d+):([\d.]+)/)
+                if (timeMatch) {
+                    const secs = parseInt(timeMatch[1], 10) * 3600
+                        + parseInt(timeMatch[2], 10) * 60
+                        + parseFloat(timeMatch[3])
+                    const progress = Math.min(99, (secs / clipDuration) * 100)
+                    event.sender.send('ytdl-progress', { id, progress })
+                }
+            }
+        }
+
+        child.stdout.on('data', (data) => {
+            const str = data.toString()
+            console.log('[yt-dlp stdout]', str.trimEnd())
+            event.sender.send('ytdl-output', { id, data: str })
+
+            parseProgress(str, false)
 
             // Capture destination path
             const destMatch = str.match(/\[download\] Destination:\s+(.+)/)
@@ -334,15 +408,21 @@ app.whenReady().then(() => {
         })
 
         child.stderr.on('data', (data) => {
-            event.sender.send('ytdl-output', { id, data: data.toString() })
+            const str = data.toString()
+            console.log('[yt-dlp stderr]', str.trimEnd())
+            event.sender.send('ytdl-output', { id, data: str })
+            // Some yt-dlp builds send progress to stderr — parse it too
+            parseProgress(str, true)
         })
 
         child.on('error', (err) => {
+            console.log('[yt-dlp error]', err.message)
             activeJobs.delete(id)
             event.sender.send('ytdl-exit', { id, code: 1, error: err.message })
         })
 
         child.on('close', (code) => {
+            console.log('[yt-dlp exit] code:', code)
             activeJobs.delete(id)
 
             if (code !== 0) {
@@ -828,14 +908,22 @@ app.whenReady().then(() => {
 
     ipcMain.on('stop-all-cli', () => {
         const fs = require('fs')
-        for (const [id, { child, outputPath }] of activeJobs) {
-            try { child.kill() } catch (_) {}
+        for (const [jobId, { child, outputPath }] of activeJobs) {
+            try {
+                // On Windows, child.kill() only kills yt-dlp but leaves ffmpeg (spawned by yt-dlp)
+                // running as an orphan. Use taskkill /T to kill the whole process tree.
+                if (process.platform === 'win32' && child.pid) {
+                    exec(`taskkill /F /T /PID ${child.pid}`, () => {})
+                } else {
+                    child.kill()
+                }
+            } catch (_) {}
             if (outputPath) {
                 try {
                     if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
                 } catch (_) {}
             }
-            activeJobs.delete(id)
+            activeJobs.delete(jobId)
         }
     })
 

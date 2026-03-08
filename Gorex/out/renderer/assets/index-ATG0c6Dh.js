@@ -7100,7 +7100,7 @@ function TitleBar({
     ] })
   ] });
 }
-const SERVICE_MAP = {
+const SERVICE_MAP$1 = {
   "youtube.com": { name: "YouTube", icon: "bi-youtube", color: "#ff0000" },
   "youtu.be": { name: "YouTube", icon: "bi-youtube", color: "#ff0000" },
   "twitter.com": { name: "Twitter / X", icon: "bi-twitter-x", color: "#ffffff" },
@@ -7135,17 +7135,17 @@ const SERVICE_MAP = {
   "newgrounds.com": { name: "Newgrounds", icon: "bi-joystick", color: "#f6a623" },
   "streamable.com": { name: "Streamable", icon: "bi-play-circle-fill", color: "#41b883" }
 };
-function detectService(raw) {
+function detectService$1(raw) {
   if (!raw) return null;
   try {
     const u2 = new URL(raw);
     const host = u2.hostname.replace(/^www\./, "");
-    return SERVICE_MAP[host] ?? null;
+    return SERVICE_MAP$1[host] ?? null;
   } catch {
     return null;
   }
 }
-function isValidUrl(raw) {
+function isValidUrl$1(raw) {
   try {
     new URL(raw);
     return true;
@@ -7160,8 +7160,8 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
   const [dlHint, setDlHint] = reactExports.useState("");
   const trimmed = url.trim();
   const hasUrl = trimmed.length > 0;
-  const isUrl = isValidUrl(trimmed);
-  const service = reactExports.useMemo(() => detectService(trimmed), [trimmed]);
+  const isUrl = isValidUrl$1(trimmed);
+  const service = reactExports.useMemo(() => detectService$1(trimmed), [trimmed]);
   const isUnsupported = hasUrl && isUrl && !service;
   const handleDownload = async () => {
     if (!trimmed || isDownloading || isUnsupported) return;
@@ -7379,6 +7379,12 @@ const DEFAULT_SETTINGS = {
   audioSampleRate: "auto",
   chapterMarkers: true,
   optimizeMP4: false,
+  // Subtitles
+  subtitleMode: "none",
+  subtitleBurn: false,
+  subtitleDefault: false,
+  subtitleLanguage: "any",
+  subtitleExternalFile: "",
   // Filters
   deinterlace: "off",
   denoise: "off",
@@ -7403,20 +7409,20 @@ function getDefaultSettingsForGpu(vendor) {
 }
 function getStoredGpuVendor() {
   try {
-    return localStorage.getItem("bpress-gpu-vendor") || null;
+    return localStorage.getItem("gorex-gpu-vendor") || null;
   } catch {
     return null;
   }
 }
 function saveGpuVendor(vendor) {
   try {
-    localStorage.setItem("bpress-gpu-vendor", vendor);
+    localStorage.setItem("gorex-gpu-vendor", vendor);
   } catch {
   }
 }
 function initDefaultSettings() {
   try {
-    const saved = localStorage.getItem("bpress-default-settings");
+    const saved = localStorage.getItem("gorex-default-settings");
     if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
   } catch {
   }
@@ -7664,13 +7670,17 @@ function GsSelect({ value, onChange, options, groups, disabled, className, onSpe
             {
               type: "button",
               disabled: !!o.disabled,
-              className: `gs-dropdown-item${o.value === value ? " active" : ""}${o.special ? " gs-dropdown-item--special" : ""}${o.disabled ? " gs-dropdown-item--disabled" : ""}`,
+              className: `gs-dropdown-item${o.value === value ? " active" : ""}${o.special ? " gs-dropdown-item--special" : ""}${o.disabled ? " gs-dropdown-item--disabled" : ""}${o.tags && o.tags.length ? " gs-dropdown-item--with-tags" : ""}`,
               onClick: () => handleSelect(o.value, o.special, o.disabled),
               children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "gs-dropdown-item-main", children: [
                   o.label,
                   o.recommended && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "gs-dropdown-item-badge", children: "рекомендован" })
                 ] }),
+                o.tags && o.tags.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "gs-dropdown-item-tags", children: o.tags.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `gs-item-tag ${t2.cls}`, children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${t2.icon}` }),
+                  t2.label
+                ] }, t2.key)) }),
                 o.desc && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "gs-dropdown-item-desc", children: o.desc })
               ]
             },
@@ -7683,10 +7693,14 @@ function GsSelect({ value, onChange, options, groups, disabled, className, onSpe
               {
                 type: "button",
                 disabled: !!o.disabled,
-                className: `gs-dropdown-item${o.value === value ? " active" : ""}${o.disabled ? " gs-dropdown-item--disabled" : ""}`,
+                className: `gs-dropdown-item${o.value === value ? " active" : ""}${o.disabled ? " gs-dropdown-item--disabled" : ""}${o.tags && o.tags.length ? " gs-dropdown-item--with-tags" : ""}`,
                 onClick: () => handleSelect(o.value, false, o.disabled),
                 children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "gs-dropdown-item-main", children: o.label }),
+                  o.tags && o.tags.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "gs-dropdown-item-tags", children: o.tags.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `gs-item-tag ${t2.cls}`, children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${t2.icon}` }),
+                    t2.label
+                  ] }, t2.key)) }),
                   o.desc && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "gs-dropdown-item-desc", children: o.desc })
                 ]
               },
@@ -8058,35 +8072,108 @@ function estimateOutputSize(video, settings) {
   }
   return fmtMB(sourceMB * videoRatio);
 }
+const SERVICE_MAP = {
+  "youtube.com": { name: "YouTube", icon: "bi-youtube", color: "#ff0000" },
+  "youtu.be": { name: "YouTube", icon: "bi-youtube", color: "#ff0000" },
+  "twitter.com": { name: "Twitter / X", icon: "bi-twitter-x", color: "#ffffff" },
+  "x.com": { name: "Twitter / X", icon: "bi-twitter-x", color: "#ffffff" },
+  "instagram.com": { name: "Instagram", icon: "bi-instagram", color: "#e1306c" },
+  "ddinstagram.com": { name: "Instagram", icon: "bi-instagram", color: "#e1306c" },
+  "reddit.com": { name: "Reddit", icon: "bi-reddit", color: "#ff4500" },
+  "vimeo.com": { name: "Vimeo", icon: "bi-vimeo", color: "#1ab7ea" },
+  "soundcloud.com": { name: "SoundCloud", icon: "bi-soundcloud", color: "#ff5500" },
+  "twitch.tv": { name: "Twitch", icon: "bi-twitch", color: "#9146ff" },
+  "facebook.com": { name: "Facebook", icon: "bi-facebook", color: "#1877f2" },
+  "fb.watch": { name: "Facebook", icon: "bi-facebook", color: "#1877f2" },
+  "tiktok.com": { name: "TikTok", icon: "bi-tiktok", color: "#ff0050" },
+  "vt.tiktok.com": { name: "TikTok", icon: "bi-tiktok", color: "#ff0050" },
+  "t.co": { name: "Twitter / X", icon: "bi-twitter-x", color: "#ffffff" },
+  "pinterest.com": { name: "Pinterest", icon: "bi-pinterest", color: "#e60023" },
+  "pin.it": { name: "Pinterest", icon: "bi-pinterest", color: "#e60023" },
+  "tumblr.com": { name: "Tumblr", icon: "bi-tumblr", color: "#35465c" },
+  "snapchat.com": { name: "Snapchat", icon: "bi-snapchat", color: "#fffc00" },
+  "bilibili.com": { name: "Bilibili", icon: "bi-play-circle-fill", color: "#00a1d6" },
+  "b23.tv": { name: "Bilibili", icon: "bi-play-circle-fill", color: "#00a1d6" },
+  "ok.ru": { name: "OK", icon: "bi-person-circle", color: "#f7931e" },
+  "vk.com": { name: "VKontakte", icon: "bi-person-circle", color: "#4a76a8" },
+  "vk.ru": { name: "VKontakte", icon: "bi-person-circle", color: "#4a76a8" },
+  "rutube.ru": { name: "Rutube", icon: "bi-play-circle-fill", color: "#ff5c00" },
+  "dailymotion.com": { name: "Dailymotion", icon: "bi-play-circle-fill", color: "#0066dc" },
+  "bsky.app": { name: "Bluesky", icon: "bi-cloud-fill", color: "#0085ff" },
+  "loom.com": { name: "Loom", icon: "bi-camera-video-fill", color: "#625df5" },
+  "streamable.com": { name: "Streamable", icon: "bi-play-circle-fill", color: "#41b883" }
+};
+function detectService(raw) {
+  if (!raw) return null;
+  try {
+    const host = new URL(raw).hostname.replace(/^www\./, "");
+    return SERVICE_MAP[host] ?? null;
+  } catch {
+    return null;
+  }
+}
+function isValidUrl(raw) {
+  try {
+    new URL(raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
 function formatFileSize(bytes) {
   if (!bytes) return null;
   const mb2 = bytes / (1024 * 1024);
   if (mb2 < 1024) return mb2.toFixed(0) + " MB";
   return (mb2 / 1024).toFixed(1) + " GB";
 }
-function formatFormatLabel(f2) {
-  const res = f2.resolution || (f2.height ? f2.height + "p" : null);
-  const ext = (f2.ext || "").toUpperCase();
-  const fps = f2.fps ? ` ${f2.fps}fps` : "";
-  const size = formatFileSize(f2.filesize) ? ` ~${formatFileSize(f2.filesize)}` : "";
-  const audio = f2.hasAudio ? "" : " (видео)";
-  const note = f2.format_note ? ` ${f2.format_note}` : "";
-  return [res, ext, fps, note, audio, size].filter(Boolean).join(" ").trim() || f2.format_id;
+const VCODEC_LABEL = {
+  "avc1": "H.264",
+  "h264": "H.264",
+  "vp09": "VP9",
+  "vp9": "VP9",
+  "vp08": "VP8",
+  "vp8": "VP8",
+  "av01": "AV1",
+  "av1": "AV1",
+  "hvc1": "H.265",
+  "hev1": "H.265",
+  "h265": "H.265",
+  "theora": "Theora"
+};
+function getCodecLabel(f2) {
+  if (!f2.vcodec || f2.vcodec === "none") return null;
+  const base = f2.vcodec.split(".")[0].toLowerCase();
+  return VCODEC_LABEL[base] || f2.vcodec.split(".")[0];
 }
-function buildYtdlFormatOptions(formats) {
-  const opts = [{ value: "best", label: "Лучшее качество (авто)" }];
-  if (!formats || !formats.length) return opts;
+function formatFormatLabel(f2) {
+  const res = f2.height ? f2.height + "p" : f2.resolution || null;
+  const ext = f2.ext ? f2.ext.toUpperCase() : null;
+  const audioOnly = !f2.vcodec || f2.vcodec === "none";
+  if (audioOnly) return ["Только аудио", ext].filter(Boolean).join(" ");
+  return [res, ext].filter(Boolean).join(" ") || f2.format_id;
+}
+function buildFormatTags(f2) {
+  const tags = [];
+  const codec = getCodecLabel(f2);
+  if (codec) tags.push({ key: "enc", icon: "bi-cpu", label: codec, cls: "tr-enc" });
+  if (f2.fps) tags.push({ key: "fps", icon: "bi-camera-video", label: f2.fps + "fps", cls: "tr-fps" });
+  const sz = formatFileSize(f2.filesize);
+  if (sz) tags.push({ key: "sz", icon: "bi-hdd", label: "~" + sz, cls: "tr-size" });
+  if (!f2.vcodec || f2.vcodec === "none")
+    tags.push({ key: "aud", icon: "bi-music-note", label: "аудио", cls: "tr-aud" });
+  return tags;
+}
+function buildYtdlFormatGroups(formats) {
+  if (!formats || !formats.length) return [];
   const seen = /* @__PURE__ */ new Map();
   for (const f2 of formats) {
-    const key = `${f2.height || 0}_${f2.ext}`;
+    const codec = getCodecLabel(f2) || f2.ext;
+    const key = `${f2.height || 0}_${codec}`;
     const prev = seen.get(key);
     if (!prev || (f2.tbr || 0) > (prev.tbr || 0)) seen.set(key, f2);
   }
   const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
-  for (const f2 of sorted) {
-    opts.push({ value: f2.format_id, label: formatFormatLabel(f2), format: f2 });
-  }
-  return opts;
+  return [{ label: "Доступные форматы", options: sorted.map((f2) => ({ value: f2.format_id, label: formatFormatLabel(f2), tags: buildFormatTags(f2) })) }];
 }
 const ENCODER_SHORT = {
   x264: "H.264",
@@ -8189,6 +8276,7 @@ const PanelSelect = (props) => /* @__PURE__ */ jsxRuntimeExports.jsx(GsSelect, {
 const VSP_TABS = [
   { id: "video", label: "Видео", icon: "bi-camera-video" },
   { id: "audio", label: "Аудио", icon: "bi-music-note-beamed" },
+  { id: "subtitles", label: "Субтитры", icon: "bi-badge-cc" },
   { id: "filters", label: "Фильтры", icon: "bi-sliders" },
   { id: "hdr", label: "HDR / Мета", icon: "bi-stars" }
 ];
@@ -8196,6 +8284,7 @@ const VSP_TABS_YTDL = [
   { id: "download", label: "Загрузка", icon: "bi-cloud-arrow-down" },
   { id: "video", label: "Видео", icon: "bi-camera-video" },
   { id: "audio", label: "Аудио", icon: "bi-music-note-beamed" },
+  { id: "subtitles", label: "Субтитры", icon: "bi-badge-cc" },
   { id: "filters", label: "Фильтры", icon: "bi-sliders" },
   { id: "hdr", label: "HDR / Мета", icon: "bi-stars" }
 ];
@@ -8223,7 +8312,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
   const rfTable = CODEC_RF[draft.encoder] || CODEC_RF.x265;
   const speedPresets = ENCODER_PRESETS[draft.encoder] ?? [];
   const isPassthru = (draft.audioCodec || "av_aac").startsWith("copy");
-  const isHWEncoder = ["nvenc_", "qsv_", "vce_", "mf_"].some((p2) => (draft.encoder || "").startsWith(p2));
+  ["nvenc_", "qsv_", "vce_", "mf_"].some((p2) => (draft.encoder || "").startsWith(p2));
   const encoderGroups = ENCODER_GROUPS.map((g) => ({
     label: g.label,
     options: g.encoders.map((e) => ({ value: e.value, label: e.label, desc: e.desc }))
@@ -8243,8 +8332,8 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     onClose();
   };
   const convertAfterDownload = isYtdl ? draft._convertAfterDownload !== void 0 ? draft._convertAfterDownload : !!video.convertAfterDownload : false;
-  const ytdlFormatOpts = isYtdl ? buildYtdlFormatOptions(video.ytdlFormats) : [];
-  const selectedYtdlFmt = isYtdl ? video.ytdlSelectedFormat || "best" : "best";
+  const ytdlFormatGroups = isYtdl ? buildYtdlFormatGroups(video.ytdlFormats) : [];
+  const selectedYtdlFmt = isYtdl ? video.ytdlSelectedFormat || "" : "";
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "vsp-overlay", onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-panel", onClick: (e) => e.stopPropagation(), children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-header-info", children: [
@@ -8276,7 +8365,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             PanelSelect,
             {
               value: selectedYtdlFmt,
-              options: ytdlFormatOpts,
+              groups: ytdlFormatGroups,
               onChange: (v2) => onYtdlFormatChange(video.id, v2)
             }
           ) }),
@@ -8421,7 +8510,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             }
           ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-lightning-charge", title: "Аппаратное ускорение" }),
-          !isHWEncoder && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Аппаратное декодирование", hint: "NVDEC / QSV разгружает CPU при чтении источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Аппаратное декодирование", hint: "NVDEC / QSV разгружает CPU при чтении источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.hwDecoding || "none",
@@ -8507,6 +8596,74 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               disabled: draft.format !== "av_mp4"
             }
           ) })
+        ] }),
+        activeTab === "subtitles" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-badge-cc", title: "Дорожки субтитров" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Субтитры", hint: "Какие дорожки субтитров включить в выходной файл", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            PanelSelect,
+            {
+              value: draft.subtitleMode || "none",
+              options: [
+                { value: "none", label: "Не включать" },
+                { value: "first", label: "Первая дорожка" },
+                { value: "all", label: "Все дорожки" },
+                { value: "scan_forced", label: "Авто (принудительные / иностранные)" }
+              ],
+              onChange: (v2) => update("subtitleMode", v2)
+            }
+          ) }),
+          draft.subtitleMode !== "none" && draft.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Вшивать субтитры", hint: "Субтитры рендерятся прямо в кадр (burn-in). Не требует поддержки контейнером", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleBurn, onChange: (v2) => update("subtitleBurn", v2) }) }),
+          draft.subtitleMode !== "none" && !draft.subtitleBurn && draft.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Субтитры по умолчанию", hint: "Отметить дорожку как выбранную по умолчанию в плеере", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleDefault, onChange: (v2) => update("subtitleDefault", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-translate", title: "Язык субтитров" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Предпочитаемый язык", hint: "Нативный язык: при наличии такой дорожки, она будет выбрана автоматически", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            PanelSelect,
+            {
+              value: draft.subtitleLanguage || "any",
+              options: [
+                { value: "any", label: "Любой (не фильтровать)" },
+                { value: "eng", label: "Английский (eng)" },
+                { value: "rus", label: "Русский (rus)" },
+                { value: "jpn", label: "Японский (jpn)" },
+                { value: "chi", label: "Китайский (chi)" },
+                { value: "kor", label: "Корейский (kor)" },
+                { value: "fra", label: "Французский (fra)" },
+                { value: "deu", label: "Немецкий (deu)" },
+                { value: "spa", label: "Испанский (spa)" },
+                { value: "por", label: "Португальский (por)" },
+                { value: "ita", label: "Итальянский (ita)" },
+                { value: "ara", label: "Арабский (ara)" }
+              ],
+              onChange: (v2) => update("subtitleLanguage", v2)
+            }
+          ) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-file-earmark-text", title: "Внешний файл субтитров" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Файл субтитров", hint: "Прикрепить внешний файл .srt / .ass / .ssa", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-file-pick", children: [
+            draft.subtitleExternalFile ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-file-pick__name", title: draft.subtitleExternalFile, children: draft.subtitleExternalFile.split(/[\\/]/).pop() }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-file-pick__empty", children: "Не выбран" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                className: "vsp-file-pick__btn",
+                type: "button",
+                onClick: async () => {
+                  const file = await window.api.selectSubtitleFile();
+                  if (file) update("subtitleExternalFile", file);
+                },
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-folder2-open" })
+              }
+            ),
+            draft.subtitleExternalFile && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                className: "vsp-file-pick__clear",
+                type: "button",
+                title: "Убрать файл",
+                onClick: () => update("subtitleExternalFile", ""),
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" })
+              }
+            )
+          ] }) }),
+          draft.subtitleExternalFile && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Вшить внешние субтитры", hint: "Рендерить сабы прямо в кадр (burn-in), иначе — как отдельная дорожка", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleBurn, onChange: (v2) => update("subtitleBurn", v2) }) }),
+          draft.subtitleExternalFile && !draft.subtitleBurn && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Субтитры по умолчанию", hint: "Отметить как выбранную по умолчанию в плеере", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleDefault, onChange: (v2) => update("subtitleDefault", v2) }) })
         ] }),
         activeTab === "filters" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-intersect", title: "Деинтерлейс" }),
@@ -8643,6 +8800,7 @@ function ListPage({
   defaultOutputDir,
   onOutputModeChange,
   onAddFiles,
+  onDownload,
   onRemoveVideo,
   onClearQueue,
   onRenameOutput,
@@ -8662,6 +8820,9 @@ function ListPage({
   const [editingValue, setEditingValue] = reactExports.useState("");
   const [editingVideoId, setEditingVideoId] = reactExports.useState(null);
   const [tickNow, setTickNow] = reactExports.useState(Date.now());
+  const [addUrl, setAddUrl] = reactExports.useState("");
+  const [isAddingUrl, setIsAddingUrl] = reactExports.useState(false);
+  const [addUrlError, setAddUrlError] = reactExports.useState("");
   reactExports.useEffect(() => {
     if (!isEncoding) return;
     const timer = setInterval(() => setTickNow(Date.now()), 1e3);
@@ -8680,6 +8841,23 @@ function ListPage({
     if (e.key === "Enter") commitEdit(id2);
     if (e.key === "Escape") setEditingId(null);
   };
+  const addUrlTrimmed = addUrl.trim();
+  const addUrlService = detectService(addUrlTrimmed);
+  const addUrlValid = isValidUrl(addUrlTrimmed);
+  const addUrlUnsupported = addUrlTrimmed && addUrlValid && !addUrlService;
+  const handleAddUrl = async () => {
+    if (!addUrlTrimmed || isAddingUrl || addUrlUnsupported || !onDownload) return;
+    setAddUrlError("");
+    setIsAddingUrl(true);
+    try {
+      await onDownload(addUrlTrimmed, addUrlService);
+      setAddUrl("");
+    } catch (err) {
+      setAddUrlError(err?.message || "Ошибка");
+    } finally {
+      setIsAddingUrl(false);
+    }
+  };
   const customCount = videos.filter((v2) => v2.customSettings).length;
   const globalCount = videos.length - customCount;
   const hasOnlyDownloads = videos.length > 0 && videos.every((v2) => v2.isYtdlItem);
@@ -8693,32 +8871,61 @@ function ListPage({
   const startBtnLabel = hasOnlyDownloads ? "СКАЧАТЬ" : hasDownloads ? "ЗАПУСТИТЬ" : "КОНВЕРТИРОВАТЬ";
   const editingVideo = editingVideoId !== null ? videos.find((v2) => v2.id === editingVideoId) : null;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-list-container", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "video-list-header", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-list-topbar", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "button",
-        {
-          className: "add-button",
-          onClick: onAddFiles,
-          disabled: isEncoding,
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-plus-lg" }),
-            "ДОБАВИТЬ"
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "button",
-        {
-          className: "add-button clear-button",
-          onClick: onClearQueue,
-          disabled: isEncoding,
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-trash3" }),
-            "ОЧИСТИТЬ"
-          ]
-        }
-      )
-    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-list-header", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-list-topbar", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `list-url-bar${addUrlUnsupported ? " list-url-bar--error" : ""}${addUrlService ? " list-url-bar--ok" : ""}`, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-url-icon", children: isAddingUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-url-spinner" }) : addUrlService ? /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${addUrlService.icon}`, style: { color: addUrlService.color } }) : addUrlUnsupported ? /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-circle-fill", style: { color: "#ef4444" } }) : /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-link-45deg", style: { opacity: 0.35 } }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              className: "list-url-input",
+              type: "url",
+              placeholder: "Ссылка для загрузки (YouTube, TikTok ...)",
+              value: addUrl,
+              onChange: (e) => {
+                setAddUrl(e.target.value);
+                setAddUrlError("");
+              },
+              onKeyDown: (e) => e.key === "Enter" && handleAddUrl(),
+              disabled: isAddingUrl || isEncoding,
+              spellCheck: false
+            }
+          ),
+          addUrlService && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-url-svc", children: addUrlService.name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              className: "list-url-btn",
+              onClick: handleAddUrl,
+              disabled: !addUrlTrimmed || isAddingUrl || addUrlUnsupported || isEncoding,
+              title: "Добавить в очередь",
+              children: isAddingUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-url-spinner" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down-fill" })
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: "add-button",
+            onClick: onAddFiles,
+            disabled: isEncoding,
+            title: "Добавить файлы",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-plus-lg" })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: "add-button clear-button",
+            onClick: onClearQueue,
+            disabled: isEncoding,
+            title: "Очистить очередь",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-trash3" })
+          }
+        )
+      ] }),
+      addUrlError && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "list-url-error", children: addUrlError })
+    ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
@@ -8749,6 +8956,7 @@ function ListPage({
                   ] }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-info", children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-title-row", children: [
+                      v2.downloadService && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "svc-icon-tag", style: { color: v2.downloadService.color }, title: v2.downloadService.name, children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${v2.downloadService.icon}` }) }),
                       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "video-title", children: v2.title }),
                       (v2.customSettings || v2.isYtdlItem && v2.conversionSettings) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "vtag custom-tag", children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-sliders2" }),
@@ -8782,10 +8990,6 @@ function ListPage({
                       ))
                     ] }),
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-tags", children: [
-                      v2.downloadService && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "vtag download-svc-tag", style: { background: `color-mix(in srgb, ${v2.downloadService.color} 18%, transparent)`, color: v2.downloadService.color }, children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${v2.downloadService.icon}` }),
-                        v2.downloadService.name
-                      ] }),
                       v2.container && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "vtag fmt", children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-file-earmark-play" }),
                         v2.container
@@ -8820,33 +9024,40 @@ function ListPage({
                         v2.duration
                       ] })
                     ] }),
-                    v2.isYtdlItem && v2.status !== "done" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-controls", onClick: (e) => e.stopPropagation(), children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-format-row", children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down ytdl-icon" }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: "Формат:" }),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          "select",
-                          {
-                            className: "ytdl-format-select",
-                            value: v2.ytdlSelectedFormat || "best",
-                            onChange: (e) => onYtdlFormatChange(v2.id, e.target.value),
-                            disabled: isEncoding,
-                            children: buildYtdlFormatOptions(v2.ytdlFormats).map((opt) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: opt.value, children: opt.label }, opt.value))
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-convert-row", children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(
-                          VspToggle,
-                          {
-                            value: !!v2.convertAfterDownload,
-                            onChange: (val) => onYtdlConvertToggle(v2.id, val),
-                            disabled: isEncoding
-                          }
-                        ),
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: "Конвертировать после загрузки" })
-                      ] })
-                    ] }),
+                    v2.isYtdlItem && v2.status !== "done" && (() => {
+                      const selFmt = (v2.ytdlFormats || []).find((f2) => f2.format_id === v2.ytdlSelectedFormat);
+                      const fmtTags = selFmt ? buildFormatTags(selFmt) : [];
+                      return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-controls", children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-format-row", children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down ytdl-icon" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: "Формат:" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { onClick: (e) => e.stopPropagation(), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            GsSelect,
+                            {
+                              className: "ytdl-format-gs",
+                              groups: buildYtdlFormatGroups(v2.ytdlFormats),
+                              value: v2.ytdlSelectedFormat || "",
+                              onChange: (val) => onYtdlFormatChange(v2.id, val),
+                              disabled: isEncoding,
+                              direction: "down"
+                            }
+                          ) }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { onClick: (e) => e.stopPropagation(), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            VspToggle,
+                            {
+                              value: !!v2.convertAfterDownload,
+                              onChange: (val) => onYtdlConvertToggle(v2.id, val),
+                              disabled: isEncoding
+                            }
+                          ) }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: "Конвертировать" })
+                        ] }),
+                        fmtTags.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-fmt-tags", children: fmtTags.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `vtag transform-tag ${t2.cls}`, children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${t2.icon}` }),
+                          t2.label
+                        ] }, t2.key)) })
+                      ] });
+                    })(),
                     (!v2.isYtdlItem || v2.convertAfterDownload) && (() => {
                       const effectiveSettings = v2.isYtdlItem ? v2.conversionSettings || settings : v2.customSettings || settings;
                       const transformTags = getTransformTags(v2, effectiveSettings);
@@ -9072,98 +9283,8 @@ function ListPage({
     )
   ] });
 }
-const AUTHORS = [
-  {
-    name: "Eric Petit",
-    handle: "titer",
-    role: "Original author",
-    contributions: ["Core architecture & multithreading", "MPEG demuxer", "AVI/MP4 muxer", "BeOS & OS X ports"]
-  },
-  {
-    name: "John Stebbins",
-    handle: "j45",
-    role: "Core maintainer",
-    contributions: ["GTK GUI", "JSON API", "Libhb architecture", "Stream & sync improvements", "Flatpak support"]
-  },
-  {
-    name: "Damiano Galassi",
-    handle: "ritsuka",
-    role: "macOS lead",
-    contributions: ["macOS GUI", "Sandbox & hardened runtime", "Color spaces support"]
-  },
-  {
-    name: "Scott",
-    handle: "s55",
-    role: "Windows lead",
-    contributions: ["Windows GUI", "Hardware acceleration", "DevOps & infrastructure", "Online documentation"]
-  },
-  {
-    name: "Bradley Sepos",
-    handle: "BradleyS",
-    role: "Build & quality",
-    contributions: ["Build system & toolchains", "NLMeans denoiser", "Official presets", "Online documentation"]
-  },
-  {
-    name: "Laurent Aimar",
-    handle: "fenrir",
-    role: "Encoders",
-    contributions: ["H.264 & Vorbis encoders", "OGG/OGM muxer", "GTK2 & wxWidgets interfaces"]
-  },
-  {
-    name: "Tim Walker",
-    handle: "Rodeo",
-    role: "Hardware acceleration",
-    contributions: ["Intel QSV support", "macOS GUI fixes", "Dependencies integration"]
-  },
-  {
-    name: "Maxym Dm",
-    handle: "maxim_d33",
-    role: "Intel QSV",
-    contributions: ["Hardware acceleration / Intel QSV", "Miscellaneous fixes"]
-  },
-  {
-    name: "Artem Galin",
-    handle: "agalin89",
-    role: "Intel QSV",
-    contributions: ["Hardware acceleration & presets / Intel QSV"]
-  },
-  {
-    name: "David Rickard",
-    handle: "RandomEngy",
-    role: "Interop",
-    contributions: ["HandBrake Interop Library"]
-  },
-  {
-    name: "Simon L",
-    handle: "Nomis101",
-    role: "i18n lead",
-    contributions: ["Internationalization & translations lead", "Build system fixes"]
-  },
-  {
-    name: "Van Jacobson",
-    handle: "van",
-    role: "Core",
-    contributions: ["Universal input architecture", "MPEG Standard Target Decoder timing"]
-  },
-  {
-    name: "Jonathon Rubin",
-    handle: "jbrjake",
-    role: "Core",
-    contributions: ["Massive core enhancements", "H.264 support improvements"]
-  },
-  {
-    name: "Edward Groenendaal",
-    handle: "eddyg",
-    role: "Fixes",
-    contributions: ["Major bug fixes", "Subtitle scan & color", "Performance improvements"]
-  },
-  {
-    name: 'Kona "Mike" Blend',
-    handle: "KonaBlend",
-    role: "Build system",
-    contributions: ["Build system and related guides"]
-  }
-];
+const tgQr = "" + new URL("TG_QR-BbnAudxN.png", import.meta.url).href;
+const myPhoto = "" + new URL("Photo-BlRJMaj2.jpg", import.meta.url).href;
 const LIBRARIES = [
   { name: "FFmpeg", url: "https://ffmpeg.org/", license: "L-GPL v2.1" },
   { name: "libx264", url: "https://www.videolan.org/developers/x264.html", license: "GPL v2" },
@@ -9202,23 +9323,30 @@ const LIBRARIES = [
   { name: "Bootstrap Icons", url: "https://icons.getbootstrap.com/", license: "MIT" }
 ];
 const TABS$1 = [
+  { id: "me", label: "Обо мне", icon: "bi-person-circle" },
   { id: "about", label: "О программе", icon: "bi-info-circle" },
-  { id: "authors", label: "Авторы", icon: "bi-people" },
+  { id: "thanks", label: "Благодарности", icon: "bi-heart" },
   { id: "license", label: "Лицензия", icon: "bi-file-earmark-text" },
   { id: "libraries", label: "Библиотеки", icon: "bi-box-seam" }
 ];
+const THANKS = [
+  { name: "Андрей Виноградов", tg: "resonaura", url: "https://t.me/resonaura" },
+  { name: "Святослав Драгунов", tg: "memsteel", url: "https://t.me/memsteel" },
+  { name: "Павел Яшкин", tg: null, url: null },
+  { name: "Барвашов Егор", tg: null, url: null }
+];
 function AboutPage({ theme, onBack }) {
-  const [activeTab, setActiveTab] = reactExports.useState("about");
+  const [activeTab, setActiveTab] = reactExports.useState("me");
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `about-container ${theme}`, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-header", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "about-logo", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: theme === "dark" ? logoWhite : logoDark, alt: "Logo" }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-title-block", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "BPRESS" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "version-info", children: "Version 1.0.0-alpha · Web Edition · GPLv2" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "back-link", onClick: onBack, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "ap-back-btn", onClick: onBack, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-left" }),
         " Назад"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "about-logo", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: theme === "dark" ? logoWhite : logoDark, alt: "Logo" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-title-block", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "Gorex" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "version-info", children: "Version 1.0.0 · Web Edition · GPLv2" })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "about-tabs", children: TABS$1.map((tab) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -9234,56 +9362,79 @@ function AboutPage({ theme, onBack }) {
       tab.id
     )) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-content-scroll", children: [
+      activeTab === "me" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section me-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-hero", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: myPhoto, alt: "Ахматьяров Егор", className: "me-photo" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-hero-text", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-eyebrow", children: "Дизайнер · Видеограф" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "me-name", children: "Ахматьяров Егор" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-role", children: "Автор идеи и создатель Gorex" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-qr-wrap", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: tgQr, alt: "TG QR", className: "me-qr" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-qr-label", children: "Telegram QR" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-story", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-story-lead", children: "Я не программист. Я дизайнер и видеограф — человек, который годами работает с видео и остро чувствует, каким должен быть инструмент для таких же людей, как я." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Всё существующее либо выглядит так, будто застряло в 2005-м, либо стоит денег за каждый чих, либо просто не работает как надо. Я давно хотел сделать что-то по-настоящему красивое и удобное — не для разработчиков, а для людей из сферы. Концепт жил у меня в голове очень долго, но реализовать его самому было невозможно." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
+            "И вот благодаря технологиям ИИ — ",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "https://claude.ai", target: "_blank", rel: "noreferrer", className: "me-story-link", children: "Claude" }),
+            " — я наконец смог воплотить эту идею в жизнь. Gorex — это не просто обёртка над HandBrake. Это концепция: инструмент, который уважает твоё время, выглядит как продукт, за который не стыдно, и работает именно так, как ожидает профессионал в видео."
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-contacts", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://t.me/akhmatyarov", target: "_blank", rel: "noreferrer", className: "me-contact-tg", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-telegram" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "@akhmatyarov" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://github.com/Gor80hd/Gorex", target: "_blank", rel: "noreferrer", className: "me-contact-gh", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-github" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Gorex on GitHub" })
+          ] })
+        ] })
+      ] }),
       activeTab === "about" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "about-description", children: "BPRESS — современный Electron-интерфейс для легендарного транскодера с открытым исходным кодом. Сохраняет всю мощь оригинального HandBrake CLI, предоставляя удобный и эстетичный пользовательский опыт." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "about-description", children: "Gorex — современный Electron-интерфейс для легендарного транскодера HandBrake и загрузчика yt-dlp. Сохраняет всю мощь оригинального HandBrake CLI, предоставляя удобный и эстетичный пользовательский опыт с открытым исходным кодом." }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-links", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://github.com/Gor80hd/Gorex", target: "_blank", rel: "noreferrer", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-github" }),
+            " GitHub — Gorex"
+          ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://handbrake.fr", target: "_blank", rel: "noreferrer", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-globe" }),
             " handbrake.fr"
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://github.com/HandBrake/HandBrake", target: "_blank", rel: "noreferrer", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://github.com/yt-dlp/yt-dlp", target: "_blank", rel: "noreferrer", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-github" }),
-            " GitHub"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://handbrake.fr/docs", target: "_blank", rel: "noreferrer", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-book" }),
-            " Документация"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://github.com/HandBrake/HandBrake/blob/master/NEWS.markdown", target: "_blank", rel: "noreferrer", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-newspaper" }),
-            " Changelog"
+            " yt-dlp"
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "license-notice", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-shield-check" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-            "HandBrake распространяется под лицензией ",
+            "Gorex использует HandBrake и yt-dlp — программы с открытым исходным кодом. HandBrake распространяется под лицензией ",
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "GNU GPL v2" }),
             ". Graphic assets — ",
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "CC BY-SA 4.0" }),
             ". Web UI дополнительно использует MIT-библиотеки React, Vite и Electron."
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("footer", { className: "about-footer", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "© 2026 HandBrake Project. Distributed under GNU General Public License Version 2." }) })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("footer", { className: "about-footer", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "© 2026 Gorex. Distributed under GNU General Public License Version 2." }) })
       ] }),
-      activeTab === "authors" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "authors-grid", children: AUTHORS.map((author) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "author-item", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "author-name", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: author.name }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "author-handle", children: [
+      activeTab === "thanks" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "thanks-intro", children: "Огромная благодарность этим людям за поддержку и вдохновение." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "thanks-grid", children: THANKS.map((person) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "thanks-item", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "thanks-icon", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-telegram" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "thanks-info", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "thanks-name", children: person.name }),
+            person.url ? /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: person.url, target: "_blank", rel: "noreferrer", className: "thanks-tg", children: [
               "@",
-              author.handle
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "author-role", children: author.role }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "author-contributions", children: author.contributions.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: c }, c)) })
-        ] }, author.handle)) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "more-info", children: [
-          "И многие другие участники сообщества — тестировщики, переводчики и контрибьюторы. Полный список на",
-          " ",
-          /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "https://github.com/HandBrake/HandBrake/blob/master/AUTHORS.markdown", target: "_blank", rel: "noreferrer", children: "GitHub" }),
-          "."
-        ] })
+              person.tg
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "thanks-tg thanks-tg--offline", children: "нет ссылки" })
+          ] })
+        ] }, person.name)) })
       ] }),
       activeTab === "license" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "license-summary", children: [
@@ -9346,8 +9497,34 @@ distribute copies of the software, or if you modify it.
         ] })
       ] }),
       activeTab === "libraries" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "lib-featured-grid", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { className: "lib-featured-item", href: "https://github.com/HandBrake/HandBrake", target: "_blank", rel: "noreferrer", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "lib-featured-icon", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-camera-video-fill" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "lib-featured-body", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "lib-featured-name", children: "HandBrake" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "lib-featured-devs", children: "The HandBrake Team" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "lib-featured-license", children: "GPL v2" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "lib-featured-gh", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-github" }),
+              " HandBrake/HandBrake"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { className: "lib-featured-item", href: "https://github.com/yt-dlp/yt-dlp", target: "_blank", rel: "noreferrer", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "lib-featured-icon", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down-fill" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "lib-featured-body", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "lib-featured-name", children: "yt-dlp" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "lib-featured-devs", children: "yt-dlp contributors" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "lib-featured-license", children: "Unlicense" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "lib-featured-gh", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-github" }),
+              " yt-dlp/yt-dlp"
+            ] })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "libraries-intro", children: [
-          "HandBrake использует следующие библиотеки с открытым исходным кодом. Полный список с благодарностями —",
+          "Дополнительные библиотеки с открытым исходным кодом, используемые в HandBrake. Полный список —",
           " ",
           /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "https://github.com/HandBrake/HandBrake/blob/master/THANKS.markdown", target: "_blank", rel: "noreferrer", children: "THANKS.markdown" }),
           "."
@@ -9407,6 +9584,7 @@ const TABS = [
   { id: "app", label: "Приложение", icon: "bi-gear" },
   { id: "video", label: "Видео", icon: "bi-camera-video" },
   { id: "audio", label: "Аудио", icon: "bi-music-note-beamed" },
+  { id: "subtitles", label: "Субтитры", icon: "bi-badge-cc" },
   { id: "filters", label: "Фильтры", icon: "bi-sliders" },
   { id: "hdr", label: "HDR / Мета", icon: "bi-stars" }
 ];
@@ -9540,7 +9718,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
   };
   const rfTable = CODEC_RF[enc.encoder] || CODEC_RF.x265;
   const speedPresets = ENCODER_PRESETS[enc.encoder] ?? [];
-  const isHWEncoder = ["nvenc", "qsv", "vce", "mf"].some((p2) => (enc.encoder || "").startsWith(p2));
+  ["nvenc", "qsv", "vce", "mf"].some((p2) => (enc.encoder || "").startsWith(p2));
   const isPassthru = (enc.audioCodec || "av_aac").startsWith("copy");
   const sectionRef = (id2) => (el2) => {
     sectionRefs.current[id2] = el2;
@@ -9808,7 +9986,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
             }
           ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-lightning-charge", title: "Аппаратное ускорение" }),
-          !isHWEncoder && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Аппаратное декодирование", hint: "Разгружает CPU при чтении источника — работает совместно с NVENC/QSV", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Аппаратное декодирование", hint: "Разгружает CPU при чтении источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.hwDecoding || "none",
@@ -9892,6 +10070,46 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               value: !!enc.optimizeMP4,
               onChange: (v2) => updateEnc("optimizeMP4", v2),
               disabled: enc.format !== "av_mp4"
+            }
+          ) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-section", "data-section": "subtitles", ref: sectionRef("subtitles"), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-badge-cc", title: "Дорожки субтитров" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Субтитры", hint: "Какие дорожки субтитров включить в выходной файл", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            GsSelect,
+            {
+              value: enc.subtitleMode || "none",
+              options: [
+                { value: "none", label: "Не включать" },
+                { value: "first", label: "Первая дорожка" },
+                { value: "all", label: "Все дорожки" },
+                { value: "scan_forced", label: "Авто (принудительные / иностранные)" }
+              ],
+              onChange: (v2) => updateEnc("subtitleMode", v2)
+            }
+          ) }),
+          enc.subtitleMode !== "none" && enc.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Вшивать субтитры", hint: "Субтитры рендерятся прямо в кадр (burn-in). Не требует поддержки контейнером", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.subtitleBurn, onChange: (v2) => updateEnc("subtitleBurn", v2) }) }),
+          enc.subtitleMode !== "none" && !enc.subtitleBurn && enc.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Субтитры по умолчанию", hint: "Отметить дорожку субтитров как выбранную по умолчанию в плеере", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.subtitleDefault, onChange: (v2) => updateEnc("subtitleDefault", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-translate", title: "Язык субтитров" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Предпочитаемый язык", hint: "Нативный язык: при наличии такой дорожки, она будет выбрана автоматически", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            GsSelect,
+            {
+              value: enc.subtitleLanguage || "any",
+              options: [
+                { value: "any", label: "Любой (не фильтровать)" },
+                { value: "eng", label: "Английский (eng)" },
+                { value: "rus", label: "Русский (rus)" },
+                { value: "jpn", label: "Японский (jpn)" },
+                { value: "chi", label: "Китайский (chi)" },
+                { value: "kor", label: "Корейский (kor)" },
+                { value: "fra", label: "Французский (fra)" },
+                { value: "deu", label: "Немецкий (deu)" },
+                { value: "spa", label: "Испанский (spa)" },
+                { value: "por", label: "Португальский (por)" },
+                { value: "ita", label: "Итальянский (ita)" },
+                { value: "ara", label: "Арабский (ara)" }
+              ],
+              onChange: (v2) => updateEnc("subtitleLanguage", v2)
             }
           ) })
         ] }),
@@ -10033,6 +10251,7 @@ function App() {
   const [copiedIdx, setCopiedIdx] = reactExports.useState(null);
   const videosRef = reactExports.useRef([]);
   const progressStateRef = reactExports.useRef(/* @__PURE__ */ new Map());
+  const stoppedJobsRef = reactExports.useRef(/* @__PURE__ */ new Set());
   const [themeMode, setThemeMode] = reactExports.useState(() => {
     const saved = localStorage.getItem("theme");
     return saved === "dark" || saved === "light" ? saved : "auto";
@@ -10047,7 +10266,7 @@ function App() {
   const [outputMode, setOutputMode] = reactExports.useState("default");
   const [customOutputDir, setCustomOutputDir] = reactExports.useState(() => {
     try {
-      const s = JSON.parse(localStorage.getItem("bpress-app-config") || "{}");
+      const s = JSON.parse(localStorage.getItem("gorex-app-config") || "{}");
       return s.defaultOutputDir || s.defaultCustomOutputDir || "";
     } catch {
       return "";
@@ -10116,12 +10335,25 @@ function App() {
     try {
       const info = await window.api.ytdlGetFormats(url);
       const safeOutputName = (info.title || "video").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/\.+$/, "").trim() || "video";
+      let bestFormatId = "";
+      if (info.formats && info.formats.length) {
+        const seen = /* @__PURE__ */ new Map();
+        for (const f2 of info.formats) {
+          if (!f2.vcodec || f2.vcodec === "none") continue;
+          const base = (f2.vcodec || "").split(".")[0].toLowerCase();
+          const key = `${f2.height || 0}_${base}`;
+          const prev = seen.get(key);
+          if (!prev || (f2.tbr || 0) > (prev.tbr || 0)) seen.set(key, f2);
+        }
+        const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
+        bestFormatId = sorted[0]?.format_id || "";
+      }
       const newVideo = {
         id: nextIdRef.current++,
         isYtdlItem: true,
         ytdlUrl: url,
         ytdlFormats: info.formats,
-        ytdlSelectedFormat: "best",
+        ytdlSelectedFormat: bestFormatId,
         title: info.title,
         outputName: safeOutputName,
         thumbnail: info.thumbnailUrl,
@@ -10187,22 +10419,23 @@ function App() {
     }
   };
   const handleStop = () => {
+    videosRef.current.filter((v2) => ["encoding", "downloading", "converting"].includes(v2.status)).forEach((v2) => stoppedJobsRef.current.add(v2.id));
     window.api.stopAll();
     setIsEncoding(false);
     setIsPaused(false);
     setEncodingStartTime(null);
     progressStateRef.current.clear();
     setVideos((prev) => prev.map(
-      (v2) => v2.status === "encoding" ? { ...v2, status: "ready", progress: 0, startTime: null, endTime: null } : v2
+      (v2) => ["encoding", "downloading", "converting"].includes(v2.status) ? { ...v2, status: v2.isYtdlItem ? "format_select" : "ready", progress: 0, startTime: null, endTime: null } : v2
     ));
   };
   const handleViewChange = (newView) => {
     setView(newView);
   };
   const handleSaveSettings = async (encodingSettings, appConfig) => {
-    localStorage.setItem("bpress-default-settings", JSON.stringify(encodingSettings));
+    localStorage.setItem("gorex-default-settings", JSON.stringify(encodingSettings));
     setSelectedSettings(encodingSettings);
-    localStorage.setItem("bpress-app-config", JSON.stringify(appConfig));
+    localStorage.setItem("gorex-app-config", JSON.stringify(appConfig));
     if (appConfig.defaultOutputDir) setCustomOutputDir(appConfig.defaultOutputDir);
     await window.api.saveAppSettings(appConfig);
     setAppSettings(appConfig);
@@ -10256,19 +10489,32 @@ function App() {
     setEncodingStartTime(now);
     progressStateRef.current.clear();
     setVideos((prev) => prev.map(
-      (v2) => v2.status === "done" || v2.status === "error" ? { ...v2, progress: 0, status: "ready", startTime: null, endTime: null } : v2
+      (v2) => v2.status === "done" || v2.status === "error" ? { ...v2, progress: 0, status: v2.isYtdlItem ? "format_select" : "ready", startTime: null, endTime: null } : v2
     ));
     const resolvedOutputDir = outputMode === "default" ? defaultOutputDir : customOutputDir;
     videos.forEach((v2) => {
-      window.api.runCli({
-        filePath: v2.path,
-        settings: v2.customSettings || selectedSettings,
-        id: v2.id,
-        outputMode,
-        customOutputDir: resolvedOutputDir,
-        outputName: v2.outputName,
-        videoResolution: v2.resolution
-      });
+      if (v2.isYtdlItem) {
+        window.api.ytdlRun({
+          id: v2.id,
+          url: v2.ytdlUrl,
+          formatId: v2.ytdlSelectedFormat || "best",
+          outputDir: resolvedOutputDir,
+          outputName: v2.outputName,
+          convertAfterDownload: v2.convertAfterDownload,
+          conversionSettings: v2.conversionSettings,
+          videoResolution: v2.resolution
+        });
+      } else {
+        window.api.runCli({
+          filePath: v2.path,
+          settings: v2.customSettings || selectedSettings,
+          id: v2.id,
+          outputMode,
+          customOutputDir: resolvedOutputDir,
+          outputName: v2.outputName,
+          videoResolution: v2.resolution
+        });
+      }
     });
   };
   reactExports.useEffect(() => {
@@ -10280,7 +10526,7 @@ function App() {
       if (info && info.vendor) {
         setGpuVendor(info.vendor);
         saveGpuVendor(info.vendor);
-        const hasSaved = !!localStorage.getItem("bpress-default-settings");
+        const hasSaved = !!localStorage.getItem("gorex-default-settings");
         if (!hasSaved) {
           setSelectedSettings(getDefaultSettingsForGpu(info.vendor));
         }
@@ -10294,22 +10540,12 @@ function App() {
   reactExports.useEffect(() => {
     window.api.onCliProgress(({ id: id2, progress }) => {
       const ps = progressStateRef.current;
-      const state = ps.get(id2) || { current: 0, pending: null };
-      const SPIKE_THRESHOLD = 20;
-      if (state.pending !== null) {
-        const resolved = progress;
-        ps.set(id2, { current: resolved, pending: null });
-        setVideos((prev) => prev.map(
-          (v2) => v2.id === id2 ? { ...v2, progress: resolved, status: "encoding", startTime: v2.startTime ?? Date.now() } : v2
-        ));
-      } else if (progress > state.current + SPIKE_THRESHOLD && progress < 99.5) {
-        ps.set(id2, { current: state.current, pending: progress });
-      } else {
-        ps.set(id2, { current: progress, pending: null });
-        setVideos((prev) => prev.map(
-          (v2) => v2.id === id2 ? { ...v2, progress, status: "encoding", startTime: v2.startTime ?? Date.now() } : v2
-        ));
-      }
+      const state = ps.get(id2) || { current: 0 };
+      if (progress < state.current) return;
+      ps.set(id2, { current: progress });
+      setVideos((prev) => prev.map(
+        (v2) => v2.id === id2 ? { ...v2, progress, status: "encoding", startTime: v2.startTime ?? Date.now() } : v2
+      ));
     });
     window.api.onYtdlProgress(({ id: id2, progress }) => {
       setVideos((prev) => prev.map(
@@ -10317,6 +10553,10 @@ function App() {
       ));
     });
     window.api.onYtdlExit(({ id: id2, code, converting }) => {
+      if (stoppedJobsRef.current.has(id2)) {
+        stoppedJobsRef.current.delete(id2);
+        return;
+      }
       if (converting) {
         setVideos((prev) => prev.map(
           (v2) => v2.id === id2 ? { ...v2, progress: 0, status: "converting", startTime: Date.now() } : v2
@@ -10335,6 +10575,11 @@ function App() {
       }
     });
     window.api.onCliExit(({ id: id2, code, stderr }) => {
+      if (stoppedJobsRef.current.has(id2)) {
+        stoppedJobsRef.current.delete(id2);
+        progressStateRef.current.delete(id2);
+        return;
+      }
       progressStateRef.current.delete(id2);
       setVideos((prev) => {
         const updated = prev.map(
@@ -10394,6 +10639,7 @@ function App() {
             defaultOutputDir,
             onOutputModeChange: handleOutputModeChange,
             onAddFiles: handleSelectFiles,
+            onDownload: handleDownload,
             onRemoveVideo: handleRemoveVideo,
             onClearQueue: handleClearQueue,
             onRenameOutput: handleRenameOutput,

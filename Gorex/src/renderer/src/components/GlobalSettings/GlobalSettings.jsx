@@ -547,6 +547,20 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
             if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
                 patch.audioCodec = 'opus'
             }
+        } else {
+            const disabledFormats = ENCODER_DISABLED_FORMATS[settings.encoder]
+            if (disabledFormats?.has(fmt)) {
+                const speeds = ENCODER_PRESETS.x265
+                patch.encoder = 'x265'
+                patch.encoderSpeed = speeds?.find(s => s.value === 'slow')?.value
+                    ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? 'slow'
+            }
+            if (fmt === 'av_mp4' || fmt === 'av_mov') {
+                const audioCodec = settings.audioCodec || 'av_aac'
+                if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                    patch.audioCodec = 'av_aac'
+                }
+            }
         }
         onChange({ ...settings, ...patch })
     }
@@ -595,18 +609,15 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                         <span className="gs-card-label">Формат</span>
                         <Tooltip text={currentFormatHelp} />
                     </div>
-                    {/* Format dropdown with encoder-aware disabled items */}
+                    {/* Format dropdown */}
                     <GsSelect
                         value={settings.format}
-                        options={(() => {
-                            const disabledSet = ENCODER_DISABLED_FORMATS[settings.encoder] || new Set()
-                            return [
-                                { value: 'av_mp4',  label: 'MP4',  disabled: disabledSet.has('av_mp4') },
-                                { value: 'av_mkv',  label: 'MKV' },
-                                { value: 'av_webm', label: 'WebM', disabled: disabledSet.has('av_webm') },
-                                { value: 'av_mov',  label: 'MOV',  disabled: disabledSet.has('av_mov') },
-                            ]
-                        })()}
+                        options={[
+                            { value: 'av_mp4',  label: 'MP4' },
+                            { value: 'av_mkv',  label: 'MKV' },
+                            { value: 'av_webm', label: 'WebM' },
+                            { value: 'av_mov',  label: 'MOV' },
+                        ]}
                         onChange={handleFormatChange}
                         disabled={disabled}
                     />

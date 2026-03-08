@@ -11,6 +11,7 @@ import {
     WEBM_COMPATIBLE_AUDIO,
     ENCODER_DISABLED_FORMATS,
 } from '../../components/GlobalSettings/GlobalSettings'
+import { useLanguage } from '../../i18n'
 import './SettingsPage.scss'
 
 // ─── Audio codec list ─────────────────────────────────────────────────────────
@@ -25,7 +26,7 @@ const AUDIO_CODECS = [
     { value: 'flac16',     label: 'FLAC 16-bit' },
     { value: 'flac24',     label: 'FLAC 24-bit' },
     { value: 'opus',       label: 'Opus' },
-    { value: 'copy',       label: 'Passthru (авто)' },
+    { value: 'copy',       label: 'Passthru (auto/авто)' },
     { value: 'copy:aac',   label: 'AAC Passthru' },
     { value: 'copy:ac3',   label: 'AC3 Passthru' },
     { value: 'copy:eac3',  label: 'E-AC3 Passthru' },
@@ -57,33 +58,33 @@ const SOFTWARE_PRIMARY = [
     { value: 'svt_av1', label: 'AV1 (SVT-AV1)' },
 ]
 
-function getPrimaryEncoderGroups(vendor) {
+function getPrimaryEncoderGroups(vendor, t) {
     if (vendor === 'nvidia') return [
-        { label: 'NVIDIA NVENC (рекомендован)', encoders: [
+        { label: 'NVIDIA NVENC (' + t('recommended') + ')', encoders: [
             { value: 'nvenc_h265', label: 'H.265 NVENC' },
             { value: 'nvenc_h264', label: 'H.264 NVENC' },
             { value: 'nvenc_av1',  label: 'AV1 NVENC' },
         ]},
-        { label: 'Программные', encoders: SOFTWARE_PRIMARY },
+        { label: t('softwareEncoders'), encoders: SOFTWARE_PRIMARY },
     ]
     if (vendor === 'amd') return [
-        { label: 'AMD VCE (рекомендован)', encoders: [
+        { label: 'AMD VCE (' + t('recommended') + ')', encoders: [
             { value: 'vce_h265', label: 'H.265 VCE' },
             { value: 'vce_h264', label: 'H.264 VCE' },
             { value: 'vce_av1',  label: 'AV1 VCE' },
         ]},
-        { label: 'Программные', encoders: SOFTWARE_PRIMARY },
+        { label: t('softwareEncoders'), encoders: SOFTWARE_PRIMARY },
     ]
     if (vendor === 'intel') return [
-        { label: 'Intel QSV (рекомендован)', encoders: [
+        { label: 'Intel QSV (' + t('recommended') + ')', encoders: [
             { value: 'qsv_h265', label: 'H.265 QSV' },
             { value: 'qsv_h264', label: 'H.264 QSV' },
             { value: 'qsv_av1',  label: 'AV1 QSV' },
         ]},
-        { label: 'Программные', encoders: SOFTWARE_PRIMARY },
+        { label: t('softwareEncoders'), encoders: SOFTWARE_PRIMARY },
     ]
     return [
-        { label: 'Программные', encoders: [
+        { label: t('softwareEncoders'), encoders: [
             { value: 'x265',          label: 'H.265 / HEVC (x265)' },
             { value: 'x265_10bit',    label: 'H.265 10-bit (x265)' },
             { value: 'x264',          label: 'H.264 (x264)' },
@@ -94,13 +95,13 @@ function getPrimaryEncoderGroups(vendor) {
 }
 
 // ─── Sidebar tabs ─────────────────────────────────────────────────────────────
-const TABS = [
-    { id: 'app',       label: 'Приложение', icon: 'bi-gear' },
-    { id: 'video',     label: 'Видео',      icon: 'bi-camera-video' },
-    { id: 'audio',     label: 'Аудио',      icon: 'bi-music-note-beamed' },
-    { id: 'subtitles', label: 'Субтитры',   icon: 'bi-badge-cc' },
-    { id: 'filters',   label: 'Фильтры',    icon: 'bi-sliders' },
-    { id: 'hdr',       label: 'HDR / Мета', icon: 'bi-stars' },
+const TABS_IDS = [
+    { id: 'app',       icon: 'bi-gear' },
+    { id: 'video',     icon: 'bi-camera-video' },
+    { id: 'audio',     icon: 'bi-music-note-beamed' },
+    { id: 'subtitles', icon: 'bi-badge-cc' },
+    { id: 'filters',   icon: 'bi-sliders' },
+    { id: 'hdr',       icon: 'bi-stars' },
 ]
 
 // ─── Toggle switch ────────────────────────────────────────────────────────────
@@ -165,9 +166,15 @@ function SectionHeader({ icon, title }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings, onSave }) {
+    const { t, lang, setLang } = useLanguage()
     const [activeSection, setActiveSection] = useState('app')
     const [savedFlash, setSavedFlash] = useState(false)
     const [gpuInfo, setGpuInfo] = useState({ gpus: [], vendor: 'unknown' })
+
+    const TABS = TABS_IDS.map(tab => ({
+        ...tab,
+        label: t({ app: 'tabApp', video: 'tabVideo', audio: 'tabAudio', subtitles: 'tabSubtitles', filters: 'tabFilters', hdr: 'tabHdr' }[tab.id]),
+    }))
 
     // App-level config (output folder)
     const [appConfig, setAppConfig] = useState({
@@ -303,21 +310,21 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
             <div className="sp-header">
                 <button className="sp-back-btn" onClick={onBack}>
                     <i className="bi bi-arrow-left"></i>
-                    Назад
+                    {t('back')}
                 </button>
                 <div className="sp-header-title">
                     <i className="bi bi-gear-fill"></i>
-                    Настройки
+                    {t('settingsTitle')}
                 </div>
                 <div className="sp-header-actions">
-                    <button className="sp-btn-reset" onClick={handleReset} title="Сбросить настройки кодирования до значений по умолчанию">
+                    <button className="sp-btn-reset" onClick={handleReset} title={t('settingsResetTitle')}>
                         <i className="bi bi-arrow-counterclockwise"></i>
-                        Сброс
+                        {t('reset')}
                     </button>
                     <button className={`sp-btn-save${savedFlash ? ' saved' : ''}`} onClick={handleSave}>
                         {savedFlash
-                            ? <><i className="bi bi-check-lg"></i>Сохранено</>
-                            : <><i className="bi bi-floppy"></i>Сохранить</>
+                            ? <><i className="bi bi-check-lg"></i>{t('saved')}</>
+                            : <><i className="bi bi-floppy"></i>{t('save')}</>
                         }
                     </button>
                 </div>
@@ -339,7 +346,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                     ))}
                     <div className="sp-sidebar-spacer"></div>
                     <p className="sp-sidebar-hint">
-                        Настройки применяются как значения по умолчанию для новых задач кодирования
+                        {t('settingsSidebarHint')}
                     </p>
                 </div>
 
@@ -348,14 +355,14 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
 
                     {/* ══ APP ══ */}
                     <div className="sp-section" data-section="app" ref={sectionRef('app')}>
-                        <SectionHeader icon="bi-palette" title="Оформление" />
-                        <Row label="Тема оформления" hint="Выбор темы интерфейса приложения">
+                        <SectionHeader icon="bi-palette" title={t('sectionAppearance')} />
+                        <Row label={t('rowTheme')} hint={t('hintTheme')}>
                             <div className="sp-theme-selector">
                                 {[
-                                    { mode: 'dark',  icon: 'bi-moon-fill',     label: 'Тёмная' },
-                                    { mode: 'light', icon: 'bi-sun-fill',      label: 'Светлая' },
-                                    { mode: 'auto',  icon: 'bi-circle-half',   label: 'Авто' },
-                                ].map(({ mode, icon, label }) => (
+                                    { mode: 'dark',  icon: 'bi-moon-fill',     labelKey: 'themeDark' },
+                                    { mode: 'light', icon: 'bi-sun-fill',      labelKey: 'themeLight' },
+                                    { mode: 'auto',  icon: 'bi-circle-half',   labelKey: 'themeAuto' },
+                                ].map(({ mode, icon, labelKey }) => (
                                     <button
                                         key={mode}
                                         className={`sp-theme-btn${themeMode === mode ? ' active' : ''}`}
@@ -363,33 +370,52 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                                         type="button"
                                     >
                                         <i className={`bi ${icon}`}></i>
-                                        {label}
+                                        {t(labelKey)}
                                     </button>
                                 ))}
                             </div>
                         </Row>
 
-                        <SectionHeader icon="bi-terminal" title="HandBrake CLI" />
-                        <Row label="Статус" hint="HandBrakeCLI.exe рядом с приложением">
+                        <SectionHeader icon="bi-translate" title={t('sectionLanguage')} />
+                        <Row label={t('rowLanguage')} hint={t('hintLanguage')}>
+                            <div className="sp-theme-selector">
+                                {[
+                                    { code: 'ru', labelKey: 'langRu' },
+                                    { code: 'en', labelKey: 'langEn' },
+                                ].map(({ code, labelKey }) => (
+                                    <button
+                                        key={code}
+                                        className={`sp-theme-btn${lang === code ? ' active' : ''}`}
+                                        onClick={() => setLang(code)}
+                                        type="button"
+                                    >
+                                        {t(labelKey)}
+                                    </button>
+                                ))}
+                            </div>
+                        </Row>
+
+                        <SectionHeader icon="bi-terminal" title={t('sectionCli')} />
+                        <Row label={t('rowCliStatus')} hint={t('hintCliStatus')}>
                             {cliStatus === 'checking' && (
                                 <span className="sp-cli-status sp-cli-status--checking">
-                                    <i className="bi bi-arrow-repeat"></i> Проверка...
+                                    <i className="bi bi-arrow-repeat"></i> {t('cliChecking')}
                                 </span>
                             )}
                             {cliStatus === 'ok' && (
                                 <span className="sp-cli-status sp-cli-status--ok">
                                     <i className="bi bi-check-circle-fill"></i>
-                                    Обнаружен{cliVersion ? ` · v${cliVersion}` : ''}
+                                    {t('cliFound')}{cliVersion ? ` · v${cliVersion}` : ''}
                                 </span>
                             )}
                             {cliStatus === 'error' && (
                                 <span className="sp-cli-status sp-cli-status--error" title={cliPath}>
-                                    <i className="bi bi-x-circle-fill"></i> Не найден
+                                    <i className="bi bi-x-circle-fill"></i> {t('cliNotFound')}
                                 </span>
                             )}
                         </Row>
 
-                        <SectionHeader icon="bi-gpu-card" title="Видеокарта" />
+                        <SectionHeader icon="bi-gpu-card" title={t('sectionGpu')} />
                         <div className="sp-gpu-widget">
                             {gpuInfo.gpus.length > 0 ? (
                                 <>
@@ -412,35 +438,35 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                                             )
                                         })}
                                     </div>
-                                    <span className="sp-gpu-hint">Доступные кодеки GPU автоматически показаны первыми в разделе «Видеокодек»</span>
+                                    <span className="sp-gpu-hint">{t('gpuCodecHint')}</span>
                                 </>
                             ) : (
                                 <span className="sp-gpu-none">
                                     <i className="bi bi-question-circle"></i>
-                                    Видеокарта не определена — показаны программные кодеки
+                                    {t('gpuUnknown')}
                                 </span>
                             )}
                         </div>
-                        <Row label="Показывать все кодеки" hint="На странице конвертации показывать все, а не только GPU-рекомендованные">
+                        <Row label={t('rowShowAllCodecs')} hint={t('hintShowAllCodecs')}>
                             <Toggle value={!!enc.showAllCodecs} onChange={v => updateEnc('showAllCodecs', v)} />
                         </Row>
 
-                        <SectionHeader icon="bi-folder2" title="Папка вывода по умолчанию" />
+                        <SectionHeader icon="bi-folder2" title={t('sectionOutputFolder')} />
                         <div className="sp-folder-widget">
                             <div className="sp-folder-widget__info">
                                 <span className="sp-folder-widget__path">{resolvedOutputDir || '…'}</span>
                                 {!appConfig.defaultOutputDir && (
-                                    <span className="sp-folder-widget__tag">папка «Видео» по умолчанию</span>
+                                    <span className="sp-folder-widget__tag">{t('folderDefault')}</span>
                                 )}
                             </div>
                             <div className="sp-folder-widget__actions">
                                 {appConfig.defaultOutputDir && (
-                                    <button className="sp-folder-widget__reset" onClick={handleResetOutputDir} title="Сбросить к папке Видео">
+                                    <button className="sp-folder-widget__reset" onClick={handleResetOutputDir} title={t('folderResetTitle')}>
                                         <i className="bi bi-x-lg"></i>
                                     </button>
                                 )}
                                 <button className="sp-folder-widget__browse" onClick={handleBrowseOutputDir}>
-                                    <i className="bi bi-folder2-open"></i> Изменить
+                                    <i className="bi bi-folder2-open"></i> {t('folderChange')}
                                 </button>
                             </div>
                         </div>
@@ -448,9 +474,9 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
 
                     {/* ══ VIDEO ══ */}
                     <div className="sp-section" data-section="video" ref={sectionRef('video')}>
-                        <p className="sp-tab-description">Параметры кодирования по умолчанию. Применяются к каждому новому файлу — можно изменить для конкретной задачи в списке.</p>
-                        <SectionHeader icon="bi-file-earmark-play" title="Контейнер" />
-                        <Row label="Формат" hint="Контейнер для выходного файла">
+                        <p className="sp-tab-description">{t('videoTabDesc')}</p>
+                        <SectionHeader icon="bi-file-earmark-play" title={t('sectionContainer')} />
+                        <Row label={t('rowFormat')} hint={t('hintFormat')}>
                             <GsSelect
                                 value={enc.format}
                                 options={(() => {
@@ -480,8 +506,8 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-cpu" title="Кодировщик" />
-                        <Row label="Видеокодек" hint="Алгоритм сжатия видео">
+                        <SectionHeader icon="bi-cpu" title={t('sectionEncoder')} />
+                        <Row label={t('rowVideoCodec')} hint={t('hintVideoCodec')}>
                             <GsSelect
                                 value={enc.encoder}
                                 groups={ENCODER_GROUPS.map(g => ({
@@ -500,7 +526,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                             />
                         </Row>
                         {speedPresets.length > 0 && (
-                            <Row label="Скорость / пресет" hint="Соотношение скорость↔эффективность кодека">
+                            <Row label={t('rowSpeedPreset')} hint={t('hintSpeedPreset')}>
                                 <GsSelect
                                     value={enc.encoderSpeed}
                                     options={speedPresets.map(sp => ({ value: sp.value, label: sp.label }))}
@@ -509,17 +535,17 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                             </Row>
                         )}
 
-                        <SectionHeader icon="bi-sliders2" title="Качество" />
-                        <Row label="Режим качества" hint="Предустановка или точное значение RF/CRF">
+                        <SectionHeader icon="bi-sliders2" title={t('sectionQuality')} />
+                        <Row label={t('rowQualityMode')} hint={t('hintQualityMode')}>
                             <GsSelect
                                 value={enc.quality}
                                 options={[
-                                    { value: 'source', label: 'Исходное (без потерь)' },
-                                    { value: 'high',   label: `Высокое (RF ${rfTable.high})` },
-                                    { value: 'medium', label: `Среднее (RF ${rfTable.medium})` },
-                                    { value: 'low',    label: `Низкое (RF ${rfTable.low})` },
-                                    { value: 'potato', label: `Максимальное сжатие (RF ${rfTable.potato})` },
-                                    { value: 'custom', label: enc.quality === 'custom' ? `Своё (RF ${enc.customQuality})` : 'Своё значение...' },
+                                    { value: 'source', label: t('qualitySource') },
+                                    { value: 'high',   label: `${t('qualityHigh')} (RF ${rfTable.high})` },
+                                    { value: 'medium', label: `${t('qualityMedium')} (RF ${rfTable.medium})` },
+                                    { value: 'low',    label: `${t('qualityLow')} (RF ${rfTable.low})` },
+                                    { value: 'potato', label: `${t('qualityPotato')} (RF ${rfTable.potato})` },
+                                    { value: 'custom', label: enc.quality === 'custom' ? `${t('qualityCustomLabel')} (RF ${enc.customQuality})` : t('qualityCustomEmpty') },
                                 ]}
                                 onChange={v => updateEnc('quality', v)}
                             />
@@ -527,7 +553,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                         {enc.quality === 'custom' && (
                             <Row
                                 label={`RF / CRF: ${enc.customQuality}`}
-                                hint={`Диапазон: ${rfTable.min} (лучше) — ${rfTable.max} (хуже)`}
+                                hint={`${t('rfRange')} ${rfTable.min} (${t('rfBetter')}) — ${rfTable.max} (${t('rfWorse')})`}
                             >
                                 <div className="sp-slider-wrap">
                                     <span className="sp-slider-edge">{rfTable.min}</span>
@@ -545,12 +571,12 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                             </Row>
                         )}
 
-                        <SectionHeader icon="bi-aspect-ratio" title="Разрешение и частота кадров" />
-                        <Row label="Разрешение" hint="Максимальное разрешение (масштабирование вниз)">
+                        <SectionHeader icon="bi-aspect-ratio" title={t('sectionResFps')} />
+                        <Row label={t('rowResolution')} hint={t('hintResolution')}>
                             <GsSelect
                                 value={enc.resolution}
                                 options={[
-                                    { value: 'source', label: 'По исходному' },
+                                    { value: 'source', label: t('resSource') },
                                     { value: '4k',     label: '4K (2160p)' },
                                     { value: '1440p',  label: '2K (1440p)' },
                                     { value: '1080p',  label: '1080p (Full HD)' },
@@ -560,53 +586,53 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                                 onChange={v => updateEnc('resolution', v)}
                             />
                         </Row>
-                        <Row label="Частота кадров" hint="Целевой FPS выходного видео">
+                        <Row label={t('rowFps')} hint={t('hintFps')}>
                             <GsSelect
                                 value={enc.fps}
                                 options={[
-                                    { value: 'source', label: 'По исходному' },
+                                    { value: 'source', label: t('fpsSource') },
                                     { value: '60',     label: '60 fps' },
                                     { value: '30',     label: '30 fps' },
                                     { value: '25',     label: '25 fps (PAL)' },
-                                    { value: '24',     label: '24 fps (кино)' },
+                                    { value: '24',     label: t('fpsCinema') },
                                     { value: '23.976', label: '23.976 fps (NTSC)' },
                                 ]}
                                 onChange={v => updateEnc('fps', v)}
                             />
                         </Row>
-                        <Row label="Режим FPS" hint="VFR = переменный, CFR = постоянный, PFR = с ограничением">
+                        <Row label={t('rowFpsMode')} hint={t('hintFpsMode')}>
                             <GsSelect
                                 value={enc.fpsMode || 'vfr'}
                                 options={[
-                                    { value: 'vfr', label: 'VFR — переменный (рекомендован)' },
-                                    { value: 'cfr', label: 'CFR — постоянный' },
-                                    { value: 'pfr', label: 'PFR — с пиковым ограничением' },
+                                    { value: 'vfr', label: t('fpsVfr') },
+                                    { value: 'cfr', label: t('fpsCfr') },
+                                    { value: 'pfr', label: t('fpsPfr') },
                                 ]}
                                 onChange={v => updateEnc('fpsMode', v)}
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-lightning-charge" title="Аппаратное ускорение" />
-                        <Row label="Аппаратное декодирование" hint="Разгружает CPU при чтении источника">
+                        <SectionHeader icon="bi-lightning-charge" title={t('sectionHwAccel')} />
+                        <Row label={t('rowHwDecoding')} hint={t('hintHwDecoding')}>
                             <GsSelect
                                 value={enc.hwDecoding || 'none'}
                                 options={[
-                                    { value: 'none',  label: 'Отключено (программное)' },
+                                    { value: 'none',  label: t('hwDecodingNone') },
                                     { value: 'nvdec', label: 'NVDEC (NVIDIA)' },
                                     { value: 'qsv',   label: 'Quick Sync (Intel)' },
                                 ]}
                                 onChange={v => updateEnc('hwDecoding', v)}
                             />
                         </Row>
-                        <Row label="Двухпроходное кодирование" hint="2-pass: лучше распределяет битрейт, кодирует в 2× дольше">
+                        <Row label={t('rowMultiPass')} hint={t('hintMultiPass')}>
                             <Toggle value={!!enc.multiPass} onChange={v => updateEnc('multiPass', v)} />
                         </Row>
                     </div>
 
                     {/* ══ AUDIO ══ */}
                     <div className="sp-section" data-section="audio" ref={sectionRef('audio')}>
-                        <SectionHeader icon="bi-music-note-beamed" title="Кодек аудио" />
-                        <Row label="Аудиокодек" hint="Кодек для аудиодорожки выходного файла">
+                        <SectionHeader icon="bi-music-note-beamed" title={t('sectionAudioCodec')} />
+                        <Row label={t('rowAudioCodec')} hint={t('hintAudioCodec')}>
                             <GsSelect
                                 value={enc.audioCodec || 'av_aac'}
                                 options={AUDIO_CODECS.map(c => ({
@@ -619,15 +645,15 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
 
                         {!isPassthru && (
                             <>
-                                <SectionHeader icon="bi-speaker" title="Параметры аудио" />
-                                <Row label="Битрейт" hint="Битрейт аудиодорожки в кбит/с">
+                                <SectionHeader icon="bi-speaker" title={t('sectionAudioParams')} />
+                                <Row label={t('rowBitrate')} hint={t('hintBitrate')}>
                                     <GsSelect
                                         value={enc.audioBitrate || '160'}
                                         options={[
                                             { value: '64',  label: '64 kbps' },
                                             { value: '96',  label: '96 kbps' },
                                             { value: '128', label: '128 kbps' },
-                                            { value: '160', label: '160 kbps (по умолчанию)' },
+                                            { value: '160', label: `160 kbps (${t('bitrateDefault')})` },
                                             { value: '192', label: '192 kbps' },
                                             { value: '256', label: '256 kbps' },
                                             { value: '320', label: '320 kbps' },
@@ -635,12 +661,12 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                                         onChange={v => updateEnc('audioBitrate', v)}
                                     />
                                 </Row>
-                                <Row label="Микшинг" hint="Количество каналов в выходной аудиодорожке">
+                                <Row label={t('rowMixdown')} hint={t('hintMixdown')}>
                                     <GsSelect
                                         value={enc.audioMixdown || 'stereo'}
                                         options={[
-                                            { value: 'mono',    label: 'Моно (1.0)' },
-                                            { value: 'stereo',  label: 'Стерео (2.0)' },
+                                            { value: 'mono',    label: t('mixMono') },
+                                            { value: 'stereo',  label: t('mixStereo') },
                                             { value: 'dpl2',    label: 'Dolby Pro Logic II' },
                                             { value: '5point1', label: 'Surround 5.1' },
                                             { value: '6point1', label: 'Surround 6.1' },
@@ -649,11 +675,11 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                                         onChange={v => updateEnc('audioMixdown', v)}
                                     />
                                 </Row>
-                                <Row label="Частота дискретизации" hint="Sample rate аудио">
+                                <Row label={t('rowSampleRate')} hint={t('hintSampleRate')}>
                                     <GsSelect
                                         value={enc.audioSampleRate || 'auto'}
                                         options={[
-                                            { value: 'auto',  label: 'Авто (по исходному)' },
+                                            { value: 'auto',  label: t('srAuto') },
                                             { value: '22.05', label: '22.05 kHz' },
                                             { value: '32',    label: '32 kHz' },
                                             { value: '44.1',  label: '44.1 kHz' },
@@ -666,11 +692,11 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                             </>
                         )}
 
-                        <SectionHeader icon="bi-collection-play" title="Метаданные файла" />
-                        <Row label="Метки глав (Chapter markers)" hint="Добавлять chapter markers в контейнер">
+                        <SectionHeader icon="bi-collection-play" title={t('sectionFileMetadata')} />
+                        <Row label={t('rowChapterMarkers')} hint={t('hintChapterMarkers')}>
                             <Toggle value={enc.chapterMarkers !== false} onChange={v => updateEnc('chapterMarkers', v)} />
                         </Row>
-                        <Row label="Оптимизировать MP4 (fast start)" hint="Moov-атом в начале файла — для HTTP стриминга. Только MP4.">
+                        <Row label={t('rowOptimizeMp4')} hint={t('hintOptimizeMp4')}>
                             <Toggle
                                 value={!!enc.optimizeMP4}
                                 onChange={v => updateEnc('optimizeMP4', v)}
@@ -681,47 +707,47 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
 
                     {/* ══ SUBTITLES ══ */}
                     <div className="sp-section" data-section="subtitles" ref={sectionRef('subtitles')}>
-                        <SectionHeader icon="bi-badge-cc" title="Дорожки субтитров" />
-                        <Row label="Субтитры" hint="Какие дорожки субтитров включить в выходной файл">
+                        <SectionHeader icon="bi-badge-cc" title={t('sectionSubtitleTracks')} />
+                        <Row label={t('rowSubtitles')} hint={t('hintSubtitles')}>
                             <GsSelect
                                 value={enc.subtitleMode || 'none'}
                                 options={[
-                                    { value: 'none',         label: 'Не включать' },
-                                    { value: 'first',        label: 'Первая дорожка' },
-                                    { value: 'all',          label: 'Все дорожки' },
-                                    { value: 'scan_forced',  label: 'Авто (принудительные / иностранные)' },
+                                    { value: 'none',         label: t('subNone') },
+                                    { value: 'first',        label: t('subFirst') },
+                                    { value: 'all',          label: t('subAll') },
+                                    { value: 'scan_forced',  label: t('subScanForced') },
                                 ]}
                                 onChange={v => updateEnc('subtitleMode', v)}
                             />
                         </Row>
                         {enc.subtitleMode !== 'none' && enc.subtitleMode !== 'all' && (
-                            <Row label="Вшивать субтитры" hint="Субтитры рендерятся прямо в кадр (burn-in). Не требует поддержки контейнером">
+                            <Row label={t('rowSubtitleBurn')} hint={t('hintSubtitleBurn')}>
                                 <Toggle value={!!enc.subtitleBurn} onChange={v => updateEnc('subtitleBurn', v)} />
                             </Row>
                         )}
                         {enc.subtitleMode !== 'none' && !enc.subtitleBurn && enc.subtitleMode !== 'all' && (
-                            <Row label="Субтитры по умолчанию" hint="Отметить дорожку субтитров как выбранную по умолчанию в плеере">
+                            <Row label={t('rowSubtitleDefault')} hint={t('hintSubtitleDefault')}>
                                 <Toggle value={!!enc.subtitleDefault} onChange={v => updateEnc('subtitleDefault', v)} />
                             </Row>
                         )}
 
-                        <SectionHeader icon="bi-translate" title="Язык субтитров" />
-                        <Row label="Предпочитаемый язык" hint="Нативный язык: при наличии такой дорожки, она будет выбрана автоматически">
+                        <SectionHeader icon="bi-translate" title={t('sectionSubtitleLang')} />
+                        <Row label={t('rowSubtitleLang')} hint={t('hintSubtitleLang')}>
                             <GsSelect
                                 value={enc.subtitleLanguage || 'any'}
                                 options={[
-                                    { value: 'any', label: 'Любой (не фильтровать)' },
-                                    { value: 'eng', label: 'Английский (eng)' },
-                                    { value: 'rus', label: 'Русский (rus)' },
-                                    { value: 'jpn', label: 'Японский (jpn)' },
-                                    { value: 'chi', label: 'Китайский (chi)' },
-                                    { value: 'kor', label: 'Корейский (kor)' },
-                                    { value: 'fra', label: 'Французский (fra)' },
-                                    { value: 'deu', label: 'Немецкий (deu)' },
-                                    { value: 'spa', label: 'Испанский (spa)' },
-                                    { value: 'por', label: 'Португальский (por)' },
-                                    { value: 'ita', label: 'Итальянский (ita)' },
-                                    { value: 'ara', label: 'Арабский (ara)' },
+                                    { value: 'any', label: t('subLangAny') },
+                                    { value: 'eng', label: t('subLangEng') },
+                                    { value: 'rus', label: t('subLangRus') },
+                                    { value: 'jpn', label: t('subLangJpn') },
+                                    { value: 'chi', label: t('subLangChi') },
+                                    { value: 'kor', label: t('subLangKor') },
+                                    { value: 'fra', label: t('subLangFra') },
+                                    { value: 'deu', label: t('subLangDeu') },
+                                    { value: 'spa', label: t('subLangSpa') },
+                                    { value: 'por', label: t('subLangPor') },
+                                    { value: 'ita', label: t('subLangIta') },
+                                    { value: 'ara', label: t('subLangAra') },
                                 ]}
                                 onChange={v => updateEnc('subtitleLanguage', v)}
                             />
@@ -730,87 +756,87 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
 
                     {/* ══ FILTERS ══ */}
                     <div className="sp-section" data-section="filters" ref={sectionRef('filters')}>
-                        <SectionHeader icon="bi-intersect" title="Деинтерлейс" />
-                        <Row label="Деинтерлейс" hint="Устраняет гребёнку от чересстрочной развёртки">
+                        <SectionHeader icon="bi-intersect" title={t('sectionDeinterlace')} />
+                        <Row label={t('rowDeinterlace')} hint={t('hintDeinterlace')}>
                             <GsSelect
                                 value={enc.deinterlace || 'off'}
                                 options={[
-                                    { value: 'off',           label: 'Отключён' },
-                                    { value: 'yadif_default', label: 'Yadif — стандартный' },
-                                    { value: 'yadif_bob',     label: 'Yadif Bob (двойной FPS)' },
-                                    { value: 'bwdif_default', label: 'BWDif — стандартный' },
-                                    { value: 'bwdif_bob',     label: 'BWDif Bob (двойной FPS)' },
+                                    { value: 'off',           label: t('deintOff') },
+                                    { value: 'yadif_default', label: t('deintYadif') },
+                                    { value: 'yadif_bob',     label: t('deintYadifBob') },
+                                    { value: 'bwdif_default', label: t('deintBwdif') },
+                                    { value: 'bwdif_bob',     label: t('deintBwdifBob') },
                                 ]}
                                 onChange={v => updateEnc('deinterlace', v)}
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-snow2" title="Шумоподавление" />
-                        <Row label="Денойз" hint="Убирает видеошум. Требует дополнительного времени.">
+                        <SectionHeader icon="bi-snow2" title={t('sectionDenoise')} />
+                        <Row label={t('rowDenoise')} hint={t('hintDenoise')}>
                             <GsSelect
                                 value={enc.denoise || 'off'}
                                 options={[
-                                    { value: 'off',                label: 'Отключено' },
-                                    { value: 'nlmeans_ultralight', label: 'NL-Means — минимальный' },
-                                    { value: 'nlmeans_light',      label: 'NL-Means — лёгкий' },
-                                    { value: 'nlmeans_medium',     label: 'NL-Means — средний' },
-                                    { value: 'nlmeans_strong',     label: 'NL-Means — сильный' },
-                                    { value: 'hqdn3d_light',       label: 'HQ 3D — лёгкий' },
-                                    { value: 'hqdn3d_medium',      label: 'HQ 3D — средний' },
-                                    { value: 'hqdn3d_strong',      label: 'HQ 3D — сильный' },
+                                    { value: 'off',                label: t('denoiseOff') },
+                                    { value: 'nlmeans_ultralight', label: t('denoiseNlUltralight') },
+                                    { value: 'nlmeans_light',      label: t('denoiseNlLight') },
+                                    { value: 'nlmeans_medium',     label: t('denoiseNlMedium') },
+                                    { value: 'nlmeans_strong',     label: t('denoiseNlStrong') },
+                                    { value: 'hqdn3d_light',       label: t('denoiseHqLight') },
+                                    { value: 'hqdn3d_medium',      label: t('denoiseHqMedium') },
+                                    { value: 'hqdn3d_strong',      label: t('denoiseHqStrong') },
                                 ]}
                                 onChange={v => updateEnc('denoise', v)}
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-grid-3x3" title="Деблокинг" />
-                        <Row label="Деблокинг" hint="Убирает блочные артефакты от кодека источника">
+                        <SectionHeader icon="bi-grid-3x3" title={t('sectionDeblock')} />
+                        <Row label={t('rowDeblock')} hint={t('hintDeblock')}>
                             <GsSelect
                                 value={enc.deblock || 'off'}
                                 options={[
-                                    { value: 'off',        label: 'Отключён' },
-                                    { value: 'ultralight', label: 'Минимальный' },
-                                    { value: 'light',      label: 'Лёгкий' },
-                                    { value: 'medium',     label: 'Средний' },
-                                    { value: 'strong',     label: 'Сильный' },
-                                    { value: 'stronger',   label: 'Максимальный' },
+                                    { value: 'off',        label: t('deblockOff') },
+                                    { value: 'ultralight', label: t('deblockUltralight') },
+                                    { value: 'light',      label: t('deblockLight') },
+                                    { value: 'medium',     label: t('deblockMedium') },
+                                    { value: 'strong',     label: t('deblockStrong') },
+                                    { value: 'stronger',   label: t('deblockStronger') },
                                 ]}
                                 onChange={v => updateEnc('deblock', v)}
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-zoom-in" title="Резкость" />
-                        <Row label="Повышение резкости" hint="Unsharp Mask или Laplacian Sharpen">
+                        <SectionHeader icon="bi-zoom-in" title={t('sectionSharpen')} />
+                        <Row label={t('rowSharpen')} hint={t('hintSharpen')}>
                             <GsSelect
                                 value={enc.sharpen || 'off'}
                                 options={[
-                                    { value: 'off',                 label: 'Отключено' },
-                                    { value: 'unsharp_ultralight',  label: 'Unsharp — минимальный' },
-                                    { value: 'unsharp_light',       label: 'Unsharp — лёгкий' },
-                                    { value: 'unsharp_medium',      label: 'Unsharp — средний' },
-                                    { value: 'unsharp_strong',      label: 'Unsharp — сильный' },
-                                    { value: 'lapsharp_ultralight', label: 'Lapsharp — минимальный' },
-                                    { value: 'lapsharp_light',      label: 'Lapsharp — лёгкий' },
-                                    { value: 'lapsharp_medium',     label: 'Lapsharp — средний' },
-                                    { value: 'lapsharp_strong',     label: 'Lapsharp — сильный' },
+                                    { value: 'off',                 label: t('sharpenOff') },
+                                    { value: 'unsharp_ultralight',  label: t('sharpenUnsharpUltralight') },
+                                    { value: 'unsharp_light',       label: t('sharpenUnsharpLight') },
+                                    { value: 'unsharp_medium',      label: t('sharpenUnsharpMedium') },
+                                    { value: 'unsharp_strong',      label: t('sharpenUnsharpStrong') },
+                                    { value: 'lapsharp_ultralight', label: t('sharpenLapUltralight') },
+                                    { value: 'lapsharp_light',      label: t('sharpenLapLight') },
+                                    { value: 'lapsharp_medium',     label: t('sharpenLapMedium') },
+                                    { value: 'lapsharp_strong',     label: t('sharpenLapStrong') },
                                 ]}
                                 onChange={v => updateEnc('sharpen', v)}
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-camera" title="Трансформация кадра" />
-                        <Row label="Чёрно-белый режим" hint="Удаляет цветовую информацию (grayscale)">
+                        <SectionHeader icon="bi-camera" title={t('sectionFrameTransform')} />
+                        <Row label={t('rowGrayscale')} hint={t('hintGrayscale')}>
                             <Toggle value={!!enc.grayscale} onChange={v => updateEnc('grayscale', v)} />
                         </Row>
-                        <Row label="Поворот / отражение" hint="Повернуть или отразить кадр">
+                        <Row label={t('rowRotate')} hint={t('hintRotate')}>
                             <GsSelect
                                 value={enc.rotate || '0'}
                                 options={[
-                                    { value: '0',     label: 'Без поворота' },
-                                    { value: '90',    label: '90° по часовой' },
-                                    { value: '180',   label: '180°' },
-                                    { value: '270',   label: '270° (90° против часовой)' },
-                                    { value: 'hflip', label: 'Горизонтальное отражение' },
+                                    { value: '0',     label: t('rotateNone') },
+                                    { value: '90',    label: t('rotate90') },
+                                    { value: '180',   label: t('rotate180') },
+                                    { value: '270',   label: t('rotate270') },
+                                    { value: 'hflip', label: t('rotateHflip') },
                                 ]}
                                 onChange={v => updateEnc('rotate', v)}
                             />
@@ -819,25 +845,25 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
 
                     {/* ══ HDR / META ══ */}
                     <div className="sp-section" data-section="hdr" ref={sectionRef('hdr')}>
-                        <SectionHeader icon="bi-brightness-high" title="HDR" />
-                        <Row label="Динамические метаданные HDR" hint="Передать HDR10+ или Dolby Vision metadata в выходной файл">
+                        <SectionHeader icon="bi-brightness-high" title={t('sectionHdr')} />
+                        <Row label={t('rowHdrMetadata')} hint={t('hintHdrMetadata')}>
                             <GsSelect
                                 value={enc.hdrMetadata || 'off'}
                                 options={[
-                                    { value: 'off',         label: 'Отключено' },
+                                    { value: 'off',         label: t('hdrOff') },
                                     { value: 'hdr10plus',   label: 'HDR10+' },
                                     { value: 'dolbyvision', label: 'Dolby Vision' },
-                                    { value: 'all',         label: 'Все (HDR10+ и Dolby Vision)' },
+                                    { value: 'all',         label: t('hdrAll') },
                                 ]}
                                 onChange={v => updateEnc('hdrMetadata', v)}
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-tag" title="Метаданные файла" />
-                        <Row label="Сохранять метаданные" hint="Копировать теги, описание, обложку из источника в выходной файл">
+                        <SectionHeader icon="bi-tag" title={t('sectionFileMeta')} />
+                        <Row label={t('rowKeepMetadata')} hint={t('hintKeepMetadata')}>
                             <Toggle value={!!enc.keepMetadata} onChange={v => updateEnc('keepMetadata', v)} />
                         </Row>
-                        <Row label="Inline Parameter Sets" hint="SPS/PPS inline в каждом кадре — требуется для HLS-стриминга">
+                        <Row label={t('rowInlineParamSets')} hint={t('hintInlineParamSets')}>
                             <Toggle value={!!enc.inlineParamSets} onChange={v => updateEnc('inlineParamSets', v)} />
                         </Row>
                     </div>

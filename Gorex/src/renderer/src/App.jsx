@@ -1,29 +1,40 @@
 import { useState, useEffect, useRef } from 'react'
 import TitleBar from './components/TitleBar/TitleBar'
+import CliConsole from './components/CliConsole/CliConsole'
+import { useLanguage } from './i18n'
+
+// Register CLI output IPC listeners at module level so they survive HMR without
+// needing useEffect to re-run. The callback ref is wired inside the component.
+const _cliLogEmitter = { callback: null }
+window.api.onCliOutput(data => _cliLogEmitter.callback?.({ type: 'out', text: data }))
+window.api.onCliError(data => _cliLogEmitter.callback?.({ type: 'err', text: data }))
+window.api.onYtdlOutput(({ data }) => _cliLogEmitter.callback?.({ type: 'ytdl', text: data }))
 import SourcePage from './pages/SourcePage/SourcePage'
 import ListPage from './pages/ListPage/ListPage'
 import AboutPage from './pages/AboutPage/AboutPage'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
+import OnboardingScreen from './components/OnboardingScreen/OnboardingScreen'
 import { DEFAULT_SETTINGS, initDefaultSettings, saveGpuVendor, getDefaultSettingsForGpu } from './components/GlobalSettings/GlobalSettings'
 
-function getEncoderErrorHint(stderr) {
+function getEncoderErrorHint(stderr, t) {
     if (/No capable devices found/i.test(stderr)) {
-        if (/av1_nvenc/i.test(stderr)) return 'Ваш GPU не поддерживает AV1 NVENC.'
-        if (/h265_nvenc|hevc_nvenc/i.test(stderr)) return 'Ваш GPU не поддерживает H.265 NVENC.'
-        if (/nvenc/i.test(stderr)) return 'Ваш GPU не поддерживает выбранный NVENC-кодировщик.'
-        if (/av1_amf|av1_vce/i.test(stderr)) return 'Ваш GPU не поддерживает AV1 VCE.'
-        if (/av1_qsv/i.test(stderr)) return 'Ваш GPU не поддерживает AV1 QSV.'
-        return 'Выбранный аппаратный кодировщик недоступен на данном GPU.'
+        if (/av1_nvenc/i.test(stderr)) return t('gpuErrNvencAv1')
+        if (/h265_nvenc|hevc_nvenc/i.test(stderr)) return t('gpuErrNvencH265')
+        if (/nvenc/i.test(stderr)) return t('gpuErrNvenc')
+        if (/av1_amf|av1_vce/i.test(stderr)) return t('gpuErrVceAv1')
+        if (/av1_qsv/i.test(stderr)) return t('gpuErrQsvAv1')
+        return t('gpuErrHwUnavailable')
     }
     if (/avcodec_open failed|Failure to initialise thread/i.test(stderr)) {
-        if (/nvenc/i.test(stderr)) return 'Не удалось инициализировать NVENC. Убедитесь, что драйверы NVIDIA актуальны.'
-        if (/qsv/i.test(stderr)) return 'Не удалось инициализировать Intel QSV. Проверьте драйверы Intel.'
-        if (/vce|amf/i.test(stderr)) return 'Не удалось инициализировать AMD VCE/AMF. Проверьте драйверы AMD.'
+        if (/nvenc/i.test(stderr)) return t('gpuErrNvencInit')
+        if (/qsv/i.test(stderr)) return t('gpuErrQsvInit')
+        if (/vce|amf/i.test(stderr)) return t('gpuErrVceInit')
     }
     return null
 }
 
 function App() {
+    const { t } = useLanguage()
     const [view, setView] = useState('source')
     const [videos, setVideos] = useState([])
     const [isDragging, setIsDragging] = useState(false)
@@ -34,8 +45,15 @@ function App() {
     const [encodingStartTime, setEncodingStartTime] = useState(null)
     const [cliErrors, setCliErrors] = useState([])
     const [copiedIdx, setCopiedIdx] = useState(null)
+    const [cliLogs, setCliLogs] = useState([])
+    const [showCliConsole, setShowCliConsole] = useState(false)
     const videosRef = useRef([])
-    // Tracks last-seen progress per video to prevent backward movement
+
+    // Wire the module-level IPC emitter to the React state setter
+    useEffect(() => {
+        _cliLogEmitter.callback = (entry) => setCliLogs(prev => [...prev, entry])
+        return () => { _cliLogEmitter.callback = null }
+    }, [])    // Tracks last-seen progress per video to prevent backward movement
     const progressStateRef = useRef(new Map())
     // Track IDs stopped by user so cli-exit/ytdl-exit doesn't set them to 'error'
     const stoppedJobsRef = useRef(new Set())
@@ -60,6 +78,7 @@ function App() {
     const [defaultOutputDir, setDefaultOutputDir] = useState('')
     const [appSettings, setAppSettings] = useState(null)
     const [gpuVendor, setGpuVendor] = useState('unknown')
+    const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gorex-onboarding-done'))
     const nextIdRef = useRef(0)
     const listDragCounter = useRef(0)
 
@@ -122,7 +141,7 @@ function App() {
 
     const handleDownload = async (url, service) => {
         setIsLoading(true)
-        setLoadingMessage({ title: 'Получение форматов...', subtitle: 'Запрашиваем информацию о видео' })
+        setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: t('loadingRequestingInfo') })
         try {
             const info = await window.api.ytdlGetFormats(url)
             const safeOutputName = (info.title || 'video')
@@ -151,6 +170,10 @@ function App() {
                 ytdlUrl: url,
                 ytdlFormats: info.formats,
                 ytdlSelectedFormat: bestFormatId,
+                ytdlChapters: info.chapters || [],
+                ytdlDuration: info.duration || 0,
+                clipStart: null,
+                clipEnd: null,
                 title: info.title,
                 outputName: safeOutputName,
                 thumbnail: info.thumbnailUrl,
@@ -181,6 +204,10 @@ function App() {
 
     const handleYtdlConversionSettings = (id, settings) => {
         setVideos(prev => prev.map(v => v.id === id ? { ...v, conversionSettings: settings } : v))
+    }
+
+    const handleYtdlClipChange = (id, clipStart, clipEnd) => {
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, clipStart, clipEnd } : v))
     }
 
     const toggleTheme = () => {
@@ -329,7 +356,10 @@ function App() {
                     outputName: v.outputName,
                     convertAfterDownload: v.convertAfterDownload,
                     conversionSettings: v.conversionSettings,
-                    videoResolution: v.resolution
+                    videoResolution: v.resolution,
+                    clipStart: v.clipStart ?? null,
+                    clipEnd: v.clipEnd ?? null,
+                    ytdlDuration: v.ytdlDuration ?? null
                 })
             } else {
                 window.api.runCli({
@@ -433,9 +463,9 @@ function App() {
             })
             if (code !== 0) {
                 const v = videosRef.current.find(v => v.id === id)
-                const title = v ? (v.title || v.path?.split(/[\/\\]/).pop() || 'Неизвестный файл') : 'Неизвестный файл'
-                const hint = getEncoderErrorHint(stderr || '')
-                setCliErrors(prev => [...prev, { title, stderr: (stderr || '').trim() || '(нет вывода)', hint }])
+                const title = v ? (v.title || v.path?.split(/[/\\]/).pop() || t('unknownFile')) : t('unknownFile')
+                const hint = getEncoderErrorHint(stderr || '', t)
+                setCliErrors(prev => [...prev, { title, stderr: (stderr || '').trim() || t('noOutput'), hint }])
             }
         })
     }, [])
@@ -485,6 +515,7 @@ function App() {
                         onYtdlFormatChange={handleYtdlFormatChange}
                         onYtdlConvertToggle={handleYtdlConvertToggle}
                         onYtdlConversionSettings={handleYtdlConversionSettings}
+                        onYtdlClipChange={handleYtdlClipChange}
                         isDraggingOnList={isDraggingOnList}
                         onListDragEnter={handleListDragEnter}
                         onListDragLeave={handleListDragLeave}
@@ -522,6 +553,7 @@ function App() {
                 onPause={handlePause}
                 onStop={handleStop}
                 onClearQueue={handleClearQueue}
+                onOpenCliConsole={() => setShowCliConsole(v => !v)}
             />
             <main className="container">
                 {renderPage()}
@@ -529,8 +561,8 @@ function App() {
             {isLoading && (
                 <div className={`loading-overlay ${theme}`}>
                     <div className="loading-popup">
-                        <div className="loading-popup-title">{loadingMessage?.title ?? 'Анализ файлов...'}</div>
-                        <div className="loading-popup-subtitle">{loadingMessage?.subtitle ?? 'Считываем метаданные видео'}</div>
+                        <div className="loading-popup-title">{loadingMessage?.title ?? t('loadingAnalyzing')}</div>
+                        <div className="loading-popup-subtitle">{loadingMessage?.subtitle ?? t('loadingReadingMeta')}</div>
                         <div className="loading-bar-track">
                             <div className="loading-bar-fill"></div>
                         </div>
@@ -543,7 +575,7 @@ function App() {
                         <div className="cli-error-header">
                             <i className="bi bi-exclamation-triangle-fill cli-error-icon"></i>
                             <span className="cli-error-title">
-                                {cliErrors.length === 1 ? 'Ошибка кодирования' : `Ошибки кодирования (${cliErrors.length})`}
+                                {cliErrors.length === 1 ? t('encodingError') : `${t('encodingErrors')} (${cliErrors.length})`}
                             </span>
                             <button className="cli-error-close" onClick={() => setCliErrors([])}>
                                 <i className="bi bi-x-lg"></i>
@@ -556,7 +588,7 @@ function App() {
                                         <div className="cli-error-item-title">{err.title}</div>
                                         <button
                                             className={`cli-error-copy${copiedIdx === i ? ' copied' : ''}`}
-                                            title="Копировать"
+                                            title={t('copyToClipboard')}
                                             onClick={() => {
                                                 navigator.clipboard.writeText(err.stderr)
                                                 setCopiedIdx(i)
@@ -588,15 +620,32 @@ function App() {
                                     }}
                                 >
                                     <i className={`bi ${copiedIdx === 'all' ? 'bi-check-lg' : 'bi-clipboard'}`}></i>
-                                    {copiedIdx === 'all' ? 'Скопировано' : 'Копировать всё'}
+                                    {copiedIdx === 'all' ? t('copied') : t('copyAll')}
                                 </button>
                             )}
                             <button className="cli-error-dismiss" onClick={() => setCliErrors([])}>
-                                Закрыть
+                                {t('close')}
                             </button>
                         </div>
                     </div>
                 </div>
+            )}
+            {showCliConsole && (
+                <CliConsole
+                    logs={cliLogs}
+                    onClear={() => setCliLogs([])}
+                    onClose={() => setShowCliConsole(false)}
+                    theme={theme}
+                />
+            )}
+            {showOnboarding && (
+                <OnboardingScreen
+                    theme={theme}
+                    onDone={() => {
+                        localStorage.setItem('gorex-onboarding-done', '1')
+                        setShowOnboarding(false)
+                    }}
+                />
             )}
         </div>
     )
