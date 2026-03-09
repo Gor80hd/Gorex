@@ -59,7 +59,7 @@ function getDownloadDir(customOutputDir) {
     const s = readAppSettings()
     if (s.defaultOutputDir) return s.defaultOutputDir
     if (is.dev) {
-        return join(app.getAppPath(), '..', 'Downloaded')
+        return join(app.getAppPath(), 'Downloaded')
     }
     return join(dirname(process.execPath), 'Downloaded')
 }
@@ -342,7 +342,7 @@ app.whenReady().then(() => {
         // When converting after download, download to a temp folder next to the exe
         const downloadDir = convertAfterDownload
             ? (is.dev
-                ? join(app.getAppPath(), '..', 'Downloads_Temp')
+                ? join(app.getAppPath(), 'Downloads_Temp')
                 : join(dirname(process.execPath), 'Downloads_Temp'))
             : resolvedDir
         if (convertAfterDownload && !fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true })

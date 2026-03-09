@@ -7,115 +7,39 @@ A fork of [HandBrake](https://github.com/HandBrake/HandBrake) with a custom Elec
 ## Repository structure
 
 ```
-Gorex/
-├── build/               ← HandBrakeCLI output directory (created after compilation)
-├── contrib/             ← Third-party dependencies (built automatically)
-├── libhb/               ← HandBrake core library (C)
-├── Gorex/               ← Gorex Electron UI (React + Vite)
-└── others/              ← Original HandBrake files (GTK, macOS, Windows GUI, scripts)
+├── src/                 ← Electron UI source (React + Vite)
+│   ├── main/            ← Electron main process
+│   ├── preload/         ← Preload bridge
+│   └── renderer/        ← React UI
+├── resources/           ← Bundled binaries (HandBrakeCLI.exe, ytdl, ffmpeg)
+├── installer/           ← Custom installer (Electron-based)
+├── build/               ← Build scripts (make-installer.js, etc.)
+└── out/                 ← Compiled output (auto-generated, not in git)
 ```
 
 ---
 
-## Part 1: Clone the repository
+## Quick start (after clone)
 
 ```bash
 git clone https://github.com/Gor80hd/Gorex.git
 cd Gorex
-```
-
----
-
-## Part 2: Build HandBrakeCLI
-
-> The `build/` directory is not included in the repository. You must compile HandBrakeCLI at least once before running the UI.
-
-### Windows
-
-**Requirements:**
-
-| Tool | Version | Link |
-|---|---|---|
-| MSYS2 + MinGW-w64 | latest | https://www.msys2.org |
-| Git | any | https://git-scm.com |
-| Nasm | ≥ 2.13 | https://www.nasm.us |
-| Python | ≥ 3.6 | https://www.python.org |
-
-Open **MSYS2 MinGW 64-bit** and install dependencies:
-
-```bash
-pacman -Syu
-pacman -S base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake \
-  mingw-w64-x86_64-nasm mingw-w64-x86_64-meson mingw-w64-x86_64-ninja \
-  git python3 autoconf automake libtool patch
-```
-
-Build:
-
-```bash
-# From the repository root, inside MSYS2
-./others/configure --launch-jobs=$(nproc) --launch
-```
-
-The binary will appear at `build/HandBrakeCLI.exe`.
-
-### macOS
-
-```bash
-brew install cmake ninja nasm pkg-config python3 meson
-./others/configure --launch-jobs=$(sysctl -n hw.ncpu) --launch
-```
-
-### Linux (Ubuntu/Debian)
-
-```bash
-sudo apt-get install build-essential cmake nasm ninja-build meson \
-  libass-dev libdvdread-dev libdvdnav-dev libxml2-dev \
-  libvorbis-dev libopus-dev libx264-dev
-
-./others/configure --launch-jobs=$(nproc) --launch
-```
-
-For other distros see the [HandBrake Linux Build Guide](https://handbrake.fr/docs/en/latest/developer/build-linux.html).
-
----
-
-## Part 3: Run and build BPRESS (Electron UI)
-
-### Requirements
-
-| Tool | Version | Link |
-|---|---|---|
-| Node.js | ≥ 18 LTS | https://nodejs.org |
-| npm | ≥ 9 | included with Node.js |
-
-### Install dependencies
-
-```bash
-cd Gorex
 npm install
-```
-
-### Development mode (hot reload)
-
-```bash
 npm run dev
 ```
 
-### Production build
+> `HandBrakeCLI.exe` is already bundled in `resources/` — no manual compilation needed.
 
-```bash
-# Bundle only (no installer)
-npm run build
+---
 
-# Package into a folder (no installer)
-npm run pack
+## Scripts
 
-# Full distribution with installer
-npm run dist
-```
-
-Output will be in `Gorex/dist/`.
+| Command | Description |
+|---|---|
+| `npm run dev` | Development mode with hot reload |
+| `npm run build` | Compile to `out/` |
+| `npm run dist` | Full production build + NSIS installer |
+| `npm run make-installer` | Build custom installer (`build/make-installer.js`) |
 
 ---
 
