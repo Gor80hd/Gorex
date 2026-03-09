@@ -50,9 +50,21 @@ node_modules/
 Gorex/node_modules/
 Gorex/dist/
 
-# Gorex build artifacts and large binaries
-Gorex/installer/resources/gorex-app/
-Gorex/resources/ytdl/
+# Gorex build artifacts and large binaries (Electron runtime, >100MB build outputs)
+# Ignore all files inside gorex-app, but allow exceptions below
+Gorex/installer/resources/gorex-app/*
+# Re-include HandBrakeCLI.exe (needed for transcoding, tracked via Git LFS)
+!Gorex/installer/resources/gorex-app/HandBrakeCLI.exe
+# Allow access into resources/ subdirectory for exceptions
+!Gorex/installer/resources/gorex-app/resources/
+Gorex/installer/resources/gorex-app/resources/*
+# Re-include ytdl tools (needed for downloads, tracked via Git LFS)
+!Gorex/installer/resources/gorex-app/resources/ytdl/
+
+# For dev-time resources (outside installer), track ytdl binaries
+Gorex/resources/ytdl/*
+!Gorex/resources/ytdl/ffmpeg.exe
+!Gorex/resources/ytdl/ffprobe.exe
 
 # Windows build binaries in others/
 others/win/CS/*/bin/
