@@ -84,6 +84,7 @@ const TRANSLATIONS = {
         folderDefault: 'папка «Видео» по умолчанию',
         folderChange: 'Изменить',
         folderResetTitle: 'Сбросить к папке Видео',
+        folderDesc: 'Папка, куда по умолчанию сохраняются все выходные файлы. Можно переопределить для каждого задания отдельно в списке.',
 
         // Settings — Video tab description
         videoTabDesc: 'Параметры кодирования по умолчанию. Применяются к каждому новому файлу — можно изменить для конкретной задачи в списке.',
@@ -303,7 +304,7 @@ const TRANSLATIONS = {
         // ListPage
         urlPlaceholder: 'Ссылка для загрузки (YouTube, TikTok ...)',
         addToQueueLabel: 'ДОБАВИТЬ В ОЧЕРЕДЬ',
-        downloadSettings: 'Настройки загрузки',
+        downloadSettings: 'Настройки конвертации',
         globalConvSettings: 'Глобальные настройки конвертации',
         downloadFolder: 'Папка для загрузки',
         saveFolder: 'Папка для сохранения',
@@ -482,6 +483,7 @@ const TRANSLATIONS = {
         folderDefault: 'default Videos folder',
         folderChange: 'Change',
         folderResetTitle: 'Reset to Videos folder',
+        folderDesc: 'Default folder for all output files. Can be overridden per task in the list.',
 
         // Settings — Video tab description
         videoTabDesc: 'Default encoding parameters. Applied to each new file — can be changed per task in the list.',
@@ -701,7 +703,7 @@ const TRANSLATIONS = {
         // ListPage
         urlPlaceholder: 'Download link (YouTube, TikTok ...)',
         addToQueueLabel: 'ADD TO QUEUE',
-        downloadSettings: 'Download settings',
+        downloadSettings: 'Conversion settings',
         globalConvSettings: 'Global conversion settings',
         downloadFolder: 'Download folder',
         saveFolder: 'Save folder',
