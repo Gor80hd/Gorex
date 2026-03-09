@@ -22,7 +22,6 @@ function AboutPage({ theme, onBack }) {
         { id: 'me',        label: t('aboutTabMe'),        icon: 'bi-person-circle' },
         { id: 'about',     label: t('aboutTabProgram'),   icon: 'bi-info-circle' },
         { id: 'thanks',    label: t('aboutTabCredits'),   icon: 'bi-heart' },
-        { id: 'license',   label: t('aboutTabLicense'),   icon: 'bi-file-earmark-text' },
         { id: 'libraries', label: t('aboutTabLibraries'), icon: 'bi-box-seam' },
     ]
 
@@ -37,7 +36,7 @@ function AboutPage({ theme, onBack }) {
                 </div>
                 <div className="about-title-block">
                     <h1>Gorex</h1>
-                    <p className="version-info">Version 1.0.0 · Web Edition · GPLv2</p>
+                    <p className="version-info">Version 1.1.0 · Web Edition · GPLv2</p>
                 </div>
             </div>
 
@@ -107,9 +106,6 @@ function AboutPage({ theme, onBack }) {
                             <a href="https://github.com/Gor80hd/Gorex" target="_blank" rel="noreferrer">
                                 <i className="bi bi-github"></i> GitHub — Gorex
                             </a>
-                            <a href="https://handbrake.fr" target="_blank" rel="noreferrer">
-                                <i className="bi bi-globe"></i> handbrake.fr
-                            </a>
                             <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noreferrer">
                                 <i className="bi bi-github"></i> yt-dlp
                             </a>
@@ -122,39 +118,6 @@ function AboutPage({ theme, onBack }) {
                                 {t('aboutLicenseNotice3')}
                             </span>
                         </div>
-                        <footer className="about-footer">
-                            <p>© 2026 Gorex. Distributed under GNU General Public License Version 2.</p>
-                        </footer>
-                    </div>
-                )}
-
-                {activeTab === 'thanks' && (
-                    <div className="about-section">
-                        <p className="thanks-intro">{t('aboutThanksIntro')}</p>
-                        <div className="thanks-grid">
-                            {THANKS.map(person => (
-                                <div key={person.name} className="thanks-item">
-                                    <div className="thanks-icon">
-                                        <i className="bi bi-telegram"></i>
-                                    </div>
-                                    <div className="thanks-info">
-                                        <strong className="thanks-name">{t(person.nameKey)}</strong>
-                                        {person.url ? (
-                                            <a href={person.url} target="_blank" rel="noreferrer" className="thanks-tg">
-                                                @{person.tg}
-                                            </a>
-                                        ) : (
-                                            <span className="thanks-tg thanks-tg--offline">{t('aboutNoLink')}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'license' && (
-                    <div className="about-section">
                         <div className="license-summary">
                             <p>
                                 {t('licenseSummary1a')}<strong>GNU General Public License Version 2 (GPLv2)</strong>{t('licenseSummary1b')}
@@ -200,12 +163,34 @@ distribute copies of the software, or if you modify it.
                             <a href="https://www.gnu.org/licenses/old-licenses/gpl-2.0.html" target="_blank" rel="noreferrer">
                                 <i className="bi bi-box-arrow-up-right"></i> GPL v2 Full Text
                             </a>
-                            <a href="https://github.com/HandBrake/HandBrake/blob/master/LICENSE" target="_blank" rel="noreferrer">
-                                <i className="bi bi-box-arrow-up-right"></i> HandBrake LICENSE
-                            </a>
-                            <a href="https://github.com/HandBrake/HandBrake/blob/master/COPYING" target="_blank" rel="noreferrer">
-                                <i className="bi bi-box-arrow-up-right"></i> COPYING
-                            </a>
+                        </div>
+                        <footer className="about-footer">
+                            <p>© 2026 Gorex. Distributed under GNU General Public License Version 2.</p>
+                        </footer>
+                    </div>
+                )}
+
+                {activeTab === 'thanks' && (
+                    <div className="about-section">
+                        <p className="thanks-intro">{t('aboutThanksIntro')}</p>
+                        <div className="thanks-grid">
+                            {THANKS.map(person => (
+                                <div key={person.name} className="thanks-item">
+                                    <div className="thanks-icon">
+                                        <i className="bi bi-telegram"></i>
+                                    </div>
+                                    <div className="thanks-info">
+                                        <strong className="thanks-name">{t(person.nameKey)}</strong>
+                                        {person.url ? (
+                                            <a href={person.url} target="_blank" rel="noreferrer" className="thanks-tg">
+                                                @{person.tg}
+                                            </a>
+                                        ) : (
+                                            <span className="thanks-tg thanks-tg--offline">{t('aboutNoLink')}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -213,19 +198,6 @@ distribute copies of the software, or if you modify it.
                 {activeTab === 'libraries' && (
                     <div className="about-section">
                         <div className="lib-featured-grid">
-                            <a className="lib-featured-item" href="https://github.com/HandBrake/HandBrake" target="_blank" rel="noreferrer">
-                                <div className="lib-featured-icon">
-                                    <i className="bi bi-camera-video-fill"></i>
-                                </div>
-                                <div className="lib-featured-body">
-                                    <span className="lib-featured-name">HandBrake</span>
-                                    <span className="lib-featured-devs">The HandBrake Team</span>
-                                    <span className="lib-featured-license">GPL v2</span>
-                                </div>
-                                <span className="lib-featured-gh">
-                                    <i className="bi bi-github"></i> HandBrake/HandBrake
-                                </span>
-                            </a>
                             <a className="lib-featured-item" href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noreferrer">
                                 <div className="lib-featured-icon">
                                     <i className="bi bi-cloud-arrow-down-fill"></i>
@@ -241,11 +213,7 @@ distribute copies of the software, or if you modify it.
                             </a>
                         </div>
                         <p className="libraries-intro">
-                            Дополнительные библиотеки с открытым исходным кодом, используемые в HandBrake.
-                            Полный список —{' '}
-                            <a href="https://github.com/HandBrake/HandBrake/blob/master/THANKS.markdown" target="_blank" rel="noreferrer">
-                                THANKS.markdown
-                            </a>.
+                            Дополнительные библиотеки с открытым исходным кодом, используемые в приложении.
                         </p>
                         <div className="libraries-grid">
                             {LIBRARIES.map(lib => (
