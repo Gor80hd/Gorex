@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gorex Setup</title>
+<style>
+/* ── Reset & tokens ──────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg:        #121118;
+    --card:      #1a1726;
+    --card2:     #1e1b2e;
+    --accent:    #7c3aed;
+    --accent2:   #6d28d9;
+    --accentLo:  rgba(124, 58, 237, 0.14);
+    --accentBdr: rgba(124, 58, 237, 0.28);
+    --text:      #ffffff;
+    --muted:     rgba(255, 255, 255, 0.45);
+    --muted2:    rgba(255, 255, 255, 0.22);
+    --border:    rgba(255, 255, 255, 0.07);
+    --border2:   rgba(255, 255, 255, 0.11);
+    --radius:    14px;
+    --ease:      cubic-bezier(0.4, 0, 0.2, 1);
+    --spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html, body {
+    width: 680px;
+    height: 440px;
+    overflow: hidden;
+    background: transparent;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+}
+
+/* ── App shell ───────────────────────────────────────────────────────────── */
+#app {
+    position: relative;
+    width:  680px;
+    height: 440px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background:
+        radial-gradient(ellipse at 22% 30%, rgba(124, 58, 237, 0.18) 0%, transparent 52%),
+        radial-gradient(ellipse at 78% 80%, rgba(109, 40, 217, 0.08) 0%, transparent 45%),
+        var(--bg);
+    border: 1px solid var(--border2);
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+/* ── Decorative orb ──────────────────────────────────────────────────────── */
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: orbPulse 6s ease-in-out infinite;
+}
+.orb-1 {
+    width: 380px; height: 380px;
+    top: -160px; left: -100px;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.11) 0%, transparent 70%);
+    animation-delay: 0s;
+}
+.orb-2 {
+    width: 220px; height: 220px;
+    bottom: -80px; right: -40px;
+    background: radial-gradient(circle, rgba(109, 40, 217, 0.08) 0%, transparent 65%);
+    animation-delay: -2.5s;
+}
+@keyframes orbPulse {
+    0%, 100% { transform: scale(1);    opacity: 1; }
+    50%       { transform: scale(1.12); opacity: 0.75; }
+}
+
+/* ── Title bar ───────────────────────────────────────────────────────────── */
+.titlebar {
+    flex-shrink: 0;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px 0 18px;
+    -webkit-app-region: drag;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+}
+.titlebar-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+.titlebar-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.titlebar-controls {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+    -webkit-app-region: no-drag;
+}
+.tb-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    line-height: 1;
+}
+.tb-btn:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+.tb-btn.close:hover { background: rgba(239, 68, 68, 0.16); color: #ef4444; }
+
+/* ── Main content ────────────────────────────────────────────────────────── */
+.content {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ── Steps ───────────────────────────────────────────────────────────────── */
+.step {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 72px 28px;
+    opacity: 0;
+    pointer-events: none;
+}
+.step.active {
+    opacity: 1;
+    pointer-events: all;
+    animation: stepIn 0.38s var(--ease) both;
+}
+.step.exit-fwd {
+    pointer-events: none;
+    animation: stepOutFwd 0.26s var(--ease) both;
+}
+.step.exit-bwd {
+    pointer-events: none;
+    animation: stepOutBwd 0.26s var(--ease) both;
+}
+.step.enter-bwd {
+    opacity: 1;
+    pointer-events: all;
+    animation: stepInBwd 0.38s var(--ease) both;
+}
+
+@keyframes stepIn     { from { opacity:0; transform: translateX( 32px); } to { opacity:1; transform: translateX(0); } }
+@keyframes stepInBwd  { from { opacity:0; transform: translateX(-32px); } to { opacity:1; transform: translateX(0); } }
+@keyframes stepOutFwd { from { opacity:1; transform: translateX(  0px); } to { opacity:0; transform: translateX(-32px); } }
+@keyframes stepOutBwd { from { opacity:1; transform: translateX(  0px); } to { opacity:0; transform: translateX( 32px); } }
+
+/* ── Step indicators ─────────────────────────────────────────────────────── */
+.dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 26px;
+}
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    transition: width 0.35s var(--ease), border-radius 0.35s var(--ease), background 0.35s var(--ease);
+}
+.dot.active {
+    width: 22px;
+    border-radius: 3px;
+    background: var(--accent);
+}
+.dot.done {
+    background: rgba(124, 58, 237, 0.38);
+}
+
+/* ── Logo ────────────────────────────────────────────────────────────────── */
+.logo-ring {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 16px;
+}
+.logo-ring::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 22px;
+    background: conic-gradient(var(--accent), #a78bfa, var(--accent));
+    animation: ringRotate 3s linear infinite;
+    opacity: 0.5;
+}
+.logo-ring::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 22px;
+    background: var(--bg);
+    inset: 0;
+    border-radius: 19px;
+}
+@keyframes ringRotate { to { transform: rotate(360deg); } }
+.logo-inner {
+    position: absolute;
+    inset: 0;
+    border-radius: 19px;
+    background: var(--accentLo);
+    border: 1px solid var(--accentBdr);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+.logo-inner svg {
+    width: 46px;
+    height: 46px;
+}
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 6px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 6px;
+}
+.subtitle {
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+    max-width: 340px;
+    margin-bottom: 24px;
+}
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 11px;
+    border-radius: 99px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    background: var(--accentLo);
+    border: 1px solid var(--accentBdr);
+    color: #a78bfa;
+    margin-bottom: 22px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 22px;
+}
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 26px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    font-family: inherit;
+}
+.btn-primary:hover {
+    background: var(--accent2);
+    transform: translateY(-1px);
+    box-shadow: 0 0 24px rgba(124, 58, 237, 0.45);
+}
+.btn-primary:active { transform: translateY(0); box-shadow: none; }
+.btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: var(--muted);
+    transition: background 0.18s, color 0.18s, border-color 0.18s;
+    font-family: inherit;
+}
+.btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.055);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.82);
+}
+
+/* ── Path row (step 2) ───────────────────────────────────────────────────── */
+.path-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.path-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted2);
+    margin-bottom: 2px;
+}
+.path-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+.path-input {
+    flex: 1;
+    padding: 10px 13px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: var(--text);
+    font-size: 12.5px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    min-width: 0;
+}
+.path-input:focus {
+    border-color: var(--accent);
+    background: rgba(124, 58, 237, 0.05);
+}
+.btn-browse {
+    padding: 10px 15px;
+    border-radius: 9px;
+    background: var(--accentLo);
+    border: 1px solid var(--accentBdr);
+    color: #a78bfa;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.17s, border-color 0.17s;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.btn-browse:hover {
+    background: rgba(124, 58, 237, 0.22);
+    border-color: rgba(124, 58, 237, 0.45);
+}
+.disk-info {
+    font-size: 11px;
+    color: var(--muted2);
+    height: 14px;
+}
+.disk-info.ok   { color: rgba(34, 197, 94, 0.65); }
+.disk-info.warn { color: rgba(251, 191, 36, 0.7); }
+
+/* ── Progress (step 3) ───────────────────────────────────────────────────── */
+.progress-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.progress-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+}
+.progress-label {
+    font-size: 12px;
+    color: var(--muted);
+}
+.progress-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: #a78bfa;
+}
+.progress-track {
+    width: 100%;
+    height: 5px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: visible;
+    position: relative;
+}
+.progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), #a78bfa);
+    transition: width 0.45s var(--ease);
+    position: relative;
+}
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #c4b5fd;
+    box-shadow: 0 0 10px rgba(196, 181, 253, 0.8);
+    transition: opacity 0.3s;
+}
+
+/* ── Log area ────────────────────────────────────────────────────────────── */
+.log-area {
+    width: 100%;
+    height: 72px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 1px;
+    position: relative;
+}
+.log-line {
+    font-size: 10.5px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    color: rgba(255, 255, 255, 0.22);
+    line-height: 1.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    animation: logIn 0.22s var(--ease) both;
+}
+.log-line.current { color: rgba(167, 139, 250, 0.9); }
+@keyframes logIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Success (step 4) ────────────────────────────────────────────────────── */
+.success-icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    line-height: 1;
+    margin-bottom: 16px;
+    color: #34d399;
+    animation: checkPop 0.55s var(--spring) both;
+}
+@keyframes checkPop {
+    from { opacity:0; transform: scale(0.4) rotate(-15deg); }
+    to   { opacity:1; transform: scale(1)   rotate(0deg); }
+}
+.install-path-done {
+    font-family: 'Consolas', monospace;
+    font-size: 10.5px;
+    color: var(--muted2);
+    text-align: center;
+    max-width: 500px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: -10px;
+    margin-bottom: 24px;
+}
+
+/* ── Options checkboxes (step 2) ────────────────────────────────────────── */
+.opt-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+}
+.opt-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    cursor: pointer;
+    user-select: none;
+}
+.opt-row input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.18s, border-color 0.18s;
+}
+.opt-row input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+.opt-row input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+}
+.opt-label {
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* ── Error banner ────────────────────────────────────────────────────────── */
+.error-banner {
+    width: 100%;
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: rgba(252, 165, 165, 0.95);
+    background: rgba(239, 68, 68, 0.09);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    text-align: center;
+    margin-top: 8px;
+    animation: logIn 0.2s var(--ease) both;
+}
+
+/* ── Already installed / Uninstall states ──────────────────────────────── */
+.installed-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #34d399;
+    margin-bottom: 14px;
+}
+.warn-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    color: #f87171;
+    margin-bottom: 14px;
+}
+.success-icon.danger {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.28);
+    color: #f87171;
+}
+.btn-primary.btn-danger {
+    background: #dc2626;
+}
+.btn-primary.btn-danger:hover {
+    background: #b91c1c;
+    box-shadow: 0 0 24px rgba(220, 38, 38, 0.45);
+}
+.btn-ghost.btn-uninstall {
+    color: rgba(252, 165, 165, 0.85);
+    border-color: rgba(239, 68, 68, 0.22);
+}
+.btn-ghost.btn-uninstall:hover {
+    background: rgba(239, 68, 68, 0.07);
+    border-color: rgba(239, 68, 68, 0.38);
+    color: #fca5a5;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+    <!-- Decorative glows -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- ── Title bar ──────────────────────────────────────────────────────── -->
+    <div class="titlebar">
+        <!-- Gorex "G" icon SVG inline, scaled to 16px -->
+        <svg class="titlebar-icon" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M475.415 46.7394C478.505 45.9272 486.557 45.9726 489.918 46.0244C609.607 47.8756 717.391 120.168 760.512 232.981C786.016 299.702 787.259 375.466 759.113 441.475L598.146 441.421C611.585 423.413 622.191 406.871 628.58 385.229C639.765 347.34 637.856 305.148 618.623 270.177C599.182 234.828 568.83 207.222 529.971 195.642C491.259 184.17 449.579 188.657 414.178 208.11C378.498 227.926 356.39 260.249 345.271 299.134C326.419 370.373 360.684 439.52 425.564 472.413C443.813 481.665 462.458 485.605 482.573 488.188C444.692 527.356 405.165 564.723 367.56 603.586C345.913 595.957 315.667 575.387 298.429 560.459C239.877 510.287 203.692 438.79 197.885 361.795C191.975 281.297 215.668 207.388 268.827 146.216C324.456 82.203 392.411 52.6925 475.415 46.7394Z" fill="white"/>
+            <path d="M599.728 481.69C657.856 483.212 708.463 503.811 750.261 544.665C798.358 591.367 825.948 655.23 826.973 722.238C827.964 789.499 801.884 854.339 754.591 902.21C723.506 933.423 679.819 961.053 636.743 971.226C598.892 980.168 544.519 977.283 504.135 977.272L347.154 977.229C347.549 947.524 346.632 916.201 346.656 886.173L347.627 760.348C347.577 730.162 342.605 691.19 368.332 669.901C374.658 664.673 382.145 661.034 390.168 659.291C401.907 656.775 467.572 658.129 480.382 659.512L480.576 835.474C513.86 834.534 548.092 836.958 581.134 835.31C634.982 832.627 679.388 782.817 680.998 730.216C681.988 700.108 671.007 670.83 650.457 648.788C637.412 635.097 620.91 625.18 602.693 620.082C581.639 614.233 546.343 615.305 523.24 615.02C487.183 614.819 451.126 614.405 415.073 613.773C434.397 593.116 456.392 572.269 475.96 552.088C517.855 508.882 535.165 485.246 599.728 481.69Z" fill="white"/>
+        </svg>
+        <span class="titlebar-title">Gorex Setup</span>
+        <div class="titlebar-controls">
+            <button class="tb-btn" id="minBtn" title="Minimise">─</button>
+            <button class="tb-btn close" id="closeBtn" title="Cancel">✕</button>
+        </div>
+    </div>
+
+    <!-- ── Content ────────────────────────────────────────────────────────── -->
+    <div class="content">
+
+        <!-- Step 1: Welcome -->
+        <div class="step active" id="s1">
+            <div id="s1-normal" style="display:contents">
+            <div class="logo-ring">
+                <div class="logo-inner">
+                    <svg viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M475.415 46.7394C478.505 45.9272 486.557 45.9726 489.918 46.0244C609.607 47.8756 717.391 120.168 760.512 232.981C786.016 299.702 787.259 375.466 759.113 441.475L598.146 441.421C611.585 423.413 622.191 406.871 628.58 385.229C639.765 347.34 637.856 305.148 618.623 270.177C599.182 234.828 568.83 207.222 529.971 195.642C491.259 184.17 449.579 188.657 414.178 208.11C378.498 227.926 356.39 260.249 345.271 299.134C326.419 370.373 360.684 439.52 425.564 472.413C443.813 481.665 462.458 485.605 482.573 488.188C444.692 527.356 405.165 564.723 367.56 603.586C345.913 595.957 315.667 575.387 298.429 560.459C239.877 510.287 203.692 438.79 197.885 361.795C191.975 281.297 215.668 207.388 268.827 146.216C324.456 82.203 392.411 52.6925 475.415 46.7394Z" fill="white"/>
+                        <path d="M599.728 481.69C657.856 483.212 708.463 503.811 750.261 544.665C798.358 591.367 825.948 655.23 826.973 722.238C827.964 789.499 801.884 854.339 754.591 902.21C723.506 933.423 679.819 961.053 636.743 971.226C598.892 980.168 544.519 977.283 504.135 977.272L347.154 977.229C347.549 947.524 346.632 916.201 346.656 886.173L347.627 760.348C347.577 730.162 342.605 691.19 368.332 669.901C374.658 664.673 382.145 661.034 390.168 659.291C401.907 656.775 467.572 658.129 480.382 659.512L480.576 835.474C513.86 834.534 548.092 836.958 581.134 835.31C634.982 832.627 679.388 782.817 680.998 730.216C681.988 700.108 671.007 670.83 650.457 648.788C637.412 635.097 620.91 625.18 602.693 620.082C581.639 614.233 546.343 615.305 523.24 615.02C487.183 614.819 451.126 614.405 415.073 613.773C434.397 593.116 456.392 572.269 475.96 552.088C517.855 508.882 535.165 485.246 599.728 481.69Z" fill="white"/>
+                    </svg>
+                </div>
+            </div>
+            <h1>Gorex</h1>
+            <span class="badge">version 1.0.0</span>
+            <p class="subtitle">GPU-accelerated video converter with a beautiful interface.<br>Convert files and download from YouTube, TikTok, Twitter and more.</p>
+            <div class="dots">
+                <div class="dot active"  id="d1"></div>
+                <div class="dot"         id="d2"></div>
+                <div class="dot"         id="d3"></div>
+                <div class="dot"         id="d4"></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn-ghost" onclick="cancelInstall()">Cancel</button>
+                <button class="btn-primary" onclick="navigate(2)">Install &nbsp;→</button>
+            </div>
+            </div><!-- /s1-normal -->
+            <div id="s1-installed" style="display:none;flex-direction:column;align-items:center;width:100%">
+                <div class="installed-icon">✓</div>
+                <h2>Already installed</h2>
+                <p class="subtitle" style="margin-bottom:6px">Gorex <strong id="installedVersion"></strong> is installed at:</p>
+                <div class="install-path-done" id="installedPath" style="margin-bottom:24px"></div>
+                <div class="btn-row">
+                    <button class="btn-ghost btn-uninstall" onclick="goToUninstall()">Uninstall</button>
+                    <button class="btn-primary" onclick="navigate(2)">Reinstall &nbsp;→</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Choose location -->
+        <div class="step" id="s2">
+            <h2>Installation folder</h2>
+            <p class="subtitle">Where would you like to install Gorex?</p>
+            <div class="dots">
+                <div class="dot done"  id="d1b"></div>
+                <div class="dot active" id="d2b"></div>
+                <div class="dot"        id="d3b"></div>
+                <div class="dot"        id="d4b"></div>
+            </div>
+            <div class="path-section">
+                <div class="path-label">Install location</div>
+                <div class="path-row">
+                    <input  class="path-input" id="pathInput" type="text" spellcheck="false" autocomplete="off">
+                    <button class="btn-browse" onclick="browse()">Browse…</button>
+                </div>
+                <div class="disk-info" id="diskInfo"></div>
+            </div>
+            <div class="opt-group">
+                <label class="opt-row">
+                    <input type="checkbox" id="chkDesktop" checked>
+                    <span class="opt-label">Create a desktop shortcut</span>
+                </label>
+                <label class="opt-row">
+                    <input type="checkbox" id="chkStartMenu" checked>
+                    <span class="opt-label">Create a Start Menu shortcut</span>
+                </label>
+            </div>
+            <div id="stepError"></div>
+            <div class="btn-row">
+                <button class="btn-ghost" onclick="navigate(1, true)">← Back</button>
+                <button class="btn-primary" id="installBtn" onclick="startInstall()">Install &nbsp;→</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Installing -->
+        <div class="step" id="s3">
+            <h2 id="progressTitle">Installing…</h2>
+            <p class="subtitle">Please wait. This will only take a moment.</p>
+            <div class="dots">
+                <div class="dot done"   id="d1c"></div>
+                <div class="dot done"   id="d2c"></div>
+                <div class="dot active" id="d3c"></div>
+                <div class="dot"        id="d4c"></div>
+            </div>
+            <div class="progress-wrap">
+                <div class="progress-header">
+                    <span class="progress-label" id="statusText">Preparing…</span>
+                    <span class="progress-pct"   id="pctText">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="log-area" id="logArea"></div>
+            </div>
+            <button class="btn-primary" id="elevateBtn" style="display:none;margin-top:18px" onclick="elevateAndRelaunch()">↑ Запустить от имени администратора</button>
+        </div>
+
+        <!-- Step 4: Done -->
+        <div class="step" id="s4">
+            <div class="success-icon">✓</div>
+            <h2>Gorex is installed!</h2>
+            <p class="subtitle" style="margin-bottom:4px">Successfully installed to:</p>
+            <div class="install-path-done" id="donePath"></div>
+            <div class="dots">
+                <div class="dot done" id="d1d"></div>
+                <div class="dot done" id="d2d"></div>
+                <div class="dot done" id="d3d"></div>
+                <div class="dot active" id="d4d"></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn-ghost" id="closeBtn2" onclick="api.closeWindow()">Close</button>
+                <button class="btn-primary" onclick="launchApp()">Launch Gorex &nbsp;↗</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Uninstall Confirm -->
+        <div class="step" id="s5">
+            <div class="warn-icon">⚠</div>
+            <h2>Uninstall Gorex?</h2>
+            <p class="subtitle" style="margin-bottom:6px">This will permanently remove all Gorex files from:</p>
+            <div class="install-path-done" id="uninstPathLabel" style="margin-bottom:22px"></div>
+            <div class="btn-row">
+                <button class="btn-ghost" onclick="cancelUninstall()">← Cancel</button>
+                <button class="btn-primary btn-danger" onclick="startUninstall()">Uninstall</button>
+            </div>
+        </div>
+
+        <!-- Step 6: Uninstalling -->
+        <div class="step" id="s6">
+            <h2 id="uninstProgressTitle">Uninstalling…</h2>
+            <p class="subtitle">Please wait. This will only take a moment.</p>
+            <div class="progress-wrap">
+                <div class="progress-header">
+                    <span class="progress-label" id="uninstStatusText">Preparing…</span>
+                    <span class="progress-pct"   id="uninstPctText">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="uninstProgressFill"></div>
+                </div>
+                <div class="log-area" id="uninstLogArea"></div>
+            </div>
+        </div>
+
+        <!-- Step 7: Uninstall Done -->
+        <div class="step" id="s7">
+            <div class="success-icon danger">✕</div>
+            <h2>Gorex uninstalled</h2>
+            <p class="subtitle">Gorex has been successfully removed from your computer.</p>
+            <div class="btn-row">
+                <button class="btn-primary" onclick="api.closeWindow()">Close</button>
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+'use strict'
+
+let currentStep      = 1
+let installPath      = ''
+let installedInfo    = { installed: false }
+let uninstallDir     = ''
+let uninstCancelDest = 1
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+    const [mode, info] = await Promise.all([
+        window.api.getMode(),
+        window.api.checkInstalled(),
+    ])
+    installedInfo = info
+
+    if (mode === 'uninstall') {
+        document.getElementById('s1').classList.remove('active')
+        document.getElementById('s5').classList.add('active')
+        currentStep = 5
+        document.getElementById('uninstPathLabel').textContent = info.installed ? info.installDir : '(unknown)'
+        uninstallDir     = info.installDir ?? ''
+        uninstCancelDest = -1
+        return
+    }
+
+    if (info.installed) {
+        document.getElementById('installedVersion').textContent = info.version ?? ''
+        document.getElementById('installedPath').textContent    = info.installDir ?? ''
+        document.getElementById('s1-normal').style.display     = 'none'
+        document.getElementById('s1-installed').style.display  = 'flex'
+        document.getElementById('pathInput').value             = info.installDir ?? ''
+        uninstallDir = info.installDir ?? ''
+    } else {
+        const def = await window.api.getDefaultInstallDir()
+        document.getElementById('pathInput').value = def
+    }
+
+    updateDiskInfo(document.getElementById('pathInput').value)
+    document.getElementById('pathInput').addEventListener('input', e => {
+        updateDiskInfo(e.target.value)
+    })
+})
+
+// ── Install progress listener ──────────────────────────────────────────────────
+window.api.onInstallProgress(({ progress, status }) => {
+    if (progress < 0) {
+        // Error
+        document.getElementById('progressTitle').textContent = 'Installation failed'
+        setProgress(0)
+        addLog('[error] ' + status, true)
+        if (status && status.includes('Administrative privileges')) {
+            document.getElementById('elevateBtn').style.display = 'inline-flex'
+        }
+        return
+    }
+    setProgress(progress)
+    if (status) addLog(status, progress === 100)
+    document.getElementById('statusText').textContent = status ?? ''
+    if (progress >= 100) {
+        setTimeout(() => navigate(4), 700)
+    }
+})
+
+// ── Uninstall progress listener ──────────────────────────────────────────────────
+window.api.onUninstallProgress(({ progress, status }) => {
+    if (progress < 0) {
+        document.getElementById('uninstProgressTitle').textContent = 'Uninstall failed'
+        setUninstProgress(0)
+        addUninstLog('[error] ' + status, true)
+        return
+    }
+    setUninstProgress(progress)
+    if (status) addUninstLog(status, progress === 100)
+    document.getElementById('uninstStatusText').textContent = status ?? ''
+    if (progress >= 100) {
+        setTimeout(() => navigate(7), 700)
+    }
+})
+
+// ── Navigation ─────────────────────────────────────────────────────────────────
+function navigate(n, backwards = false) {
+    const old  = document.getElementById('s' + currentStep)
+    const next = document.getElementById('s' + n)
+
+    old.classList.remove('active')
+    old.classList.add(backwards ? 'exit-bwd' : 'exit-fwd')
+
+    setTimeout(() => {
+        old.classList.remove('exit-fwd', 'exit-bwd')
+        next.classList.add('active')
+        if (backwards) next.classList.add('enter-bwd')
+        currentStep = n
+        // clean up animation-direction helper class
+        setTimeout(() => next.classList.remove('enter-bwd'), 400)
+    }, 255)
+}
+
+// ── Disk space ─────────────────────────────────────────────────────────────────
+async function updateDiskInfo(dir) {
+    const el = document.getElementById('diskInfo')
+    el.textContent = '…'
+    el.className   = 'disk-info'
+    try {
+        const { free } = await window.api.getDiskSpace(dir || 'C:\\')
+        if (free === null) { el.textContent = ''; return }
+        const gb = parseFloat(free)
+        el.textContent = gb + ' GB free'
+        el.className   = 'disk-info ' + (gb < 1 ? 'warn' : 'ok')
+    } catch {
+        el.textContent = ''
+    }
+}
+
+// ── Browse ─────────────────────────────────────────────────────────────────────
+async function browse() {
+    const result = await window.api.browseDir()
+    if (!result) return
+    // Append \Gorex unless already ends with it
+    const dest = result.replace(/\\+$/, '')
+    const path = dest.toLowerCase().endsWith('gorex') ? dest : dest + '\\Gorex'
+    document.getElementById('pathInput').value = path
+    updateDiskInfo(path)
+}
+
+// ── Start install ──────────────────────────────────────────────────────────────
+function startInstall() {
+    const dest = document.getElementById('pathInput').value.trim()
+    if (!dest) { showError('Please choose an installation folder.'); return }
+
+    installPath = dest
+    document.getElementById('donePath').textContent = dest
+    navigate(3)
+
+    const createDesktopShortcut   = document.getElementById('chkDesktop').checked
+    const createStartMenuShortcut = document.getElementById('chkStartMenu').checked
+    setTimeout(() => window.api.install({ destDir: dest, createDesktopShortcut, createStartMenuShortcut }), 500)
+}
+
+// ── Progress helpers ───────────────────────────────────────────────────────────
+function setProgress(pct) {
+    pct = Math.max(0, Math.min(100, pct))
+    document.getElementById('progressFill').style.width = pct + '%'
+    document.getElementById('pctText').textContent      = pct + '%'
+}
+
+function addLog(text, isCurrent = false) {
+    const area = document.getElementById('logArea')
+    // De-bold all existing "current" lines
+    area.querySelectorAll('.log-line.current').forEach(el => el.classList.remove('current'))
+    const line = document.createElement('div')
+    line.className   = 'log-line' + (isCurrent ? ' current' : '')
+    line.textContent = '› ' + text
+    area.appendChild(line)
+    while (area.children.length > 5) area.removeChild(area.firstChild)
+}
+
+// ── Launch installed app ───────────────────────────────────────────────────────
+function launchApp() {
+    window.api.launchApp({ destDir: installPath })
+}
+
+// ── Elevate and relaunch ──────────────────────────────────────────────────────
+async function elevateAndRelaunch() {
+    const btn = document.getElementById('elevateBtn')
+    btn.disabled = true
+    btn.textContent = 'Запуск…'
+    const ok = await window.api.elevate()
+    if (!ok) {
+        btn.disabled = false
+        btn.textContent = '↑ Запустить от имени администратора'
+        addLog('[error] UAC отменён или недоступен', true)
+    }
+}
+
+// ── Cancel / close ─────────────────────────────────────────────────────────────
+function cancelInstall() {
+    window.api.closeWindow()
+}
+
+// ── Error UI ───────────────────────────────────────────────────────────────────
+function showError(msg) {
+    const el = document.getElementById('stepError')
+    el.innerHTML = `<div class="error-banner">${msg}</div>`
+    setTimeout(() => el.innerHTML = '', 3500)
+}
+
+// ── Title bar ──────────────────────────────────────────────────────────────────
+function goToUninstall() {
+    document.getElementById('uninstPathLabel').textContent = installedInfo.installDir ?? ''
+    uninstallDir     = installedInfo.installDir ?? ''
+    uninstCancelDest = 1
+    navigate(5)
+}
+
+function cancelUninstall() {
+    if (uninstCancelDest < 0) {
+        window.api.closeWindow()
+    } else {
+        navigate(uninstCancelDest, true)
+    }
+}
+
+function startUninstall() {
+    navigate(6)
+    setTimeout(() => window.api.uninstall({ installDir: uninstallDir }), 400)
+}
+
+function setUninstProgress(pct) {
+    pct = Math.max(0, Math.min(100, pct))
+    document.getElementById('uninstProgressFill').style.width = pct + '%'
+    document.getElementById('uninstPctText').textContent      = pct + '%'
+}
+
+function addUninstLog(text, isCurrent = false) {
+    const area = document.getElementById('uninstLogArea')
+    area.querySelectorAll('.log-line.current').forEach(el => el.classList.remove('current'))
+    const line = document.createElement('div')
+    line.className   = 'log-line' + (isCurrent ? ' current' : '')
+    line.textContent = '› ' + text
+    area.appendChild(line)
+    while (area.children.length > 5) area.removeChild(area.firstChild)
+}
+
+// ── Title bar (legacy) ────────────────────────────────────────────────
+document.getElementById('minBtn').addEventListener('click',   () => window.api.minimizeWindow())
+document.getElementById('closeBtn').addEventListener('click', () => window.api.closeWindow())
+</script>
+</body>
+</html>

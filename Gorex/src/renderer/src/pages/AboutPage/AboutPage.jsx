@@ -91,6 +91,10 @@ function AboutPage({ theme, onBack }) {
                                 <i className="bi bi-github"></i>
                                 <span>Gorex on GitHub</span>
                             </a>
+                            <a href="https://dalink.to/akhmatyarov" target="_blank" rel="noreferrer" className="me-contact-donate">
+                                <i className="bi bi-heart-fill"></i>
+                                <span>{t('donate')}</span>
+                            </a>
                         </div>
 
                     </div>

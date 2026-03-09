@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join, dirname } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { spawn, exec } from 'child_process'
@@ -44,6 +44,15 @@ function getYtdlPath() {
     return join(dirname(process.execPath), 'resources', 'ytdl', bin)
 }
 
+// ─── ffmpeg binary resolver (bundled alongside yt-dlp) ──────────────────────────────────
+function getFfmpegPath() {
+    const bin = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+    if (is.dev) {
+        return join(app.getAppPath(), 'resources', 'ytdl', bin)
+    }
+    return join(dirname(process.execPath), 'resources', 'ytdl', bin)
+}
+
 // ─── Download directory: next to exe in 'Downloaded', or user-configured path ──────────
 function getDownloadDir(customOutputDir) {
     if (customOutputDir) return customOutputDir
@@ -69,6 +78,13 @@ function createWindow() {
         }
     })
 
+    // Strip "Electron/x.x.x" from the User-Agent so YouTube embedded player
+    // does not detect a non-browser environment and return error 153.
+    const cleanUA = mainWindow.webContents.userAgent
+        .replace(/\bElectron\/[\d.]+\s*/g, '')
+        .trim()
+    mainWindow.webContents.userAgent = cleanUA
+
     mainWindow.on('ready-to-show', () => {
         mainWindow.show()
     })
@@ -86,7 +102,37 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    electronApp.setAppUserModelId('com.antigravity.gorex')
+    electronApp.setAppUserModelId('com.akhmatyarov.gorex')
+
+    // Configure fluent-ffmpeg to use the bundled ffmpeg/ffprobe binaries.
+    // Primary: ytdl-bundled binaries (same dir as yt-dlp).
+    // Fallback: ffmpeg-static / ffprobe-static npm packages (always in app.asar.unpacked).
+    {
+        const _fs = require('fs')
+        const fluentFfmpeg = require('fluent-ffmpeg')
+
+        const ffmpegBin = getFfmpegPath()
+        const ffprobeBin = join(require('path').dirname(ffmpegBin), process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe')
+
+        if (_fs.existsSync(ffmpegBin)) {
+            fluentFfmpeg.setFfmpegPath(ffmpegBin)
+        } else {
+            try {
+                const ffmpegStatic = require('ffmpeg-static')
+                if (ffmpegStatic && _fs.existsSync(ffmpegStatic)) fluentFfmpeg.setFfmpegPath(ffmpegStatic)
+            } catch (_) {}
+        }
+
+        if (_fs.existsSync(ffprobeBin)) {
+            fluentFfmpeg.setFfprobePath(ffprobeBin)
+        } else {
+            try {
+                const ffprobeStatic = require('ffprobe-static')
+                const p = ffprobeStatic && (ffprobeStatic.path || ffprobeStatic)
+                if (p && _fs.existsSync(p)) fluentFfmpeg.setFfprobePath(p)
+            } catch (_) {}
+        }
+    }
 
     app.on('browser-window-created', (_, window) => {
         optimizer.watchWindowShortcuts(window)
@@ -113,7 +159,16 @@ app.whenReady().then(() => {
         const { canceled, filePaths } = await dialog.showOpenDialog({
             properties: ['openFile', 'multiSelections'],
             filters: [
-                { name: 'Videos', extensions: ['mp4', 'mkv', 'avi', 'mov'] }
+                {
+                    name: 'Videos',
+                    extensions: [
+                        'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'm4v',
+                        'ts', 'm2ts', 'mts', 'mpg', 'mpeg', 'vob', 'webm',
+                        '3gp', '3g2', 'ogv', 'ogg', 'divx', 'xvid', 'rmvb',
+                        'asf', 'mxf', 'dv', 'f4v', 'h264', 'h265', 'hevc',
+                        'avchd'
+                    ]
+                }
             ]
         })
         return canceled ? [] : filePaths
@@ -303,7 +358,11 @@ app.whenReady().then(() => {
                 ? formatId
                 : `${formatId}+bestaudio/${formatId}`
 
-        const outputTemplate = join(downloadDir, safeBase + '.%(ext)s')
+        // When converting after download, use an ASCII-only temp filename.
+        // HandBrakeCLI (MinGW build) cannot handle non-ASCII paths because its C
+        // runtime decodes argv via the system ANSI code page, garbling Unicode.
+        const downloadBase = convertAfterDownload ? `gorex_temp_${id}_${Date.now()}` : safeBase
+        const outputTemplate = join(downloadDir, downloadBase + '.%(ext)s')
 
         // Build time-clipping arguments if a partial range is requested
         const hasClip = (clipStart != null && clipStart > 0) || (clipEnd != null)
@@ -315,12 +374,14 @@ app.whenReady().then(() => {
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
         }
 
+        const ffmpegPath = getFfmpegPath()
         const ytdlArgs = [
             '-f', fmtArg,
             '-o', outputTemplate,
             '--no-playlist',
             '--merge-output-format', 'mp4',
             '--newline',
+            ...(require('fs').existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
         ]
 
         if (hasClip) {
@@ -400,7 +461,8 @@ app.whenReady().then(() => {
             const destMatch = str.match(/\[download\] Destination:\s+(.+)/)
             if (destMatch) downloadedPath = destMatch[1].trim()
 
-            const mergeMatch = str.match(/\[Merger\] Merging formats into "(.+)"/)
+            // yt-dlp ≥ 2023 uses [ffmpeg] prefix; older builds used [Merger]
+            const mergeMatch = str.match(/\[(?:Merger|ffmpeg)\] Merging formats into "(.+)"/)
             if (mergeMatch) downloadedPath = mergeMatch[1].trim()
 
             const alreadyMatch = str.match(/\[download\] (.+) has already been downloaded/)
@@ -421,7 +483,7 @@ app.whenReady().then(() => {
             event.sender.send('ytdl-exit', { id, code: 1, error: err.message })
         })
 
-        child.on('close', (code) => {
+        child.on('close', async (code) => {
             console.log('[yt-dlp exit] code:', code)
             activeJobs.delete(id)
 
@@ -435,14 +497,45 @@ app.whenReady().then(() => {
                 try {
                     const files = fs.readdirSync(downloadDir)
                     const matching = files
-                        .filter(f => f.startsWith(safeBase + '.') || f.startsWith(safeBase + ' ('))
+                        .filter(f => f.startsWith(downloadBase + '.') || f.startsWith(downloadBase + ' ('))
                         .map(f => ({ f, mtime: fs.statSync(join(downloadDir, f)).mtimeMs }))
                         .sort((a, b) => b.mtime - a.mtime)
                     if (matching.length > 0) downloadedPath = join(downloadDir, matching[0].f)
                 } catch (_) {}
             }
 
+            // Before passing to HandBrake, verify the file actually has a video stream.
+            // yt-dlp may have left an audio-only temp file (e.g. .f251.webm) if the
+            // merger message format wasn't recognised or the selected format is audio-only.
             if (convertAfterDownload && downloadedPath && fs.existsSync(downloadedPath) && fs.existsSync(cliPath)) {
+                const ffmpeg = require('fluent-ffmpeg')
+                let hasVideo = false
+                try {
+                    hasVideo = await new Promise((res) => {
+                        ffmpeg.ffprobe(downloadedPath, (err, meta) => {
+                            if (err) return res(false)
+                            res(!!(meta && meta.streams && meta.streams.some(s => s.codec_type === 'video')))
+                        })
+                    })
+                } catch (_) { hasVideo = false }
+
+                if (!hasVideo) {
+                    // Audio-only file — skip HandBrake, move to output dir as-is
+                    const audioExt = require('path').extname(downloadedPath)
+                    const audioBase = (outputName || safeBase).replace(/_converted(\s*\(\d+\))?$/i, '').trimEnd()
+                    let audioOut = join(resolvedDir, audioBase + audioExt)
+                    if (fs.existsSync(audioOut)) {
+                        let c = 1
+                        while (fs.existsSync(join(resolvedDir, `${audioBase} (${c})${audioExt}`))) c++
+                        audioOut = join(resolvedDir, `${audioBase} (${c})${audioExt}`)
+                    }
+                    try { fs.renameSync(downloadedPath, audioOut) } catch (_) {
+                        try { fs.copyFileSync(downloadedPath, audioOut); fs.unlinkSync(downloadedPath) } catch (__) {}
+                    }
+                    event.sender.send('ytdl-exit', { id, code: 0, outputPath: audioOut })
+                    return
+                }
+
                 // Notify renderer download is done, conversion starting
                 event.sender.send('ytdl-exit', { id, code: 0, outputPath: downloadedPath, converting: true })
 
@@ -865,7 +958,25 @@ app.whenReady().then(() => {
         }
 
         const fallbackSettings = settings || { format: 'av_mkv', encoder: 'x265', encoderSpeed: 'slow', quality: 'high', fps: 'source', resolution: 'source' }
-        const args = buildCliArgs(filePath, outputPath, fallbackSettings, videoResolution)
+
+        // HandBrakeCLI (MinGW) cannot open files with non-ASCII paths because its
+        // C runtime decodes argv via the system ANSI code page, garbling Unicode.
+        // Create a hard link with an ASCII-only name pointing to the source file,
+        // pass that to HandBrake, then delete the link when encoding finishes.
+        let hbInputPath = filePath
+        if (process.platform === 'win32' && /[^\x00-\x7F]/.test(filePath)) {
+            const { extname } = require('path')
+            const { tmpdir } = require('os')
+            const asciiLink = join(tmpdir(), `gorex_encode_${id}_${Date.now()}${extname(filePath)}`)
+            try {
+                fs.linkSync(filePath, asciiLink)
+                hbInputPath = asciiLink
+            } catch (_) {
+                // Hard link failed (e.g. cross-device); fall back to original path
+            }
+        }
+
+        const args = buildCliArgs(hbInputPath, outputPath, fallbackSettings, videoResolution)
 
         console.log(`Running CLI: ${cliPath} ${args.join(' ')}`)
 
@@ -901,6 +1012,10 @@ app.whenReady().then(() => {
         })
 
         child.on('close', (code) => {
+            // Remove the ASCII hard link if one was created
+            if (hbInputPath !== filePath && fs.existsSync(hbInputPath)) {
+                try { fs.unlinkSync(hbInputPath) } catch (_) {}
+            }
             activeJobs.delete(id)
             event.sender.send('cli-exit', { id, code, outputPath, stderr: stderrLines.join('') })
         })
@@ -1041,6 +1156,20 @@ app.whenReady().then(() => {
 
         return { gpus: gpuList, vendor: finalVendor, primaryGpu }
     })
+
+    // Inject a Referer header for all YouTube requests so the embedded player
+    // does not return error 153 when loaded from a local (file://) origin.
+    // Without a valid Referer, YouTube embed blocks playback server-side.
+    session.defaultSession.webRequest.onBeforeSendHeaders(
+        { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*', '*://*.ytimg.com/*'] },
+        (details, callback) => {
+            const headers = { ...details.requestHeaders }
+            if (!headers['Referer'] && !headers['referer']) {
+                headers['Referer'] = 'https://www.youtube.com/'
+            }
+            callback({ requestHeaders: headers })
+        }
+    )
 
     createWindow()
 

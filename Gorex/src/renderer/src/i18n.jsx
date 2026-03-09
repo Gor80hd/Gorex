@@ -397,6 +397,7 @@ const TRANSLATIONS = {
         thanksName2: 'Святослав Драгунов',
         thanksName3: 'Павел Яшкин',
         thanksName4: 'Барвашов Егор',
+        donate: 'Поддержать',
     },
 
     en: {
@@ -794,6 +795,7 @@ const TRANSLATIONS = {
         thanksName2: 'Svyatoslav Dragunov',
         thanksName3: 'Pavel Yashkin',
         thanksName4: 'Egor Barvashov',
+        donate: 'Donate',
     },
 }
 

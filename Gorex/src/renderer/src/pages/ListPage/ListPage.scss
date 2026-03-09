@@ -323,6 +323,13 @@
     opacity: 0.85;
 }
 
+.svc-svg-icon {
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    flex-shrink: 0;
+}
+
 .video-title-row {
     display: flex;
     align-items: center;

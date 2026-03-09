@@ -6967,7 +6967,772 @@ var m = reactDomExports;
   client.hydrateRoot = m.hydrateRoot;
 }
 const logoWhite = "data:image/svg+xml,%3csvg%20width='1024'%20height='1024'%20viewBox='0%200%201024%201024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M475.415%2046.7394C478.505%2045.9272%20486.557%2045.9726%20489.918%2046.0244C609.607%2047.8756%20717.391%20120.168%20760.512%20232.981C786.016%20299.702%20787.259%20375.466%20759.113%20441.475L598.146%20441.421C611.585%20423.413%20622.191%20406.871%20628.58%20385.229C639.765%20347.34%20637.856%20305.148%20618.623%20270.177C599.182%20234.828%20568.83%20207.222%20529.971%20195.642C491.259%20184.17%20449.579%20188.657%20414.178%20208.11C378.498%20227.926%20356.39%20260.249%20345.271%20299.134C326.419%20370.373%20360.684%20439.52%20425.564%20472.413C443.813%20481.665%20462.458%20485.605%20482.573%20488.188C444.692%20527.356%20405.165%20564.723%20367.56%20603.586C345.913%20595.957%20315.667%20575.387%20298.429%20560.459C239.877%20510.287%20203.692%20438.79%20197.885%20361.795C191.975%20281.297%20215.668%20207.388%20268.827%20146.216C324.456%2082.203%20392.411%2052.6925%20475.415%2046.7394Z'%20fill='white'/%3e%3cpath%20d='M599.728%20481.69C657.856%20483.212%20708.463%20503.811%20750.261%20544.665C798.358%20591.367%20825.948%20655.23%20826.973%20722.238C827.964%20789.499%20801.884%20854.339%20754.591%20902.21C723.506%20933.423%20679.819%20961.053%20636.743%20971.226C598.892%20980.168%20544.519%20977.283%20504.135%20977.272L347.154%20977.229C347.549%20947.524%20346.632%20916.201%20346.656%20886.173L347.627%20760.348C347.577%20730.162%20342.605%20691.19%20368.332%20669.901C374.658%20664.673%20382.145%20661.034%20390.168%20659.291C401.907%20656.775%20467.572%20658.129%20480.382%20659.512L480.576%20835.474C513.86%20834.534%20548.092%20836.958%20581.134%20835.31C634.982%20832.627%20679.388%20782.817%20680.998%20730.216C681.988%20700.108%20671.007%20670.83%20650.457%20648.788C637.412%20635.097%20620.91%20625.18%20602.693%20620.082C581.639%20614.233%20546.343%20615.305%20523.24%20615.02C487.183%20614.819%20451.126%20614.405%20415.073%20613.773C434.397%20593.116%20456.392%20572.269%20475.96%20552.088C517.855%20508.882%20535.165%20485.246%20599.728%20481.69Z'%20fill='white'/%3e%3c/svg%3e";
-const logoDark = "data:image/svg+xml,%3csvg%20width='1024'%20height='1024'%20viewBox='0%200%201024%201024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M475.415%2046.7394C478.505%2045.9272%20486.557%2045.9726%20489.918%2046.0244C609.607%2047.8756%20717.391%20120.168%20760.512%20232.981C786.016%20299.702%20787.259%20375.466%20759.113%20441.475L598.146%20441.421C611.585%20423.413%20622.191%20406.871%20628.58%20385.229C639.765%20347.34%20637.856%20305.148%20618.623%20270.177C599.182%20234.828%20568.83%20207.222%20529.971%20195.642C491.259%20184.17%20449.579%20188.657%20414.178%20208.11C378.498%20227.926%20356.39%20260.249%20345.271%20299.134C326.419%20370.373%20360.684%20439.52%20425.564%20472.413C443.813%20481.665%20462.458%20485.605%20482.573%20488.188C444.692%20527.356%20405.165%20564.723%20367.56%20603.586C345.913%20595.957%20315.667%20575.387%20298.429%20560.459C239.877%20510.287%20203.692%20438.79%20197.885%20361.795C191.975%20281.297%20215.668%20207.388%20268.827%20146.216C324.456%2082.203%20392.411%2052.6925%20475.415%2046.7394Z'%20fill='%230E0D0E'/%3e%3cpath%20d='M599.728%20481.69C657.856%20483.212%20708.463%20503.811%20750.261%20544.665C798.357%20591.367%20825.948%20655.23%20826.973%20722.238C827.963%20789.499%20801.884%20854.339%20754.591%20902.21C723.506%20933.423%20679.819%20961.053%20636.743%20971.226C598.892%20980.168%20544.519%20977.283%20504.135%20977.272L347.154%20977.229C347.549%20947.524%20346.632%20916.201%20346.656%20886.173L347.627%20760.348C347.577%20730.162%20342.604%20691.19%20368.332%20669.901C374.658%20664.673%20382.145%20661.034%20390.168%20659.291C401.907%20656.775%20467.572%20658.129%20480.382%20659.512L480.576%20835.474C513.86%20834.534%20548.091%20836.958%20581.133%20835.31C634.982%20832.627%20679.388%20782.817%20680.998%20730.216C681.988%20700.108%20671.007%20670.83%20650.457%20648.788C637.412%20635.097%20620.91%20625.18%20602.693%20620.082C581.639%20614.233%20546.343%20615.305%20523.24%20615.02C487.183%20614.819%20451.126%20614.405%20415.073%20613.773C434.396%20593.116%20456.392%20572.269%20475.96%20552.088C517.855%20508.882%20535.165%20485.246%20599.728%20481.69Z'%20fill='%230E0D0E'/%3e%3c/svg%3e";
+const logoColor = "data:image/svg+xml,%3csvg%20width='1024'%20height='1024'%20viewBox='0%200%201024%201024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M475.415%2046.7394C478.505%2045.9272%20486.557%2045.9726%20489.918%2046.0244C609.607%2047.8756%20717.391%20120.168%20760.512%20232.981C786.016%20299.702%20787.259%20375.466%20759.113%20441.475L598.146%20441.421C611.585%20423.413%20622.191%20406.871%20628.58%20385.229C639.765%20347.34%20637.856%20305.148%20618.623%20270.177C599.182%20234.828%20568.83%20207.222%20529.971%20195.642C491.259%20184.17%20449.579%20188.657%20414.178%20208.11C378.498%20227.926%20356.39%20260.249%20345.271%20299.134C326.419%20370.373%20360.684%20439.52%20425.564%20472.413C443.813%20481.665%20462.458%20485.605%20482.573%20488.188C444.692%20527.356%20405.165%20564.723%20367.56%20603.586C345.913%20595.957%20315.667%20575.387%20298.429%20560.459C239.877%20510.287%20203.692%20438.79%20197.885%20361.795C191.975%20281.297%20215.668%20207.388%20268.827%20146.216C324.456%2082.203%20392.411%2052.6925%20475.415%2046.7394Z'%20fill='%230E0D0E'/%3e%3cpath%20d='M599.728%20481.69C657.856%20483.212%20708.463%20503.811%20750.261%20544.665C798.357%20591.367%20825.948%20655.23%20826.973%20722.238C827.963%20789.499%20801.884%20854.339%20754.591%20902.21C723.506%20933.423%20679.819%20961.053%20636.743%20971.226C598.892%20980.168%20544.519%20977.283%20504.135%20977.272L347.154%20977.229C347.549%20947.524%20346.632%20916.201%20346.656%20886.173L347.627%20760.348C347.577%20730.162%20342.604%20691.19%20368.332%20669.901C374.658%20664.673%20382.145%20661.034%20390.168%20659.291C401.907%20656.775%20467.572%20658.129%20480.382%20659.512L480.576%20835.474C513.86%20834.534%20548.091%20836.958%20581.133%20835.31C634.982%20832.627%20679.388%20782.817%20680.998%20730.216C681.988%20700.108%20671.007%20670.83%20650.457%20648.788C637.412%20635.097%20620.91%20625.18%20602.693%20620.082C581.639%20614.233%20546.343%20615.305%20523.24%20615.02C487.183%20614.819%20451.126%20614.405%20415.073%20613.773C434.396%20593.116%20456.392%20572.269%20475.96%20552.088C517.855%20508.882%20535.165%20485.246%20599.728%20481.69Z'%20fill='%230E0D0E'/%3e%3c/svg%3e";
+const TRANSLATIONS = {
+  ru: {
+    // Common
+    back: "Назад",
+    settings: "Настройки",
+    save: "Сохранить",
+    saved: "Сохранено",
+    reset: "Сброс",
+    cancel: "Отмена",
+    apply: "Применить",
+    recommended: "рекомендован",
+    softwareEncoders: "Программные",
+    // TitleBar
+    menuFile: "Файл",
+    menuOpenSource: "Открыть источник",
+    menuClearQueue: "Очистить очередь",
+    menuStartEncoding: "Начать кодирование",
+    menuResume: "Продолжить",
+    menuPause: "Пауза",
+    menuStop: "Стоп",
+    menuExit: "Выход",
+    menuDebugConsole: "Консоль отладки",
+    navSettings: "Настройки",
+    navAbout: "О программе",
+    // SourcePage
+    dlFromWeb: "Загрузить из сети",
+    dlPlaceholder: "Вставьте ссылку (YouTube, TikTok, Twitter ...)",
+    dlDownload: "Скачать",
+    dlUnsupported: "Сервис не поддерживается",
+    dlErrorDefault: "Ошибка запроса форматов",
+    dropZoneTitle: "Добавить файл / файлы",
+    dropZoneHint: "Вы можете выбрать один или несколько файлов для конвертации, просто перенесите их в эту область",
+    // Settings tabs
+    tabApp: "Приложение",
+    tabVideo: "Видео",
+    tabAudio: "Аудио",
+    tabSubtitles: "Субтитры",
+    tabFilters: "Фильтры",
+    tabHdr: "HDR / Мета",
+    // Settings header
+    settingsTitle: "Настройки",
+    settingsResetTitle: "Сбросить настройки кодирования до значений по умолчанию",
+    settingsSidebarHint: "Настройки применяются как значения по умолчанию для новых задач кодирования",
+    // Settings — Appearance
+    sectionAppearance: "Оформление",
+    rowTheme: "Тема оформления",
+    hintTheme: "Выбор темы интерфейса приложения",
+    themeDark: "Тёмная",
+    themeLight: "Светлая",
+    themeAuto: "Авто",
+    // Settings — Language
+    sectionLanguage: "Язык интерфейса",
+    rowLanguage: "Язык",
+    hintLanguage: "Выбор языка интерфейса",
+    langRu: "Русский",
+    langEn: "English",
+    // Settings — CLI
+    sectionCli: "HandBrake CLI",
+    rowCliStatus: "Статус",
+    hintCliStatus: "HandBrakeCLI.exe рядом с приложением",
+    cliChecking: "Проверка...",
+    cliFound: "Обнаружен",
+    cliNotFound: "Не найден",
+    // Settings — GPU
+    sectionGpu: "Видеокарта",
+    gpuCodecHint: "Доступные кодеки GPU автоматически показаны первыми в разделе «Видеокодек»",
+    gpuUnknown: "Видеокарта не определена — показаны программные кодеки",
+    rowShowAllCodecs: "Показывать все кодеки",
+    hintShowAllCodecs: "На странице конвертации показывать все, а не только GPU-рекомендованные",
+    // Settings — Output folder
+    sectionOutputFolder: "Папка вывода по умолчанию",
+    folderDefault: "папка «Видео» по умолчанию",
+    folderChange: "Изменить",
+    folderResetTitle: "Сбросить к папке Видео",
+    // Settings — Video tab description
+    videoTabDesc: "Параметры кодирования по умолчанию. Применяются к каждому новому файлу — можно изменить для конкретной задачи в списке.",
+    // Container
+    sectionContainer: "Контейнер",
+    rowFormat: "Формат",
+    hintFormat: "Контейнер для выходного файла",
+    // Encoder
+    sectionEncoder: "Кодировщик",
+    rowVideoCodec: "Видеокодек",
+    hintVideoCodec: "Алгоритм сжатия видео",
+    rowSpeedPreset: "Скорость / пресет",
+    hintSpeedPreset: "Соотношение скорость↔эффективность кодека",
+    // Quality
+    sectionQuality: "Качество",
+    rowQualityMode: "Режим качества",
+    hintQualityMode: "Предустановка или точное значение RF/CRF",
+    qualitySource: "Исходное (без потерь)",
+    qualityHigh: "Высокое",
+    qualityMedium: "Среднее",
+    qualityLow: "Низкое",
+    qualityPotato: "Максимальное сжатие",
+    qualityCustomLabel: "Своё",
+    qualityCustomEmpty: "Своё значение...",
+    rfRange: "Диапазон:",
+    rfBetter: "лучше",
+    rfWorse: "хуже",
+    // Resolution & FPS
+    sectionResFps: "Разрешение и частота кадров",
+    rowResolution: "Разрешение",
+    hintResolution: "Максимальное разрешение (масштабирование вниз)",
+    resSource: "По исходному",
+    rowFps: "Частота кадров",
+    hintFps: "Целевой FPS выходного видео",
+    fpsSource: "По исходному",
+    fpsCinema: "24 fps (кино)",
+    rowFpsMode: "Режим FPS",
+    hintFpsMode: "VFR = переменный, CFR = постоянный, PFR = с ограничением",
+    fpsVfr: "VFR — переменный (рекомендован)",
+    fpsCfr: "CFR — постоянный",
+    fpsPfr: "PFR — с пиковым ограничением",
+    // HW acceleration
+    sectionHwAccel: "Аппаратное ускорение",
+    rowHwDecoding: "Аппаратное декодирование",
+    hintHwDecoding: "Разгружает CPU при чтении источника",
+    hintHwDecodingVsp: "NVDEC / QSV разгружает CPU при чтении источника",
+    hwDecodingNone: "Отключено (программное)",
+    rowMultiPass: "Двухпроходное кодирование",
+    hintMultiPass: "2-pass: лучше распределяет битрейт, кодирует в 2× дольше",
+    // Audio
+    sectionAudioCodec: "Кодек аудио",
+    rowAudioCodec: "Аудиокодек",
+    hintAudioCodec: "Кодек для аудиодорожки выходного файла",
+    audioPassthruAuto: "Passthru (авто)",
+    sectionAudioParams: "Параметры аудио",
+    rowBitrate: "Битрейт",
+    hintBitrate: "Битрейт аудиодорожки в кбит/с",
+    bitrateDefault: "по умолчанию",
+    rowMixdown: "Микшинг",
+    hintMixdown: "Количество каналов в выходной аудиодорожке",
+    mixMono: "Моно (1.0)",
+    mixStereo: "Стерео (2.0)",
+    rowSampleRate: "Частота дискретизации",
+    hintSampleRate: "Sample rate аудио",
+    srAuto: "Авто (по исходному)",
+    sectionFileMetadata: "Метаданные файла",
+    rowChapterMarkers: "Метки глав (Chapter markers)",
+    hintChapterMarkers: "Добавлять chapter markers в контейнер",
+    rowOptimizeMp4: "Оптимизировать MP4 (fast start)",
+    hintOptimizeMp4: "Moov-атом в начале файла — для HTTP стриминга. Только MP4.",
+    // Subtitles
+    sectionSubtitleTracks: "Дорожки субтитров",
+    rowSubtitles: "Субтитры",
+    hintSubtitles: "Какие дорожки субтитров включить в выходной файл",
+    rowSubtitleMode: "Субтитры",
+    hintSubtitleMode: "Какие дорожки субтитров включить в выходной файл",
+    subNone: "Не включать",
+    subFirst: "Первая дорожка",
+    subAll: "Все дорожки",
+    subScanForced: "Авто (принудительные / иностранные)",
+    rowSubtitleBurn: "Вшивать субтитры",
+    hintSubtitleBurn: "Субтитры рендерятся прямо в кадр (burn-in). Не требует поддержки контейнером",
+    rowSubtitleDefault: "Субтитры по умолчанию",
+    hintSubtitleDefault: "Отметить дорожку субтитров как выбранную по умолчанию в плеере",
+    hintSubtitleDefaultShort: "Отметить как выбранную по умолчанию в плеере",
+    sectionSubtitleLang: "Язык субтитров",
+    rowSubtitleLang: "Предпочитаемый язык",
+    hintSubtitleLang: "Нативный язык: при наличии такой дорожки, она будет выбрана автоматически",
+    subLangAny: "Любой (не фильтровать)",
+    subLangEng: "Английский (eng)",
+    subLangRus: "Русский (rus)",
+    subLangJpn: "Японский (jpn)",
+    subLangChi: "Китайский (chi)",
+    subLangKor: "Корейский (kor)",
+    subLangFra: "Французский (fra)",
+    subLangDeu: "Немецкий (deu)",
+    subLangSpa: "Испанский (spa)",
+    subLangPor: "Португальский (por)",
+    subLangIta: "Итальянский (ita)",
+    subLangAra: "Арабский (ara)",
+    sectionSubtitleExt: "Внешний файл субтитров",
+    rowSubtitleExtFile: "Файл субтитров",
+    hintSubtitleExtFile: "Прикрепить внешний файл .srt / .ass / .ssa",
+    subExtFileEmpty: "Не выбран",
+    rowSubtitleExtBurn: "Вшить внешние субтитры",
+    hintSubtitleExtBurn: "Рендерить сабы прямо в кадр (burn-in), иначе — как отдельная дорожка",
+    // Filters
+    sectionDeinterlace: "Деинтерлейс",
+    rowDeinterlace: "Деинтерлейс",
+    hintDeinterlace: "Устраняет гребёнку от чересстрочной развёртки",
+    deintOff: "Отключён",
+    deintYadif: "Yadif — стандартный",
+    deintYadifDefault: "Yadif — стандартный",
+    deintYadifBob: "Yadif Bob (двойной FPS)",
+    deintBwdif: "BWDif — стандартный",
+    deintBwdifDefault: "BWDif — стандартный",
+    deintBwdifBob: "BWDif Bob (двойной FPS)",
+    sectionDenoise: "Шумоподавление",
+    rowDenoise: "Денойз",
+    hintDenoise: "Убирает видеошум. Требует дополнительного времени.",
+    denoiseOff: "Отключено",
+    denoiseNlUltralight: "NL-Means — минимальный",
+    denoiseNlUl: "NL-Means — минимальный",
+    denoiseNlLight: "NL-Means — лёгкий",
+    denoiseNlMedium: "NL-Means — средний",
+    denoiseNlMed: "NL-Means — средний",
+    denoiseNlStrong: "NL-Means — сильный",
+    denoiseHqLight: "HQ 3D — лёгкий",
+    denoiseHqMedium: "HQ 3D — средний",
+    denoiseHqStrong: "HQ 3D — сильный",
+    denoiseHq3dLight: "HQ 3D — лёгкий",
+    denoiseHq3dMed: "HQ 3D — средний",
+    denoiseHq3dStrong: "HQ 3D — сильный",
+    sectionDeblock: "Деблокинг",
+    rowDeblock: "Деблокинг",
+    hintDeblock: "Убирает блочные артефакты от кодека источника",
+    deblockOff: "Отключён",
+    deblockUltralight: "Минимальный",
+    deblockUl: "Минимальный",
+    deblockLight: "Лёгкий",
+    deblockMedium: "Средний",
+    deblockMed: "Средний",
+    deblockStrong: "Сильный",
+    deblockStronger: "Максимальный",
+    sectionSharpen: "Резкость",
+    rowSharpen: "Повышение резкости",
+    hintSharpen: "Unsharp Mask или Laplacian Sharpen",
+    sharpenOff: "Отключено",
+    sharpenUnsharpUltralight: "Unsharp — минимальный",
+    sharpenUnsharpUl: "Unsharp — минимальный",
+    sharpenUnsharpLight: "Unsharp — лёгкий",
+    sharpenUnsharpMedium: "Unsharp — средний",
+    sharpenUnsharpMed: "Unsharp — средний",
+    sharpenUnsharpStrong: "Unsharp — сильный",
+    sharpenLapUltralight: "Lapsharp — минимальный",
+    sharpenLapUl: "Lapsharp — минимальный",
+    sharpenLapLight: "Lapsharp — лёгкий",
+    sharpenLapMedium: "Lapsharp — средний",
+    sharpenLapMed: "Lapsharp — средний",
+    sharpenLapStrong: "Lapsharp — сильный",
+    sectionFrameTransform: "Трансформация кадра",
+    rowGrayscale: "Чёрно-белый режим",
+    hintGrayscale: "Удаляет цветовую информацию (grayscale)",
+    rowRotate: "Поворот / отражение",
+    hintRotate: "Повернуть или отразить кадр",
+    rotateNone: "Без поворота",
+    rotate90: "90° по часовой",
+    rotate90cw: "90° по часовой",
+    rotate180: "180°",
+    rotate270: "270° (90° против часовой)",
+    rotateHflip: "Горизонтальное отражение",
+    // HDR
+    sectionHdr: "HDR",
+    rowHdrMetadata: "Динамические метаданные HDR",
+    hintHdrMetadata: "Передать HDR10+ или Dolby Vision metadata в выходной файл",
+    hdrOff: "Отключено",
+    hdrAll: "Все (HDR10+ и Dolby Vision)",
+    sectionFileMeta: "Метаданные файла",
+    rowKeepMetadata: "Сохранять метаданные",
+    hintKeepMetadata: "Копировать теги, описание, обложку из источника в выходной файл",
+    hintKeepMetadataShort: "Копировать теги, описание, обложку из источника",
+    rowInlineParamSets: "Inline Parameter Sets",
+    hintInlineParamSets: "SPS/PPS inline в каждом кадре — требуется для HLS-стриминга",
+    // App.jsx
+    loadingAnalyzing: "Анализ файлов...",
+    loadingReadingMeta: "Считываем метаданные видео",
+    loadingFetchingFormats: "Получение форматов...",
+    loadingRequestingInfo: "Запрашиваем информацию о видео",
+    unknownFile: "Неизвестный файл",
+    noOutput: "(нет вывода)",
+    encodingError: "Ошибка кодирования",
+    encodingErrors: "Ошибки кодирования",
+    copyToClipboard: "Копировать",
+    copyAll: "Копировать всё",
+    copied: "Скопировано",
+    close: "Закрыть",
+    gpuErrNvencAv1: "Ваш GPU не поддерживает AV1 NVENC.",
+    gpuErrNvencH265: "Ваш GPU не поддерживает H.265 NVENC.",
+    gpuErrNvenc: "Ваш GPU не поддерживает выбранный NVENC-кодировщик.",
+    gpuErrVceAv1: "Ваш GPU не поддерживает AV1 VCE.",
+    gpuErrQsvAv1: "Ваш GPU не поддерживает AV1 QSV.",
+    gpuErrHwUnavailable: "Выбранный аппаратный кодировщик недоступен на данном GPU.",
+    gpuErrNvencInit: "Не удалось инициализировать NVENC. Убедитесь, что драйверы NVIDIA актуальны.",
+    gpuErrQsvInit: "Не удалось инициализировать Intel QSV. Проверьте драйверы Intel.",
+    gpuErrVceInit: "Не удалось инициализировать AMD VCE/AMF. Проверьте драйверы AMD.",
+    // ListPage
+    urlPlaceholder: "Ссылка для загрузки (YouTube, TikTok ...)",
+    addToQueueLabel: "ДОБАВИТЬ В ОЧЕРЕДЬ",
+    downloadSettings: "Настройки загрузки",
+    globalConvSettings: "Глобальные настройки конвертации",
+    downloadFolder: "Папка для загрузки",
+    saveFolder: "Папка для сохранения",
+    outputDefault: "По умолчанию",
+    outputCustom: "Своя папка",
+    outputSource: "Исходный путь",
+    outputSourcePath: "Исходный путь файла",
+    btnDownload: "СКАЧАТЬ",
+    btnStart: "ЗАПУСТИТЬ",
+    btnConvert: "КОНВЕРТИРОВАТЬ",
+    btnStop: "СТОП",
+    selectFolderTitle: "Выбрать папку",
+    addFilesTitle: "Добавить файлы",
+    clearQueueTitle: "Очистить очередь",
+    addToQueueTitle: "Добавить в очередь",
+    renameFileTitle: "Переименовать выходной файл",
+    indCustomTag: "Инд.",
+    ytdlFormatLabel: "Формат:",
+    ytdlConvertLabel: "Конвертировать",
+    downloadsFolderDefault: "Downloaded (рядом с программой)",
+    mixedQueueNotice: "файл(ов) для загрузки — у каждого свои настройки (откройте карточку).",
+    countDownloads: "загрузок",
+    countByGlobal: "по глобальным",
+    countByCustom: "по индивидуальным",
+    countDone: "готово",
+    countInQueue1: "файл в очереди",
+    countInQueue234: "файла в очереди",
+    countInQueueMany: "файлов в очереди",
+    // ListPage filter tags & helpers
+    audioOnlyTag: "аудио",
+    audioOnlyLabel: "Только аудио",
+    availableFormats: "Доступные форматы",
+    filterTagGrayscale: "ЧБ",
+    filterTagFlip: "Отражение",
+    filterTagDeinterlace: "Деинтерлейс",
+    filterTagDenoise: "Шумодав",
+    filterTagSharpen: "Резкость",
+    filterTagDeblock: "Деблок",
+    removeFile: "Убрать файл",
+    error: "Ошибка",
+    // VideoSettingsPanel
+    vspDownloadTitle: "Настройки загрузки и конвертации",
+    vspConvTitle: "Индивидуальные настройки конвертации",
+    vspTabDownload: "Загрузка",
+    vspDownloadFormat: "Формат загрузки",
+    vspQualityFormat: "Качество / формат",
+    vspHintQualityFormat: "Выберите разрешение и формат для скачивания",
+    vspTimeClip: "Обрезка по времени",
+    vspConvertAfterDl: "Конвертация после загрузки",
+    vspConvertFile: "Конвертировать файл",
+    vspHintConvertFile: "После загрузки запустить HandBrake конвертацию (настройки — во вкладках Видео/Аудио)",
+    vspConvertNotice: "Вкладки Видео / Аудио / Фильтры доступны только если включена конвертация.",
+    vspResetBtn: "Сбросить (глобальные)",
+    vspQualityHint: "лучше качество",
+    vspQualityHintWorse: "хуже",
+    // TimeRangeSelector
+    trsFullVideo: "Полное видео",
+    trsClosePlayer: "Закрыть плеер",
+    trsFrom: "С",
+    trsTo: "По",
+    trsRemoveClip: "Убрать обрезку",
+    trsChapters: "Главы:",
+    // AboutPage
+    aboutTabMe: "Обо мне",
+    aboutTabProgram: "О программе",
+    aboutTabCredits: "Благодарности",
+    aboutTabLicense: "Лицензия",
+    aboutTabLibraries: "Библиотеки",
+    aboutNoLink: "нет ссылки",
+    aboutThanksIntro: "Огромная благодарность этим людям за поддержку и вдохновение.",
+    // AboutPage — content
+    meAuthorName: "Ахматьяров Егор",
+    meEyebrow: "Дизайнер · Видеограф",
+    meRole: "Автор идеи и создатель Gorex",
+    meStoryLead: "Я не программист. Я дизайнер и видеограф — человек, который годами работает с видео и остро чувствует, каким должен быть инструмент для таких же людей, как я.",
+    meStoryP2: "Всё существующее либо выглядит так, будто застряло в 2005-м, либо стоит денег за каждый чих, либо просто не работает как надо. Я давно хотел сделать что-то по-настоящему красивое и удобное — не для разработчиков, а для людей из сферы. Концепт жил у меня в голове очень долго, но реализовать его самому было невозможно.",
+    meStoryP3a: "И вот благодаря технологиям ИИ — ",
+    meStoryP3b: " — я наконец смог воплотить эту идею в жизнь. Gorex — это не просто обёртка над HandBrake. Это концепция: инструмент, который уважает твоё время, выглядит как продукт, за который не стыдно, и работает именно так, как ожидает профессионал в видео.",
+    aboutDescription: "Gorex — современный Electron-интерфейс для легендарного транскодера HandBrake и загрузчика yt-dlp. Сохраняет всю мощь оригинального HandBrake CLI, предоставляя удобный и эстетичный пользовательский опыт с открытым исходным кодом.",
+    aboutLicenseNotice1: "Gorex использует HandBrake и yt-dlp — программы с открытым исходным кодом. HandBrake распространяется под лицензией ",
+    aboutLicenseNotice3: ". Web UI дополнительно использует MIT-библиотеки React, Vite и Electron.",
+    licenseSummary1a: "Большинство файлов HandBrake распространяется под лицензией ",
+    licenseSummary1b: ". Некоторые файлы — под GPLv2+, LGPLv2.1+ или BSD/MIT/X11. Скомпилированная сборка HandBrake лицензирована под GPLv2.",
+    licenseSummary2a: "Графические ресурсы распространяются под лицензией ",
+    thanksName1: "Андрей Виноградов",
+    thanksName2: "Святослав Драгунов",
+    thanksName3: "Павел Яшкин",
+    thanksName4: "Барвашов Егор",
+    donate: "Поддержать"
+  },
+  en: {
+    // Common
+    back: "Back",
+    settings: "Settings",
+    save: "Save",
+    saved: "Saved",
+    reset: "Reset",
+    cancel: "Cancel",
+    apply: "Apply",
+    recommended: "recommended",
+    softwareEncoders: "Software",
+    // TitleBar
+    menuFile: "File",
+    menuOpenSource: "Open source",
+    menuClearQueue: "Clear queue",
+    menuStartEncoding: "Start encoding",
+    menuResume: "Resume",
+    menuPause: "Pause",
+    menuStop: "Stop",
+    menuExit: "Exit",
+    menuDebugConsole: "Debug console",
+    navSettings: "Settings",
+    navAbout: "About",
+    // SourcePage
+    dlFromWeb: "Download from web",
+    dlPlaceholder: "Paste link (YouTube, TikTok, Twitter ...)",
+    dlDownload: "Download",
+    dlUnsupported: "Service not supported",
+    dlErrorDefault: "Error fetching formats",
+    dropZoneTitle: "Add file(s)",
+    dropZoneHint: "You can select one or multiple files for conversion — just drag and drop them here",
+    // Settings tabs
+    tabApp: "Application",
+    tabVideo: "Video",
+    tabAudio: "Audio",
+    tabSubtitles: "Subtitles",
+    tabFilters: "Filters",
+    tabHdr: "HDR / Meta",
+    // Settings header
+    settingsTitle: "Settings",
+    settingsResetTitle: "Reset encoding settings to defaults",
+    settingsSidebarHint: "Settings are applied as defaults for new encoding tasks",
+    // Settings — Appearance
+    sectionAppearance: "Appearance",
+    rowTheme: "UI Theme",
+    hintTheme: "Choose the application interface theme",
+    themeDark: "Dark",
+    themeLight: "Light",
+    themeAuto: "Auto",
+    // Settings — Language
+    sectionLanguage: "Interface Language",
+    rowLanguage: "Language",
+    hintLanguage: "Choose interface language",
+    langRu: "Русский",
+    langEn: "English",
+    // Settings — CLI
+    sectionCli: "HandBrake CLI",
+    rowCliStatus: "Status",
+    hintCliStatus: "HandBrakeCLI.exe next to the app",
+    cliChecking: "Checking...",
+    cliFound: "Found",
+    cliNotFound: "Not found",
+    // Settings — GPU
+    sectionGpu: "GPU",
+    gpuCodecHint: 'Available GPU codecs are automatically shown first in the "Video Codec" section',
+    gpuUnknown: "GPU not detected — software codecs shown",
+    rowShowAllCodecs: "Show all codecs",
+    hintShowAllCodecs: "Show all (not just GPU-recommended) codecs on the conversion page",
+    // Settings — Output folder
+    sectionOutputFolder: "Default output folder",
+    folderDefault: "default Videos folder",
+    folderChange: "Change",
+    folderResetTitle: "Reset to Videos folder",
+    // Settings — Video tab description
+    videoTabDesc: "Default encoding parameters. Applied to each new file — can be changed per task in the list.",
+    // Container
+    sectionContainer: "Container",
+    rowFormat: "Format",
+    hintFormat: "Output file container",
+    // Encoder
+    sectionEncoder: "Encoder",
+    rowVideoCodec: "Video Codec",
+    hintVideoCodec: "Video compression algorithm",
+    rowSpeedPreset: "Speed / Preset",
+    hintSpeedPreset: "Speed ↔ efficiency tradeoff",
+    // Quality
+    sectionQuality: "Quality",
+    rowQualityMode: "Quality Mode",
+    hintQualityMode: "Preset or exact RF/CRF value",
+    qualitySource: "Source (lossless)",
+    qualityHigh: "High",
+    qualityMedium: "Medium",
+    qualityLow: "Low",
+    qualityPotato: "Maximum compression",
+    qualityCustomLabel: "Custom",
+    qualityCustomEmpty: "Custom value...",
+    rfRange: "Range:",
+    rfBetter: "better",
+    rfWorse: "worse",
+    // Resolution & FPS
+    sectionResFps: "Resolution and Frame Rate",
+    rowResolution: "Resolution",
+    hintResolution: "Maximum resolution (downscale)",
+    resSource: "From source",
+    rowFps: "Frame Rate",
+    hintFps: "Target FPS of the output video",
+    fpsSource: "From source",
+    fpsCinema: "24 fps (cinema)",
+    rowFpsMode: "FPS Mode",
+    hintFpsMode: "VFR = variable, CFR = constant, PFR = peak-limited",
+    fpsVfr: "VFR — Variable (recommended)",
+    fpsCfr: "CFR — Constant",
+    fpsPfr: "PFR — Peak-limited",
+    // HW acceleration
+    sectionHwAccel: "Hardware Acceleration",
+    rowHwDecoding: "Hardware Decoding",
+    hintHwDecoding: "Offloads CPU when reading source",
+    hintHwDecodingVsp: "NVDEC / QSV offloads CPU when reading source",
+    hwDecodingNone: "Disabled (software)",
+    rowMultiPass: "Two-pass encoding",
+    hintMultiPass: "2-pass: better bitrate distribution, encodes 2× longer",
+    // Audio
+    sectionAudioCodec: "Audio Codec",
+    rowAudioCodec: "Audio Codec",
+    hintAudioCodec: "Codec for the output audio track",
+    audioPassthruAuto: "Passthru (auto)",
+    sectionAudioParams: "Audio Parameters",
+    rowBitrate: "Bitrate",
+    hintBitrate: "Audio track bitrate in kbps",
+    bitrateDefault: "default",
+    rowMixdown: "Mixdown",
+    hintMixdown: "Number of channels in the output audio track",
+    mixMono: "Mono (1.0)",
+    mixStereo: "Stereo (2.0)",
+    rowSampleRate: "Sample Rate",
+    hintSampleRate: "Audio sample rate",
+    srAuto: "Auto (from source)",
+    sectionFileMetadata: "File Metadata",
+    rowChapterMarkers: "Chapter markers",
+    hintChapterMarkers: "Add chapter markers to container",
+    rowOptimizeMp4: "Optimize MP4 (fast start)",
+    hintOptimizeMp4: "Moov atom at file start — for HTTP streaming. MP4 only.",
+    // Subtitles
+    sectionSubtitleTracks: "Subtitle Tracks",
+    rowSubtitles: "Subtitles",
+    hintSubtitles: "Which subtitle tracks to include in the output file",
+    rowSubtitleMode: "Subtitles",
+    hintSubtitleMode: "Which subtitle tracks to include in the output file",
+    subNone: "None",
+    subFirst: "First track",
+    subAll: "All tracks",
+    subScanForced: "Auto (forced / foreign)",
+    rowSubtitleBurn: "Burn-in subtitles",
+    hintSubtitleBurn: "Subtitles rendered directly into frame (burn-in). No container support required.",
+    rowSubtitleDefault: "Default subtitles",
+    hintSubtitleDefault: "Mark subtitle track as default in player",
+    hintSubtitleDefaultShort: "Mark as default in player",
+    sectionSubtitleLang: "Subtitle Language",
+    rowSubtitleLang: "Preferred language",
+    hintSubtitleLang: "Native language: if such a track exists, it will be selected automatically",
+    subLangAny: "Any (no filter)",
+    subLangEng: "English (eng)",
+    subLangRus: "Russian (rus)",
+    subLangJpn: "Japanese (jpn)",
+    subLangChi: "Chinese (chi)",
+    subLangKor: "Korean (kor)",
+    subLangFra: "French (fra)",
+    subLangDeu: "German (deu)",
+    subLangSpa: "Spanish (spa)",
+    subLangPor: "Portuguese (por)",
+    subLangIta: "Italian (ita)",
+    subLangAra: "Arabic (ara)",
+    sectionSubtitleExt: "External subtitle file",
+    rowSubtitleExtFile: "Subtitle file",
+    hintSubtitleExtFile: "Attach external .srt / .ass / .ssa file",
+    subExtFileEmpty: "Not selected",
+    rowSubtitleExtBurn: "Burn external subtitles",
+    hintSubtitleExtBurn: "Render subs directly into frame (burn-in), otherwise — as a separate track",
+    // Filters
+    sectionDeinterlace: "Deinterlace",
+    rowDeinterlace: "Deinterlace",
+    hintDeinterlace: "Removes combing artifacts from interlaced source",
+    deintOff: "Off",
+    deintYadif: "Yadif — standard",
+    deintYadifDefault: "Yadif — standard",
+    deintYadifBob: "Yadif Bob (double FPS)",
+    deintBwdif: "BWDif — standard",
+    deintBwdifDefault: "BWDif — standard",
+    deintBwdifBob: "BWDif Bob (double FPS)",
+    sectionDenoise: "Noise Reduction",
+    rowDenoise: "Denoise",
+    hintDenoise: "Removes video noise. Requires additional processing time.",
+    denoiseOff: "Off",
+    denoiseNlUltralight: "NL-Means — ultralight",
+    denoiseNlUl: "NL-Means — ultralight",
+    denoiseNlLight: "NL-Means — light",
+    denoiseNlMedium: "NL-Means — medium",
+    denoiseNlMed: "NL-Means — medium",
+    denoiseNlStrong: "NL-Means — strong",
+    denoiseHqLight: "HQ 3D — light",
+    denoiseHqMedium: "HQ 3D — medium",
+    denoiseHqStrong: "HQ 3D — strong",
+    denoiseHq3dLight: "HQ 3D — light",
+    denoiseHq3dMed: "HQ 3D — medium",
+    denoiseHq3dStrong: "HQ 3D — strong",
+    sectionDeblock: "Deblocking",
+    rowDeblock: "Deblocking",
+    hintDeblock: "Removes block artifacts from source codec",
+    deblockOff: "Off",
+    deblockUltralight: "Ultralight",
+    deblockUl: "Ultralight",
+    deblockLight: "Light",
+    deblockMedium: "Medium",
+    deblockMed: "Medium",
+    deblockStrong: "Strong",
+    deblockStronger: "Maximum",
+    sectionSharpen: "Sharpness",
+    rowSharpen: "Sharpen",
+    hintSharpen: "Unsharp Mask or Laplacian Sharpen",
+    sharpenOff: "Off",
+    sharpenUnsharpUltralight: "Unsharp — ultralight",
+    sharpenUnsharpUl: "Unsharp — ultralight",
+    sharpenUnsharpLight: "Unsharp — light",
+    sharpenUnsharpMedium: "Unsharp — medium",
+    sharpenUnsharpMed: "Unsharp — medium",
+    sharpenUnsharpStrong: "Unsharp — strong",
+    sharpenLapUltralight: "Lapsharp — ultralight",
+    sharpenLapUl: "Lapsharp — ultralight",
+    sharpenLapLight: "Lapsharp — light",
+    sharpenLapMedium: "Lapsharp — medium",
+    sharpenLapMed: "Lapsharp — medium",
+    sharpenLapStrong: "Lapsharp — strong",
+    sectionFrameTransform: "Frame Transform",
+    rowGrayscale: "Black & White",
+    hintGrayscale: "Removes color information (grayscale)",
+    rowRotate: "Rotate / Flip",
+    hintRotate: "Rotate or flip the frame",
+    rotateNone: "No rotation",
+    rotate90: "90° clockwise",
+    rotate90cw: "90° clockwise",
+    rotate180: "180°",
+    rotate270: "270° (90° counter-clockwise)",
+    rotateHflip: "Horizontal flip",
+    // HDR
+    sectionHdr: "HDR",
+    rowHdrMetadata: "Dynamic HDR Metadata",
+    hintHdrMetadata: "Pass HDR10+ or Dolby Vision metadata to the output file",
+    hdrOff: "Off",
+    hdrAll: "All (HDR10+ and Dolby Vision)",
+    sectionFileMeta: "File Metadata",
+    rowKeepMetadata: "Keep metadata",
+    hintKeepMetadata: "Copy tags, description, cover art from source to output file",
+    hintKeepMetadataShort: "Copy tags, description, cover from source",
+    rowInlineParamSets: "Inline Parameter Sets",
+    hintInlineParamSets: "SPS/PPS inline in every frame — required for HLS streaming",
+    // App.jsx
+    loadingAnalyzing: "Analyzing files...",
+    loadingReadingMeta: "Reading video metadata",
+    loadingFetchingFormats: "Fetching formats...",
+    loadingRequestingInfo: "Requesting video information",
+    unknownFile: "Unknown file",
+    noOutput: "(no output)",
+    encodingError: "Encoding error",
+    encodingErrors: "Encoding errors",
+    copyToClipboard: "Copy",
+    copyAll: "Copy all",
+    copied: "Copied",
+    close: "Close",
+    gpuErrNvencAv1: "Your GPU does not support AV1 NVENC.",
+    gpuErrNvencH265: "Your GPU does not support H.265 NVENC.",
+    gpuErrNvenc: "Your GPU does not support the selected NVENC encoder.",
+    gpuErrVceAv1: "Your GPU does not support AV1 VCE.",
+    gpuErrQsvAv1: "Your GPU does not support AV1 QSV.",
+    gpuErrHwUnavailable: "The selected hardware encoder is unavailable on this GPU.",
+    gpuErrNvencInit: "Failed to initialize NVENC. Make sure your NVIDIA drivers are up to date.",
+    gpuErrQsvInit: "Failed to initialize Intel QSV. Check your Intel drivers.",
+    gpuErrVceInit: "Failed to initialize AMD VCE/AMF. Check your AMD drivers.",
+    // ListPage
+    urlPlaceholder: "Download link (YouTube, TikTok ...)",
+    addToQueueLabel: "ADD TO QUEUE",
+    downloadSettings: "Download settings",
+    globalConvSettings: "Global conversion settings",
+    downloadFolder: "Download folder",
+    saveFolder: "Save folder",
+    outputDefault: "Default",
+    outputCustom: "Custom folder",
+    outputSource: "Source path",
+    outputSourcePath: "Source file path",
+    btnDownload: "DOWNLOAD",
+    btnStart: "START",
+    btnConvert: "CONVERT",
+    btnStop: "STOP",
+    selectFolderTitle: "Select folder",
+    addFilesTitle: "Add files",
+    clearQueueTitle: "Clear queue",
+    addToQueueTitle: "Add to queue",
+    renameFileTitle: "Rename output file",
+    indCustomTag: "Ind.",
+    ytdlFormatLabel: "Format:",
+    ytdlConvertLabel: "Convert",
+    downloadsFolderDefault: "Downloaded (next to app)",
+    mixedQueueNotice: "file(s) to download — each has its own settings (open the card).",
+    countDownloads: "downloads",
+    countByGlobal: "global settings",
+    countByCustom: "individual settings",
+    countDone: "done",
+    countInQueue1: "file in queue",
+    countInQueue234: "files in queue",
+    countInQueueMany: "files in queue",
+    // ListPage filter tags & helpers
+    audioOnlyTag: "audio",
+    audioOnlyLabel: "Audio only",
+    availableFormats: "Available formats",
+    filterTagGrayscale: "B&W",
+    filterTagFlip: "Flip",
+    filterTagDeinterlace: "Deinterlace",
+    filterTagDenoise: "Denoise",
+    filterTagSharpen: "Sharpen",
+    filterTagDeblock: "Deblock",
+    removeFile: "Remove file",
+    error: "Error",
+    // VideoSettingsPanel
+    vspDownloadTitle: "Download and conversion settings",
+    vspConvTitle: "Individual conversion settings",
+    vspTabDownload: "Download",
+    vspDownloadFormat: "Download format",
+    vspQualityFormat: "Quality / format",
+    vspHintQualityFormat: "Select resolution and format for download",
+    vspTimeClip: "Time clip",
+    vspConvertAfterDl: "Convert after download",
+    vspConvertFile: "Convert file",
+    vspHintConvertFile: "After download, run HandBrake conversion (settings in Video/Audio tabs)",
+    vspConvertNotice: "Video / Audio / Filters tabs are only available when conversion is enabled.",
+    vspResetBtn: "Reset (global)",
+    vspQualityHint: "better quality",
+    vspQualityHintWorse: "worse",
+    // TimeRangeSelector
+    trsFullVideo: "Full video",
+    trsClosePlayer: "Close player",
+    trsFrom: "From",
+    trsTo: "To",
+    trsRemoveClip: "Remove clip",
+    trsChapters: "Chapters:",
+    // AboutPage
+    aboutTabMe: "About me",
+    aboutTabProgram: "About",
+    aboutTabCredits: "Credits",
+    aboutTabLicense: "License",
+    aboutTabLibraries: "Libraries",
+    aboutNoLink: "no link",
+    aboutThanksIntro: "Many thanks to these people for their support and inspiration.",
+    // AboutPage — content
+    meAuthorName: "Egor Akhmatyarov",
+    meEyebrow: "Designer · Videographer",
+    meRole: "Author and creator of Gorex",
+    meStoryLead: "I'm not a programmer. I'm a designer and videographer — someone who has worked with video for years and knows exactly what a tool for people like me should feel like.",
+    meStoryP2: "Everything out there either looks like it got stuck in 2005, costs money for every little thing, or just doesn't work right. For a long time I wanted to build something truly beautiful and convenient — not for developers, but for people in the field. The concept lived in my head for a very long time, but making it myself was impossible.",
+    meStoryP3a: "And thanks to AI technology — ",
+    meStoryP3b: " — I was finally able to bring this idea to life. Gorex is not just a wrapper around HandBrake. It's a concept: a tool that respects your time, looks like a product worth being proud of, and works exactly the way a video professional expects.",
+    aboutDescription: "Gorex — a modern Electron interface for the legendary HandBrake transcoder and yt-dlp downloader. Preserves all the power of the original HandBrake CLI, providing a convenient and aesthetic open-source user experience.",
+    aboutLicenseNotice1: "Gorex uses HandBrake and yt-dlp — open source programs. HandBrake is distributed under the ",
+    aboutLicenseNotice3: ". The Web UI also uses MIT-licensed libraries: React, Vite, and Electron.",
+    licenseSummary1a: "Most HandBrake files are distributed under the ",
+    licenseSummary1b: ". Some files are under GPLv2+, LGPLv2.1+ or BSD/MIT/X11. The compiled HandBrake build is licensed under GPLv2.",
+    licenseSummary2a: "Graphic assets are distributed under the ",
+    thanksName1: "Andrey Vinogradov",
+    thanksName2: "Svyatoslav Dragunov",
+    thanksName3: "Pavel Yashkin",
+    thanksName4: "Egor Barvashov",
+    donate: "Donate"
+  }
+};
+const LanguageContext = reactExports.createContext({
+  lang: "ru",
+  setLang: () => {
+  },
+  t: (k2) => k2
+});
+function LanguageProvider({ children }) {
+  const [lang, setLangState] = reactExports.useState(() => {
+    const saved = localStorage.getItem("gorex-language");
+    return saved === "ru" ? "ru" : "en";
+  });
+  const setLang = (newLang) => {
+    localStorage.setItem("gorex-language", newLang);
+    setLangState(newLang);
+  };
+  const t2 = (key) => TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS.ru[key] ?? key;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(LanguageContext.Provider, { value: { lang, setLang, t: t2 }, children });
+}
+function useLanguage() {
+  return reactExports.useContext(LanguageContext);
+}
 function TitleBar({
   onOpen,
   theme,
@@ -6980,11 +7745,13 @@ function TitleBar({
   onStartEncoding,
   onPause,
   onStop,
-  onClearQueue
+  onClearQueue,
+  onOpenCliConsole
 }) {
   const [toggling, setToggling] = reactExports.useState(false);
   const [fileMenuOpen, setFileMenuOpen] = reactExports.useState(false);
   const fileMenuRef = reactExports.useRef(null);
+  const { t: t2 } = useLanguage();
   const handleToggle = reactExports.useCallback(() => {
     setToggling(true);
     toggleTheme();
@@ -7008,7 +7775,7 @@ function TitleBar({
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "titlebar-drag-region" }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "titlebar-content", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "titlebar-left", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "titlebar-logo", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: theme === "dark" ? logoWhite : logoDark, alt: "Logo" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "titlebar-logo", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: theme === "dark" ? logoWhite : logoColor, alt: "Logo" }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { className: "titlebar-menu", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "tb-file-menu", ref: fileMenuRef, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7016,21 +7783,21 @@ function TitleBar({
               {
                 className: fileMenuOpen ? "active" : "",
                 onClick: () => setFileMenuOpen((v2) => !v2),
-                children: "Файл"
+                children: t2("menuFile")
               }
             ),
             fileMenuOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "tb-dropdown", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "tb-dropdown-item", onClick: () => menuAction(() => {
                 onViewChange("source");
                 onOpen();
-              }), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: "Открыть источник" }) }),
+              }), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: t2("menuOpenSource") }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
                   className: "tb-dropdown-item tb-dropdown-item--danger",
                   disabled: !hasVideos || isEncoding,
                   onClick: () => menuAction(onClearQueue),
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: "Очистить очередь" })
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: t2("menuClearQueue") })
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "tb-dropdown-sep" }),
@@ -7040,7 +7807,7 @@ function TitleBar({
                   className: "tb-dropdown-item",
                   disabled: !hasVideos || isEncoding,
                   onClick: () => menuAction(onStartEncoding),
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: "Начать кодирование" })
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: t2("menuStartEncoding") })
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7049,7 +7816,7 @@ function TitleBar({
                   className: "tb-dropdown-item",
                   disabled: !isEncoding,
                   onClick: () => menuAction(onPause),
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: isPaused ? "Продолжить" : "Пауза" })
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: isPaused ? t2("menuResume") : t2("menuPause") })
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7058,13 +7825,13 @@ function TitleBar({
                   className: "tb-dropdown-item tb-dropdown-item--danger",
                   disabled: !isEncoding,
                   onClick: () => menuAction(onStop),
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: "Стоп" })
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: t2("menuStop") })
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "tb-dropdown-sep" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "tb-dropdown-item", onClick: () => menuAction(() => window.api.close()), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: "Выход" }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "tb-dropdown-item", onClick: () => menuAction(() => window.api.close()), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: t2("menuExit") }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "tb-dropdown-sep" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "tb-dropdown-item", onClick: () => menuAction(() => window.api.openDevTools()), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: "Консоль отладки" }) })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "tb-dropdown-item", onClick: () => menuAction(() => onOpenCliConsole()), children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "tb-item-label", children: t2("menuDebugConsole") }) })
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7072,7 +7839,7 @@ function TitleBar({
             {
               className: currentView === "settings" ? "active" : "",
               onClick: () => onViewChange("settings"),
-              children: "Настройки"
+              children: t2("navSettings")
             }
           ),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -7080,12 +7847,16 @@ function TitleBar({
             {
               className: currentView === "about" ? "active" : "",
               onClick: () => onViewChange("about"),
-              children: "О программе"
+              children: t2("navAbout")
             }
           )
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "titlebar-right", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://dalink.to/akhmatyarov", target: "_blank", rel: "noreferrer", className: "tb-donate-btn", title: t2("donate"), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-heart-fill" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: t2("donate") })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "theme-toggle", onClick: handleToggle, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `toggle-switch ${theme}${toggling ? " toggling" : ""}`, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-brightness-high toggle-icon-sun" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "toggle-handle" }),
@@ -7098,6 +7869,67 @@ function TitleBar({
         ] })
       ] })
     ] })
+  ] });
+}
+function CliConsole({ logs, onClear, onClose, theme }) {
+  const bodyRef = reactExports.useRef(null);
+  const [autoScroll, setAutoScroll] = reactExports.useState(true);
+  const [copied, setCopied] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (autoScroll && bodyRef.current) {
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    }
+  }, [logs, autoScroll]);
+  const handleScroll = () => {
+    const el2 = bodyRef.current;
+    if (!el2) return;
+    const atBottom = el2.scrollHeight - el2.scrollTop - el2.clientHeight < 40;
+    setAutoScroll(atBottom);
+  };
+  const handleCopy = () => {
+    const text = logs.map((l2) => l2.text).join("");
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `cli-console ${theme}`, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "cli-console__header", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "cli-console__title", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-terminal" }),
+        "Вывод HandBrakeCLI / yt-dlp"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "cli-console__actions", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: `cli-console__btn${autoScroll ? " active" : ""}`,
+            title: "Автопрокрутка",
+            onClick: () => setAutoScroll((v2) => !v2),
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-down-circle" })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: `cli-console__btn${copied ? " active" : ""}`,
+            title: "Копировать всё",
+            onClick: handleCopy,
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${copied ? "bi-check-lg" : "bi-clipboard"}` })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "cli-console__btn", title: "Очистить", onClick: onClear, children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-trash" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "cli-console__btn cli-console__close", title: "Закрыть", onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" }) })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "cli-console__body",
+        ref: bodyRef,
+        onScroll: handleScroll,
+        children: logs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "cli-console__empty", children: "Ожидание вывода HandBrakeCLI / yt-dlp..." }) : logs.map((line, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `cli-console__line cli-console__line--${line.type}`, children: line.text }, i))
+      }
+    )
   ] });
 }
 const SERVICE_MAP$1 = {
@@ -7119,13 +7951,14 @@ const SERVICE_MAP$1 = {
   "pin.it": { name: "Pinterest", icon: "bi-pinterest", color: "#e60023" },
   "tumblr.com": { name: "Tumblr", icon: "bi-tumblr", color: "#35465c" },
   "snapchat.com": { name: "Snapchat", icon: "bi-snapchat", color: "#fffc00" },
-  "tiktok.com": { name: "TikTok", icon: "bi-tiktok", color: "#ff0050" },
-  "vt.tiktok.com": { name: "TikTok", icon: "bi-tiktok", color: "#ff0050" },
+  "tiktok.com": { name: "TikTok", icon: "bi-tiktok", svgPath: "M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.84 1.55V6.79a4.85 4.85 0 0 1-1.07-.1z", color: "#ff0050" },
+  "vt.tiktok.com": { name: "TikTok", icon: "bi-tiktok", svgPath: "M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.84 1.55V6.79a4.85 4.85 0 0 1-1.07-.1z", color: "#ff0050" },
   "bilibili.com": { name: "Bilibili", icon: "bi-play-circle-fill", color: "#00a1d6" },
   "b23.tv": { name: "Bilibili", icon: "bi-play-circle-fill", color: "#00a1d6" },
   "ok.ru": { name: "OK", icon: "bi-person-circle", color: "#f7931e" },
-  "vk.com": { name: "VKontakte", icon: "bi-person-circle", color: "#4a76a8" },
-  "vk.ru": { name: "VKontakte", icon: "bi-person-circle", color: "#4a76a8" },
+  "vk.com": { name: "VKontakte", icon: "bi-person-circle", svgPath: "M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.523-2.049-1.713-1.033-1.01-1.49-.9-1.49-.9 0 0-.127.1-.127.6v1.556c0 .4-.127.64-1.184.64-1.743 0-3.68-1.06-5.039-3.01C6.094 11.96 5.82 10 5.82 10H7.522s.107.488.32.96c.59 1.32 1.38 1.56 1.38 1.56.21 0 .21-1 .21-1V8.44c0-.5-.19-.66-.19-.66h-.3c-.16 0-.16-.1-.16-.1 0 0 .06-1.26 2.63-1.26 1.48 0 1.48.55 1.48 1.02v2.5c0 .085 0 .65.29.65.194 0 .5-.194 1.06-.82 1.04-1.34 1.55-2.74 1.55-2.74.194-.36.29-.42.29-.42.1-.03.19-.1.57-.1h1.77c.527 0 .527.27.39.53-.16.26-1.25 2.03-1.25 2.03-.67 1.24-.73 1.38.057 2.18.68.68 1.38 1.23 1.38 1.23.6.58.67 1.22.67 1.22z", color: "#4a76a8" },
+  "vk.ru": { name: "VKontakte", icon: "bi-person-circle", svgPath: "M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.523-2.049-1.713-1.033-1.01-1.49-.9-1.49-.9 0 0-.127.1-.127.6v1.556c0 .4-.127.64-1.184.64-1.743 0-3.68-1.06-5.039-3.01C6.094 11.96 5.82 10 5.82 10H7.522s.107.488.32.96c.59 1.32 1.38 1.56 1.38 1.56.21 0 .21-1 .21-1V8.44c0-.5-.19-.66-.19-.66h-.3c-.16 0-.16-.1-.16-.1 0 0 .06-1.26 2.63-1.26 1.48 0 1.48.55 1.48 1.02v2.5c0 .085 0 .65.29.65.194 0 .5-.194 1.06-.82 1.04-1.34 1.55-2.74 1.55-2.74.194-.36.29-.42.29-.42.1-.03.19-.1.57-.1h1.77c.527 0 .527.27.39.53-.16.26-1.25 2.03-1.25 2.03-.67 1.24-.73 1.38.057 2.18.68.68 1.38 1.23 1.38 1.23.6.58.67 1.22.67 1.22z", color: "#4a76a8" },
+  "vkvideo.ru": { name: "VK Видео", icon: "bi-person-circle", svgPath: "M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.523-2.049-1.713-1.033-1.01-1.49-.9-1.49-.9 0 0-.127.1-.127.6v1.556c0 .4-.127.64-1.184.64-1.743 0-3.68-1.06-5.039-3.01C6.094 11.96 5.82 10 5.82 10H7.522s.107.488.32.96c.59 1.32 1.38 1.56 1.38 1.56.21 0 .21-1 .21-1V8.44c0-.5-.19-.66-.19-.66h-.3c-.16 0-.16-.1-.16-.1 0 0 .06-1.26 2.63-1.26 1.48 0 1.48.55 1.48 1.02v2.5c0 .085 0 .65.29.65.194 0 .5-.194 1.06-.82 1.04-1.34 1.55-2.74 1.55-2.74.194-.36.29-.42.29-.42.1-.03.19-.1.57-.1h1.77c.527 0 .527.27.39.53-.16.26-1.25 2.03-1.25 2.03-.67 1.24-.73 1.38.057 2.18.68.68 1.38 1.23 1.38 1.23.6.58.67 1.22.67 1.22z", color: "#4a76a8" },
   "rutube.ru": { name: "Rutube", icon: "bi-play-circle-fill", color: "#ff5c00" },
   "dailymotion.com": { name: "Dailymotion", icon: "bi-play-circle-fill", color: "#0066dc" },
   "bsky.app": { name: "Bluesky", icon: "bi-cloud-fill", color: "#0085ff" },
@@ -7158,6 +7991,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
   const [isDownloading, setIsDownloading] = reactExports.useState(false);
   const [dlError, setDlError] = reactExports.useState("");
   const [dlHint, setDlHint] = reactExports.useState("");
+  const { t: t2 } = useLanguage();
   const trimmed = url.trim();
   const hasUrl = trimmed.length > 0;
   const isUrl = isValidUrl$1(trimmed);
@@ -7172,7 +8006,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
       await onDownload(trimmed, service);
       setUrl("");
     } catch (err) {
-      setDlError(err?.message || "Ошибка запроса форматов");
+      setDlError(err?.message || t2("dlErrorDefault"));
     } finally {
       setIsDownloading(false);
     }
@@ -7189,39 +8023,15 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
   if (isDownloading) {
     iconEl = /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-spinner" });
   } else if (service) {
-    iconEl = /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${service.icon}`, style: { color: service.color }, title: service.name });
+    iconEl = service.svgPath ? /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { viewBox: "0 0 24 24", fill: "currentColor", className: "svc-svg-icon", style: { color: service.color }, title: service.name, children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: service.svgPath }) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${service.icon}`, style: { color: service.color }, title: service.name });
   } else if (isUnsupported) {
     iconEl = /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-circle-fill dl-icon--unsupported" });
   } else {
     iconEl = /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-link-45deg dl-icon--placeholder" });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "source-wrapper", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "div",
-      {
-        className: `drop-area ${isDragging ? "active" : ""} ${theme}`,
-        onClick: onSelectFiles,
-        onDragOver,
-        onDragLeave,
-        onDrop,
-        children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "drop-content", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "drop-icon-large", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "img",
-              {
-                className: "drop-logo",
-                src: theme === "dark" ? logoWhite : logoDark,
-                alt: "Logo"
-              }
-            ) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "drop-text-large", children: "Добавить файл / файлы" })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "drop-info-large", children: "Вы можете выбрать один или несколько файлов для конвертации, просто перенесите их в эту область" })
-        ]
-      }
-    ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dl-zone", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-zone-label", children: "Или скачайте из сети" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-zone-label", children: t2("dlFromWeb") }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "dl-bar", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `dl-input-wrap${isUnsupported ? " dl-input-wrap--error" : ""}${service ? " dl-input-wrap--ok" : ""}`, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-input-icon", children: iconEl }),
@@ -7230,7 +8040,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
             {
               className: "dl-input",
               type: "url",
-              placeholder: "Вставьте ссылку (YouTube, TikTok, Twitter ...)",
+              placeholder: t2("dlPlaceholder"),
               value: url,
               onChange: handleChange,
               onKeyDown: handleKeyDown,
@@ -7247,15 +8057,39 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
               disabled: !trimmed || isDownloading || isUnsupported,
               children: isDownloading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-spinner" }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down-fill" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Скачать" })
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: t2("dlDownload") })
               ] })
             }
           )
         ] }),
-        isUnsupported && !dlError && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-hint", children: "Сервис не поддерживается" }),
+        isUnsupported && !dlError && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-hint", children: t2("dlUnsupported") }),
         dlError && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "dl-hint dl-hint--error", children: dlError })
       ] })
-    ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: `drop-area ${isDragging ? "active" : ""} ${theme}`,
+        onClick: onSelectFiles,
+        onDragOver,
+        onDragLeave,
+        onDrop,
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "drop-content", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "drop-icon-large", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "img",
+              {
+                className: "drop-logo",
+                src: theme === "dark" ? logoWhite : logoColor,
+                alt: "Logo"
+              }
+            ) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "drop-text-large", children: t2("dropZoneTitle") })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "drop-info-large", children: t2("dropZoneHint") })
+        ]
+      }
+    )
   ] });
 }
 const CODEC_RF = {
@@ -7752,6 +8586,19 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
       if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith("copy")) {
         patch.audioCodec = "opus";
       }
+    } else {
+      const disabledFormats = ENCODER_DISABLED_FORMATS[settings.encoder];
+      if (disabledFormats?.has(fmt)) {
+        const speeds = ENCODER_PRESETS.x265;
+        patch.encoder = "x265";
+        patch.encoderSpeed = speeds?.find((s) => s.value === "slow")?.value ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? "slow";
+      }
+      if (fmt === "av_mp4" || fmt === "av_mov") {
+        const audioCodec = settings.audioCodec || "av_aac";
+        if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith("copy")) {
+          patch.audioCodec = "av_aac";
+        }
+      }
     }
     onChange({ ...settings, ...patch });
   };
@@ -7792,15 +8639,12 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
           GsSelect,
           {
             value: settings.format,
-            options: (() => {
-              const disabledSet = ENCODER_DISABLED_FORMATS[settings.encoder] || /* @__PURE__ */ new Set();
-              return [
-                { value: "av_mp4", label: "MP4", disabled: disabledSet.has("av_mp4") },
-                { value: "av_mkv", label: "MKV" },
-                { value: "av_webm", label: "WebM", disabled: disabledSet.has("av_webm") },
-                { value: "av_mov", label: "MOV", disabled: disabledSet.has("av_mov") }
-              ];
-            })(),
+            options: [
+              { value: "av_mp4", label: "MP4" },
+              { value: "av_mkv", label: "MKV" },
+              { value: "av_webm", label: "WebM" },
+              { value: "av_mov", label: "MOV" }
+            ],
             onChange: handleFormatChange,
             disabled
           }
@@ -8085,8 +8929,8 @@ const SERVICE_MAP = {
   "twitch.tv": { name: "Twitch", icon: "bi-twitch", color: "#9146ff" },
   "facebook.com": { name: "Facebook", icon: "bi-facebook", color: "#1877f2" },
   "fb.watch": { name: "Facebook", icon: "bi-facebook", color: "#1877f2" },
-  "tiktok.com": { name: "TikTok", icon: "bi-tiktok", color: "#ff0050" },
-  "vt.tiktok.com": { name: "TikTok", icon: "bi-tiktok", color: "#ff0050" },
+  "tiktok.com": { name: "TikTok", icon: "bi-tiktok", svgPath: "M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.84 1.55V6.79a4.85 4.85 0 0 1-1.07-.1z", color: "#ff0050" },
+  "vt.tiktok.com": { name: "TikTok", icon: "bi-tiktok", svgPath: "M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.84 1.55V6.79a4.85 4.85 0 0 1-1.07-.1z", color: "#ff0050" },
   "t.co": { name: "Twitter / X", icon: "bi-twitter-x", color: "#ffffff" },
   "pinterest.com": { name: "Pinterest", icon: "bi-pinterest", color: "#e60023" },
   "pin.it": { name: "Pinterest", icon: "bi-pinterest", color: "#e60023" },
@@ -8095,8 +8939,9 @@ const SERVICE_MAP = {
   "bilibili.com": { name: "Bilibili", icon: "bi-play-circle-fill", color: "#00a1d6" },
   "b23.tv": { name: "Bilibili", icon: "bi-play-circle-fill", color: "#00a1d6" },
   "ok.ru": { name: "OK", icon: "bi-person-circle", color: "#f7931e" },
-  "vk.com": { name: "VKontakte", icon: "bi-person-circle", color: "#4a76a8" },
-  "vk.ru": { name: "VKontakte", icon: "bi-person-circle", color: "#4a76a8" },
+  "vk.com": { name: "VKontakte", icon: "bi-person-circle", svgPath: "M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.523-2.049-1.713-1.033-1.01-1.49-.9-1.49-.9 0 0-.127.1-.127.6v1.556c0 .4-.127.64-1.184.64-1.743 0-3.68-1.06-5.039-3.01C6.094 11.96 5.82 10 5.82 10H7.522s.107.488.32.96c.59 1.32 1.38 1.56 1.38 1.56.21 0 .21-1 .21-1V8.44c0-.5-.19-.66-.19-.66h-.3c-.16 0-.16-.1-.16-.1 0 0 .06-1.26 2.63-1.26 1.48 0 1.48.55 1.48 1.02v2.5c0 .085 0 .65.29.65.194 0 .5-.194 1.06-.82 1.04-1.34 1.55-2.74 1.55-2.74.194-.36.29-.42.29-.42.1-.03.19-.1.57-.1h1.77c.527 0 .527.27.39.53-.16.26-1.25 2.03-1.25 2.03-.67 1.24-.73 1.38.057 2.18.68.68 1.38 1.23 1.38 1.23.6.58.67 1.22.67 1.22z", color: "#4a76a8" },
+  "vk.ru": { name: "VKontakte", icon: "bi-person-circle", svgPath: "M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.523-2.049-1.713-1.033-1.01-1.49-.9-1.49-.9 0 0-.127.1-.127.6v1.556c0 .4-.127.64-1.184.64-1.743 0-3.68-1.06-5.039-3.01C6.094 11.96 5.82 10 5.82 10H7.522s.107.488.32.96c.59 1.32 1.38 1.56 1.38 1.56.21 0 .21-1 .21-1V8.44c0-.5-.19-.66-.19-.66h-.3c-.16 0-.16-.1-.16-.1 0 0 .06-1.26 2.63-1.26 1.48 0 1.48.55 1.48 1.02v2.5c0 .085 0 .65.29.65.194 0 .5-.194 1.06-.82 1.04-1.34 1.55-2.74 1.55-2.74.194-.36.29-.42.29-.42.1-.03.19-.1.57-.1h1.77c.527 0 .527.27.39.53-.16.26-1.25 2.03-1.25 2.03-.67 1.24-.73 1.38.057 2.18.68.68 1.38 1.23 1.38 1.23.6.58.67 1.22.67 1.22z", color: "#4a76a8" },
+  "vkvideo.ru": { name: "VK Видео", icon: "bi-person-circle", svgPath: "M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.523-2.049-1.713-1.033-1.01-1.49-.9-1.49-.9 0 0-.127.1-.127.6v1.556c0 .4-.127.64-1.184.64-1.743 0-3.68-1.06-5.039-3.01C6.094 11.96 5.82 10 5.82 10H7.522s.107.488.32.96c.59 1.32 1.38 1.56 1.38 1.56.21 0 .21-1 .21-1V8.44c0-.5-.19-.66-.19-.66h-.3c-.16 0-.16-.1-.16-.1 0 0 .06-1.26 2.63-1.26 1.48 0 1.48.55 1.48 1.02v2.5c0 .085 0 .65.29.65.194 0 .5-.194 1.06-.82 1.04-1.34 1.55-2.74 1.55-2.74.194-.36.29-.42.29-.42.1-.03.19-.1.57-.1h1.77c.527 0 .527.27.39.53-.16.26-1.25 2.03-1.25 2.03-.67 1.24-.73 1.38.057 2.18.68.68 1.38 1.23 1.38 1.23.6.58.67 1.22.67 1.22z", color: "#4a76a8" },
   "rutube.ru": { name: "Rutube", icon: "bi-play-circle-fill", color: "#ff5c00" },
   "dailymotion.com": { name: "Dailymotion", icon: "bi-play-circle-fill", color: "#0066dc" },
   "bsky.app": { name: "Bluesky", icon: "bi-cloud-fill", color: "#0085ff" },
@@ -8145,14 +8990,14 @@ function getCodecLabel(f2) {
   const base = f2.vcodec.split(".")[0].toLowerCase();
   return VCODEC_LABEL[base] || f2.vcodec.split(".")[0];
 }
-function formatFormatLabel(f2) {
+function formatFormatLabel(f2, t2) {
   const res = f2.height ? f2.height + "p" : f2.resolution || null;
   const ext = f2.ext ? f2.ext.toUpperCase() : null;
   const audioOnly = !f2.vcodec || f2.vcodec === "none";
-  if (audioOnly) return ["Только аудио", ext].filter(Boolean).join(" ");
+  if (audioOnly) return [t2 ? t2("audioOnlyLabel") : "Audio only", ext].filter(Boolean).join(" ");
   return [res, ext].filter(Boolean).join(" ") || f2.format_id;
 }
-function buildFormatTags(f2) {
+function buildFormatTags(f2, t2) {
   const tags = [];
   const codec = getCodecLabel(f2);
   if (codec) tags.push({ key: "enc", icon: "bi-cpu", label: codec, cls: "tr-enc" });
@@ -8160,10 +9005,10 @@ function buildFormatTags(f2) {
   const sz = formatFileSize(f2.filesize);
   if (sz) tags.push({ key: "sz", icon: "bi-hdd", label: "~" + sz, cls: "tr-size" });
   if (!f2.vcodec || f2.vcodec === "none")
-    tags.push({ key: "aud", icon: "bi-music-note", label: "аудио", cls: "tr-aud" });
+    tags.push({ key: "aud", icon: "bi-music-note", label: t2 ? t2("audioOnlyTag") : "audio", cls: "tr-aud" });
   return tags;
 }
-function buildYtdlFormatGroups(formats) {
+function buildYtdlFormatGroups(formats, t2) {
   if (!formats || !formats.length) return [];
   const seen = /* @__PURE__ */ new Map();
   for (const f2 of formats) {
@@ -8173,7 +9018,7 @@ function buildYtdlFormatGroups(formats) {
     if (!prev || (f2.tbr || 0) > (prev.tbr || 0)) seen.set(key, f2);
   }
   const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
-  return [{ label: "Доступные форматы", options: sorted.map((f2) => ({ value: f2.format_id, label: formatFormatLabel(f2), tags: buildFormatTags(f2) })) }];
+  return [{ label: t2 ? t2("availableFormats") : "Available formats", options: sorted.map((f2) => ({ value: f2.format_id, label: formatFormatLabel(f2, t2), tags: buildFormatTags(f2, t2) })) }];
 }
 const ENCODER_SHORT = {
   x264: "H.264",
@@ -8201,7 +9046,7 @@ const ENCODER_SHORT = {
 };
 const FORMAT_LABEL = { av_mp4: "MP4", av_mkv: "MKV", av_webm: "WebM", av_mov: "MOV" };
 const RES_LABEL = { "4k": "4K", "1440p": "1440p", "1080p": "1080p", "720p": "720p", "480p": "480p" };
-function getTransformTags(video, s) {
+function getTransformTags(video, s, t2) {
   const tags = [];
   if (!s) return tags;
   if (s.format && FORMAT_LABEL[s.format]) tags.push({ key: "fmt", icon: "bi-file-earmark-play", label: FORMAT_LABEL[s.format], cls: "tr-fmt" });
@@ -8210,12 +9055,12 @@ function getTransformTags(video, s) {
   if (s.fps && s.fps !== "source") tags.push({ key: "fps", icon: "bi-camera-video", label: "→ " + s.fps + " fps", cls: "tr-fps" });
   const audioShort = (s.audioCodec || "av_aac").replace("av_", "").replace("fdk_", "").toUpperCase().replace("COPY:", "").replace("COPY", "Passthru");
   tags.push({ key: "aud", icon: "bi-music-note", label: audioShort, cls: "tr-aud" });
-  if (s.grayscale) tags.push({ key: "gray", icon: "bi-circle-half", label: "ЧБ", cls: "tr-filter" });
-  if (s.rotate && s.rotate !== "0") tags.push({ key: "rot", icon: "bi-arrow-clockwise", label: s.rotate === "hflip" ? "Отражение" : s.rotate + "°", cls: "tr-filter" });
-  if (s.deinterlace && s.deinterlace !== "off") tags.push({ key: "deint", icon: "bi-layout-split", label: "Деинтерлейс", cls: "tr-filter" });
-  if (s.denoise && s.denoise !== "off") tags.push({ key: "dn", icon: "bi-snow", label: "Шумодав", cls: "tr-filter" });
-  if (s.sharpen && s.sharpen !== "off") tags.push({ key: "sh", icon: "bi-stars", label: "Резкость", cls: "tr-filter" });
-  if (s.deblock && s.deblock !== "off") tags.push({ key: "db", icon: "bi-bounding-box", label: "Деблок", cls: "tr-filter" });
+  if (s.grayscale) tags.push({ key: "gray", icon: "bi-circle-half", label: t2 ? t2("filterTagGrayscale") : "B&W", cls: "tr-filter" });
+  if (s.rotate && s.rotate !== "0") tags.push({ key: "rot", icon: "bi-arrow-clockwise", label: s.rotate === "hflip" ? t2 ? t2("filterTagFlip") : "Flip" : s.rotate + "°", cls: "tr-filter" });
+  if (s.deinterlace && s.deinterlace !== "off") tags.push({ key: "deint", icon: "bi-layout-split", label: t2 ? t2("filterTagDeinterlace") : "Deinterlace", cls: "tr-filter" });
+  if (s.denoise && s.denoise !== "off") tags.push({ key: "dn", icon: "bi-snow", label: t2 ? t2("filterTagDenoise") : "Denoise", cls: "tr-filter" });
+  if (s.sharpen && s.sharpen !== "off") tags.push({ key: "sh", icon: "bi-stars", label: t2 ? t2("filterTagSharpen") : "Sharpen", cls: "tr-filter" });
+  if (s.deblock && s.deblock !== "off") tags.push({ key: "db", icon: "bi-bounding-box", label: t2 ? t2("filterTagDeblock") : "Deblock", cls: "tr-filter" });
   return tags;
 }
 const AUDIO_CODECS$1 = [
@@ -8229,7 +9074,7 @@ const AUDIO_CODECS$1 = [
   { value: "flac16", label: "FLAC 16-bit" },
   { value: "flac24", label: "FLAC 24-bit" },
   { value: "opus", label: "Opus" },
-  { value: "copy", label: "Passthru (авто)" },
+  { value: "copy", label: "Passthru (auto)" },
   { value: "copy:aac", label: "AAC Passthru" },
   { value: "copy:ac3", label: "AC3 Passthru" },
   { value: "copy:eac3", label: "E-AC3 Passthru" },
@@ -8272,23 +9117,427 @@ function formatTime(sec) {
   if (h > 0) return `${h}:${String(m2).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
   return `${m2}:${String(ss).padStart(2, "0")}`;
 }
+function timeToInput(sec) {
+  if (sec == null) return "";
+  const s = Math.max(0, Math.floor(sec));
+  const h = Math.floor(s / 3600);
+  const m2 = Math.floor(s % 3600 / 60);
+  const ss = s % 60;
+  if (h > 0) return `${h}:${String(m2).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+  return `${String(m2).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+function parseTimeInput(str) {
+  const parts = str.trim().split(":").map((p2) => parseInt(p2, 10));
+  if (parts.some(isNaN)) return null;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return null;
+}
+function ytSeek(iframeEl, sec) {
+  if (!iframeEl?.contentWindow) return;
+  iframeEl.contentWindow.postMessage(
+    JSON.stringify({ event: "command", func: "seekTo", args: [Math.max(0, sec), true] }),
+    "https://www.youtube-nocookie.com"
+  );
+}
+function getYouTubeId(url) {
+  try {
+    const u2 = new URL(url);
+    if (u2.hostname === "youtu.be") return u2.pathname.slice(1);
+    if (u2.hostname.includes("youtube.com")) return u2.searchParams.get("v");
+  } catch {
+  }
+  return null;
+}
+function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, videoUrl, onChange }) {
+  const { t: t2 } = useLanguage();
+  const trackRef = reactExports.useRef(null);
+  const draggingRef = reactExports.useRef(null);
+  const iframeRef = reactExports.useRef(null);
+  const timeRef = reactExports.useRef(0);
+  const pollRef = reactExports.useRef(null);
+  const dur = duration || 1;
+  const effectiveStart = clipStart ?? 0;
+  const effectiveEnd = clipEnd ?? dur;
+  const [startInput, setStartInput] = reactExports.useState(timeToInput(effectiveStart));
+  const [endInput, setEndInput] = reactExports.useState(timeToInput(effectiveEnd));
+  const [startInputError, setStartInputError] = reactExports.useState(false);
+  const [endInputError, setEndInputError] = reactExports.useState(false);
+  const [hoverTime, setHoverTime] = reactExports.useState(null);
+  const [hoverPct, setHoverPct] = reactExports.useState(0);
+  const [embedSec, setEmbedSec] = reactExports.useState(null);
+  const [currentTime, setCurrentTime] = reactExports.useState(null);
+  reactExports.useEffect(() => {
+    setStartInput(timeToInput(clipStart ?? 0));
+  }, [clipStart]);
+  reactExports.useEffect(() => {
+    setEndInput(timeToInput(clipEnd ?? dur));
+  }, [clipEnd, dur]);
+  reactExports.useEffect(() => {
+    if (embedSec === null) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+      setCurrentTime(null);
+      return;
+    }
+    timeRef.current = embedSec;
+    setCurrentTime(embedSec);
+    const onMessage = (e) => {
+      if (e.origin !== "https://www.youtube.com") return;
+      let data;
+      try {
+        data = JSON.parse(e.data);
+      } catch {
+        return;
+      }
+      if (data.event === "onStateChange") {
+        if (data.info === 1) {
+          clearInterval(pollRef.current);
+          pollRef.current = setInterval(() => {
+            timeRef.current = Math.min(timeRef.current + 0.2, dur);
+            setCurrentTime(timeRef.current);
+          }, 200);
+        } else {
+          clearInterval(pollRef.current);
+        }
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      clearInterval(pollRef.current);
+    };
+  }, [embedSec, dur]);
+  reactExports.useEffect(() => () => {
+    clearInterval(pollRef.current);
+  }, []);
+  const seekPlayer = (sec) => {
+    ytSeek(iframeRef.current, sec);
+    timeRef.current = sec;
+    setCurrentTime(sec);
+  };
+  const clamp = (v2, lo, hi2) => Math.max(lo, Math.min(hi2, v2));
+  const posFromEvent = reactExports.useCallback((e) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
+    const x2 = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    return clamp(x2 / rect.width, 0, 1);
+  }, []);
+  const handleTrackMouseDown = reactExports.useCallback((e, handle) => {
+    e.preventDefault();
+    draggingRef.current = handle;
+    const onMove = (ev) => {
+      const pos = posFromEvent(ev);
+      const sec = Math.round(pos * dur);
+      if (draggingRef.current === "start") {
+        const newStart = clamp(sec, 0, (clipEnd ?? dur) - 1);
+        onChange(newStart, clipEnd ?? dur);
+        seekPlayer(newStart);
+      } else {
+        const newEnd = clamp(sec, (clipStart ?? 0) + 1, dur);
+        onChange(clipStart ?? 0, newEnd);
+        seekPlayer(newEnd);
+      }
+    };
+    const onUp = () => {
+      draggingRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+  }, [dur, clipStart, clipEnd, onChange, posFromEvent]);
+  const handleTrackMouseMove = reactExports.useCallback((e) => {
+    const pos = posFromEvent(e);
+    setHoverTime(Math.round(pos * dur));
+    setHoverPct(pos * 100);
+  }, [dur, posFromEvent]);
+  const handleStartInputBlur = () => {
+    const s = parseTimeInput(startInput);
+    if (s === null || s < 0 || s >= (clipEnd ?? dur)) {
+      setStartInputError(true);
+      setStartInput(timeToInput(clipStart ?? 0));
+      return;
+    }
+    setStartInputError(false);
+    onChange(s, clipEnd ?? dur);
+  };
+  const handleEndInputBlur = () => {
+    const s = parseTimeInput(endInput);
+    if (s === null || s <= (clipStart ?? 0) || s > dur) {
+      setEndInputError(true);
+      setEndInput(timeToInput(clipEnd ?? dur));
+      return;
+    }
+    setEndInputError(false);
+    onChange(clipStart ?? 0, s);
+  };
+  const handleInputKeyDown = (e, handler) => {
+    if (e.key === "Enter") {
+      e.target.blur();
+      handler();
+    }
+    if (e.key === "Escape") e.target.blur();
+  };
+  const selectChapter = (ch2) => {
+    onChange(Math.round(ch2.start_time), Math.round(ch2.end_time));
+  };
+  const isFullRange = effectiveStart === 0 && effectiveEnd >= dur - 1;
+  const selectedSec = Math.max(0, effectiveEnd - effectiveStart);
+  const startPct = effectiveStart / dur * 100;
+  const endPct = effectiveEnd / dur * 100;
+  const ytId = videoUrl ? getYouTubeId(videoUrl) : null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-root", children: [
+    (thumbnail || ytId) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "trs-preview-area", children: ytId && embedSec !== null ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-embed-wrap", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "iframe",
+        {
+          ref: iframeRef,
+          className: "trs-embed",
+          src: `https://www.youtube-nocookie.com/embed/${ytId}?start=${Math.floor(embedSec)}&autoplay=1&enablejsapi=1&controls=1&rel=0&origin=https://www.youtube-nocookie.com`,
+          allow: "autoplay; encrypted-media; picture-in-picture",
+          allowFullScreen: true,
+          title: "Preview"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          className: "trs-embed-close",
+          onClick: () => setEmbedSec(null),
+          title: t2("trsClosePlayer"),
+          type: "button",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" })
+        }
+      )
+    ] }) : (
+      /* Static thumbnail with two preview buttons */
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-thumb-area", children: [
+        thumbnail && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-thumb-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: thumbnail, alt: "", className: "trs-thumb-img" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "trs-thumb-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "trs-thumb-range", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-scissors" }),
+            isFullRange ? t2("trsFullVideo") : `${timeToInput(effectiveStart)} — ${timeToInput(effectiveEnd)} (${timeToInput(selectedSec)})`
+          ] }) })
+        ] }),
+        ytId && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-thumb-btns", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              className: "trs-thumb-play-btn trs-thumb-play-btn--start",
+              onClick: () => setEmbedSec(effectiveStart),
+              type: "button",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-play-fill" }),
+                t2("trsFrom"),
+                " ",
+                timeToInput(effectiveStart)
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              className: "trs-thumb-play-btn trs-thumb-play-btn--end",
+              onClick: () => setEmbedSec(effectiveEnd),
+              type: "button",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-play-fill" }),
+                t2("trsTo"),
+                " ",
+                timeToInput(effectiveEnd)
+              ]
+            }
+          )
+        ] })
+      ] })
+    ) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-track-wrap", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "trs-track",
+          ref: trackRef,
+          onMouseMove: handleTrackMouseMove,
+          onMouseLeave: () => setHoverTime(null),
+          onClick: (e) => {
+            if (embedSec === null) return;
+            seekPlayer(Math.round(posFromEvent(e) * dur));
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "trs-outside trs-outside--left", style: { width: `${startPct}%` } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "trs-outside trs-outside--right", style: { left: `${endPct}%`, width: `${100 - endPct}%` } }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "trs-region",
+                style: { left: `${startPct}%`, width: `${endPct - startPct}%` }
+              }
+            ),
+            (chapters || []).map((ch2, i) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "trs-chapter-mark",
+                style: { left: `${ch2.start_time / dur * 100}%` },
+                title: ch2.title
+              },
+              i
+            )),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "trs-handle trs-handle--start",
+                style: { left: `${startPct}%` },
+                onMouseDown: (e) => handleTrackMouseDown(e, "start"),
+                onTouchStart: (e) => handleTrackMouseDown(e, "start"),
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "trs-handle-inner" })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "trs-handle trs-handle--end",
+                style: { left: `${endPct}%` },
+                onMouseDown: (e) => handleTrackMouseDown(e, "end"),
+                onTouchStart: (e) => handleTrackMouseDown(e, "end"),
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "trs-handle-inner" })
+              }
+            ),
+            currentTime !== null && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "trs-playhead",
+                style: { left: `${currentTime / dur * 100}%` }
+              }
+            ),
+            hoverTime !== null && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                className: "trs-hover-tip",
+                style: { left: `${hoverPct}%` },
+                children: timeToInput(hoverTime)
+              }
+            )
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-ticks", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "0:00" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: timeToInput(Math.round(dur / 4)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: timeToInput(Math.round(dur / 2)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: timeToInput(Math.round(dur * 3 / 4)) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: timeToInput(dur) })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-inputs", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-input-group", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "trs-input-label", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-skip-start-fill" }),
+          " ",
+          t2("trsFrom")
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            className: `trs-input${startInputError ? " trs-input--error" : ""}`,
+            type: "text",
+            value: startInput,
+            placeholder: "0:00",
+            onChange: (e) => {
+              setStartInput(e.target.value);
+              setStartInputError(false);
+            },
+            onBlur: handleStartInputBlur,
+            onKeyDown: (e) => handleInputKeyDown(e, handleStartInputBlur),
+            spellCheck: false
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-duration-badge", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-scissors" }),
+        isFullRange ? t2("trsFullVideo") : timeToInput(selectedSec)
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-input-group", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "trs-input-label", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-skip-end-fill" }),
+          " ",
+          t2("trsTo")
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            className: `trs-input${endInputError ? " trs-input--error" : ""}`,
+            type: "text",
+            value: endInput,
+            placeholder: timeToInput(dur),
+            onChange: (e) => {
+              setEndInput(e.target.value);
+              setEndInputError(false);
+            },
+            onBlur: handleEndInputBlur,
+            onKeyDown: (e) => handleInputKeyDown(e, handleEndInputBlur),
+            spellCheck: false
+          }
+        )
+      ] }),
+      !isFullRange && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          className: "trs-reset-btn",
+          onClick: () => onChange(0, dur),
+          title: t2("trsRemoveClip"),
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" })
+        }
+      )
+    ] }),
+    chapters && chapters.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "trs-chapters", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "trs-chapters-label", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-bookmark-fill" }),
+        " ",
+        t2("trsChapters")
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "trs-chapter-tags", children: chapters.map((ch2, i) => {
+        const isActive = Math.abs(effectiveStart - ch2.start_time) < 2 && Math.abs(effectiveEnd - ch2.end_time) < 2;
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            className: `trs-chapter-tag${isActive ? " active" : ""}`,
+            onClick: () => selectChapter(ch2),
+            title: `${timeToInput(ch2.start_time)} – ${timeToInput(ch2.end_time)}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "trs-chapter-time", children: timeToInput(ch2.start_time) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "trs-chapter-title", children: ch2.title })
+            ]
+          },
+          i
+        );
+      }) })
+    ] })
+  ] });
+}
 const PanelSelect = (props) => /* @__PURE__ */ jsxRuntimeExports.jsx(GsSelect, { direction: "down", ...props });
-const VSP_TABS = [
-  { id: "video", label: "Видео", icon: "bi-camera-video" },
-  { id: "audio", label: "Аудио", icon: "bi-music-note-beamed" },
-  { id: "subtitles", label: "Субтитры", icon: "bi-badge-cc" },
-  { id: "filters", label: "Фильтры", icon: "bi-sliders" },
-  { id: "hdr", label: "HDR / Мета", icon: "bi-stars" }
-];
-const VSP_TABS_YTDL = [
-  { id: "download", label: "Загрузка", icon: "bi-cloud-arrow-down" },
-  { id: "video", label: "Видео", icon: "bi-camera-video" },
-  { id: "audio", label: "Аудио", icon: "bi-music-note-beamed" },
-  { id: "subtitles", label: "Субтитры", icon: "bi-badge-cc" },
-  { id: "filters", label: "Фильтры", icon: "bi-sliders" },
-  { id: "hdr", label: "HDR / Мета", icon: "bi-stars" }
-];
-function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle }) {
+function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange }) {
+  const { t: t2 } = useLanguage();
+  const VSP_TABS = [
+    { id: "video", label: t2("tabVideo"), icon: "bi-camera-video" },
+    { id: "audio", label: t2("tabAudio"), icon: "bi-music-note-beamed" },
+    { id: "subtitles", label: t2("tabSubtitles"), icon: "bi-badge-cc" },
+    { id: "filters", label: t2("tabFilters"), icon: "bi-sliders" },
+    { id: "hdr", label: t2("tabHdr"), icon: "bi-stars" }
+  ];
+  const VSP_TABS_YTDL = [
+    { id: "download", label: t2("vspTabDownload"), icon: "bi-cloud-arrow-down" },
+    { id: "video", label: t2("tabVideo"), icon: "bi-camera-video" },
+    { id: "audio", label: t2("tabAudio"), icon: "bi-music-note-beamed" },
+    { id: "subtitles", label: t2("tabSubtitles"), icon: "bi-badge-cc" },
+    { id: "filters", label: t2("tabFilters"), icon: "bi-sliders" },
+    { id: "hdr", label: t2("tabHdr"), icon: "bi-stars" }
+  ];
   const isYtdl = !!video.isYtdlItem;
   const tabs = isYtdl ? VSP_TABS_YTDL : VSP_TABS;
   const [draft, setDraft] = reactExports.useState(video.customSettings || video.conversionSettings || { ...globalSettings });
@@ -8305,6 +9554,19 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
       const audioCodec = draft.audioCodec || "av_aac";
       if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith("copy")) {
         patch.audioCodec = "opus";
+      }
+    } else {
+      const disabledFormats = ENCODER_DISABLED_FORMATS[draft.encoder];
+      if (disabledFormats?.has(fmt)) {
+        const speeds = ENCODER_PRESETS.x265;
+        patch.encoder = "x265";
+        patch.encoderSpeed = speeds?.find((s) => s.value === "slow")?.value ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? "slow";
+      }
+      if (fmt === "av_mp4" || fmt === "av_mov") {
+        const audioCodec = draft.audioCodec || "av_aac";
+        if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith("copy")) {
+          patch.audioCodec = "av_aac";
+        }
       }
     }
     setDraft((prev) => ({ ...prev, ...patch }));
@@ -8340,7 +9602,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
         /* @__PURE__ */ jsxRuntimeExports.jsx("img", { className: "vsp-thumb", src: video.thumbnail, alt: "" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-title-block", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-title", children: video.title }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-subtitle", children: isYtdl ? "Настройки загрузки и конвертации" : "Индивидуальные настройки конвертации" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-subtitle", children: isYtdl ? t2("vspDownloadTitle") : t2("vspConvTitle") })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "vsp-close", onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" }) })
@@ -8360,8 +9622,8 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
       )) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-content", children: [
         activeTab === "download" && isYtdl && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-cloud-arrow-down", title: "Формат загрузки" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Качество / формат", hint: "Выберите разрешение и формат для скачивания", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-cloud-arrow-down", title: t2("vspDownloadFormat") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("vspQualityFormat"), hint: t2("vspHintQualityFormat"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: selectedYtdlFmt,
@@ -8369,8 +9631,23 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               onChange: (v2) => onYtdlFormatChange(video.id, v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-arrow-repeat", title: "Конвертация после загрузки" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Конвертировать файл", hint: "После загрузки запустить HandBrake конвертацию (настройки — во вкладках Видео/Аудио)", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          video.ytdlDuration > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-scissors", title: t2("vspTimeClip") }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "vsp-clip-wrap", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+              TimeRangeSelector,
+              {
+                duration: video.ytdlDuration,
+                chapters: video.ytdlChapters || [],
+                clipStart: video.clipStart ?? null,
+                clipEnd: video.clipEnd ?? null,
+                thumbnail: video.thumbnail,
+                videoUrl: video.ytdlUrl,
+                onChange: (s, e) => onYtdlClipChange(video.id, s, e)
+              }
+            ) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-arrow-repeat", title: t2("vspConvertAfterDl") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("vspConvertFile"), hint: t2("vspHintConvertFile"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             VspToggle,
             {
               value: convertAfterDownload,
@@ -8379,29 +9656,26 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
           ) }),
           !convertAfterDownload && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-notice", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-info-circle" }),
-            "Вкладки Видео / Аудио / Фильтры доступны только если включена конвертация."
+            t2("vspConvertNotice")
           ] })
         ] }),
         activeTab === "video" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-file-earmark-play", title: "Контейнер" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Формат", hint: "Контейнер для выходного файла", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-file-earmark-play", title: t2("sectionContainer") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowFormat"), hint: t2("hintFormat"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.format,
-              options: (() => {
-                const disabledSet = ENCODER_DISABLED_FORMATS[draft.encoder] || /* @__PURE__ */ new Set();
-                return [
-                  { value: "av_mp4", label: "MP4", disabled: disabledSet.has("av_mp4") },
-                  { value: "av_mkv", label: "MKV" },
-                  { value: "av_webm", label: "WebM", disabled: disabledSet.has("av_webm") },
-                  { value: "av_mov", label: "MOV", disabled: disabledSet.has("av_mov") }
-                ];
-              })(),
+              options: [
+                { value: "av_mp4", label: "MP4" },
+                { value: "av_mkv", label: "MKV" },
+                { value: "av_webm", label: "WebM" },
+                { value: "av_mov", label: "MOV" }
+              ],
               onChange: handleFormatChange
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-cpu", title: "Кодировщик" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Видеокодек", hint: "Алгоритм сжатия видео", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-cpu", title: t2("sectionEncoder") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowVideoCodec"), hint: t2("hintVideoCodec"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.encoder,
@@ -8419,7 +9693,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               }
             }
           ) }),
-          speedPresets.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Скорость / пресет", hint: "Соотношение скорость↔эффективность кодека", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          speedPresets.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSpeedPreset"), hint: t2("hintSpeedPreset"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.encoderSpeed,
@@ -8427,18 +9701,18 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               onChange: (v2) => update("encoderSpeed", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-sliders2", title: "Качество" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Режим качества", hint: "Предустановка или точное значение RF/CRF", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-sliders2", title: t2("sectionQuality") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowQualityMode"), hint: t2("hintQualityMode"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.quality,
               options: [
                 { value: "lossless", label: `Lossless (RF ${rfTable.min})` },
-                { value: "high", label: `Высокое (RF ${rfTable.high})` },
-                { value: "medium", label: `Среднее (RF ${rfTable.medium})` },
-                { value: "low", label: `Низкое (RF ${rfTable.low})` },
-                { value: "potato", label: `Максимальное сжатие (RF ${rfTable.potato})` },
-                { value: "custom", label: draft.quality === "custom" ? `Своё (RF ${draft.customQuality})` : "Своё значение..." }
+                { value: "high", label: `${t2("qualityHigh")} (RF ${rfTable.high})` },
+                { value: "medium", label: `${t2("qualityMedium")} (RF ${rfTable.medium})` },
+                { value: "low", label: `${t2("qualityLow")} (RF ${rfTable.low})` },
+                { value: "potato", label: `${t2("qualityPotato")} (RF ${rfTable.potato})` },
+                { value: "custom", label: draft.quality === "custom" ? `${t2("qualityCustomLabel")} (RF ${draft.customQuality})` : t2("qualityCustomEmpty") }
               ],
               onChange: (v2) => update("quality", v2)
             }
@@ -8447,7 +9721,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             VspRow,
             {
               label: `RF / CRF: ${draft.customQuality}`,
-              hint: `${rfTable.min} (лучше качество) — ${rfTable.max} (хуже)`,
+              hint: `${rfTable.min} (${t2("vspQualityHint")}) — ${rfTable.max} (${t2("vspQualityHintWorse")})`,
               children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-slider-wrap", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-slider-edge", children: rfTable.min }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -8466,13 +9740,13 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               ] })
             }
           ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-aspect-ratio", title: "Разрешение и частота кадров" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Разрешение", hint: "Максимальное разрешение (масштабирование вниз)", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-aspect-ratio", title: t2("sectionResFps") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowResolution"), hint: t2("hintResolution"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.resolution,
               options: [
-                { value: "source", label: "По исходному" },
+                { value: "source", label: t2("resSource") },
                 { value: "4k", label: "4K (2160p)" },
                 { value: "1440p", label: "2K (1440p)" },
                 { value: "1080p", label: "1080p (Full HD)" },
@@ -8482,51 +9756,51 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               onChange: (v2) => update("resolution", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Частота кадров", hint: "Целевой FPS выходного видео", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowFps"), hint: t2("hintFps"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.fps,
               options: [
-                { value: "source", label: "По исходному" },
+                { value: "source", label: t2("fpsSource") },
                 { value: "60", label: "60 fps" },
                 { value: "30", label: "30 fps" },
                 { value: "25", label: "25 fps (PAL)" },
-                { value: "24", label: "24 fps (кино)" },
+                { value: "24", label: t2("fpsCinema") },
                 { value: "23.976", label: "23.976 fps (NTSC)" }
               ],
               onChange: (v2) => update("fps", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Режим FPS", hint: "VFR = переменный, CFR = постоянный, PFR = с ограничением", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowFpsMode"), hint: t2("hintFpsMode"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.fpsMode || "vfr",
               options: [
-                { value: "vfr", label: "VFR — переменный (рекомендован)" },
-                { value: "cfr", label: "CFR — постоянный" },
-                { value: "pfr", label: "PFR — с пиковым ограничением" }
+                { value: "vfr", label: t2("fpsVfr") },
+                { value: "cfr", label: t2("fpsCfr") },
+                { value: "pfr", label: t2("fpsPfr") }
               ],
               onChange: (v2) => update("fpsMode", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-lightning-charge", title: "Аппаратное ускорение" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Аппаратное декодирование", hint: "NVDEC / QSV разгружает CPU при чтении источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-lightning-charge", title: t2("sectionHwAccel") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowHwDecoding"), hint: t2("hintHwDecodingVsp"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.hwDecoding || "none",
               options: [
-                { value: "none", label: "Отключено (программное)" },
+                { value: "none", label: t2("hwDecodingNone") },
                 { value: "nvdec", label: "NVDEC (NVIDIA)" },
                 { value: "qsv", label: "Quick Sync (Intel)" }
               ],
               onChange: (v2) => update("hwDecoding", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Двухпроходное кодирование", hint: "2-pass: лучше распределяет битрейт, кодирует в 2× дольше", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.multiPass, onChange: (v2) => update("multiPass", v2) }) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowMultiPass"), hint: t2("hintMultiPass"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.multiPass, onChange: (v2) => update("multiPass", v2) }) })
         ] }),
         activeTab === "audio" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-music-note-beamed", title: "Кодек аудио" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Аудиокодек", hint: "Кодек для аудиодорожки выходного файла", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-music-note-beamed", title: t2("sectionAudioCodec") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowAudioCodec"), hint: t2("hintAudioCodec"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.audioCodec || "av_aac",
@@ -8538,8 +9812,8 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             }
           ) }),
           !isPassthru && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-speaker", title: "Параметры аудио" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Битрейт", hint: "Битрейт аудиодорожки в кбит/с", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-speaker", title: t2("sectionAudioParams") }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowBitrate"), hint: t2("hintBitrate"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               PanelSelect,
               {
                 value: draft.audioBitrate || "160",
@@ -8547,7 +9821,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                   { value: "64", label: "64 kbps" },
                   { value: "96", label: "96 kbps" },
                   { value: "128", label: "128 kbps" },
-                  { value: "160", label: "160 kbps (по умолчанию)" },
+                  { value: "160", label: `160 kbps (${t2("bitrateDefault")})` },
                   { value: "192", label: "192 kbps" },
                   { value: "256", label: "256 kbps" },
                   { value: "320", label: "320 kbps" }
@@ -8555,13 +9829,13 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                 onChange: (v2) => update("audioBitrate", v2)
               }
             ) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Микшинг", hint: "Количество каналов в выходной аудиодорожке", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowMixdown"), hint: t2("hintMixdown"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               PanelSelect,
               {
                 value: draft.audioMixdown || "stereo",
                 options: [
-                  { value: "mono", label: "Моно (1.0)" },
-                  { value: "stereo", label: "Стерео (2.0)" },
+                  { value: "mono", label: t2("mixMono") },
+                  { value: "stereo", label: t2("mixStereo") },
                   { value: "dpl2", label: "Dolby Pro Logic II" },
                   { value: "5point1", label: "Surround 5.1" },
                   { value: "6point1", label: "Surround 6.1" },
@@ -8570,12 +9844,12 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                 onChange: (v2) => update("audioMixdown", v2)
               }
             ) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Частота дискретизации", hint: "Sample rate аудио", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSampleRate"), hint: t2("hintSampleRate"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               PanelSelect,
               {
                 value: draft.audioSampleRate || "auto",
                 options: [
-                  { value: "auto", label: "Авто (по исходному)" },
+                  { value: "auto", label: t2("srAuto") },
                   { value: "22.05", label: "22.05 kHz" },
                   { value: "32", label: "32 kHz" },
                   { value: "44.1", label: "44.1 kHz" },
@@ -8586,9 +9860,9 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               }
             ) })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-collection-play", title: "Метаданные файла" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Метки глав (Chapter markers)", hint: "Добавлять chapter markers в контейнер", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: draft.chapterMarkers !== false, onChange: (v2) => update("chapterMarkers", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Оптимизировать MP4 (fast start)", hint: "Moov-атом в начале файла — для HTTP стриминга. Только MP4.", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-collection-play", title: t2("sectionFileMetadata") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowChapterMarkers"), hint: t2("hintChapterMarkers"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: draft.chapterMarkers !== false, onChange: (v2) => update("chapterMarkers", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowOptimizeMp4"), hint: t2("hintOptimizeMp4"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             VspToggle,
             {
               value: !!draft.optimizeMP4,
@@ -8598,47 +9872,47 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
           ) })
         ] }),
         activeTab === "subtitles" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-badge-cc", title: "Дорожки субтитров" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Субтитры", hint: "Какие дорожки субтитров включить в выходной файл", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-badge-cc", title: t2("sectionSubtitleTracks") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSubtitles"), hint: t2("hintSubtitles"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.subtitleMode || "none",
               options: [
-                { value: "none", label: "Не включать" },
-                { value: "first", label: "Первая дорожка" },
-                { value: "all", label: "Все дорожки" },
-                { value: "scan_forced", label: "Авто (принудительные / иностранные)" }
+                { value: "none", label: t2("subNone") },
+                { value: "first", label: t2("subFirst") },
+                { value: "all", label: t2("subAll") },
+                { value: "scan_forced", label: t2("subScanForced") }
               ],
               onChange: (v2) => update("subtitleMode", v2)
             }
           ) }),
-          draft.subtitleMode !== "none" && draft.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Вшивать субтитры", hint: "Субтитры рендерятся прямо в кадр (burn-in). Не требует поддержки контейнером", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleBurn, onChange: (v2) => update("subtitleBurn", v2) }) }),
-          draft.subtitleMode !== "none" && !draft.subtitleBurn && draft.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Субтитры по умолчанию", hint: "Отметить дорожку как выбранную по умолчанию в плеере", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleDefault, onChange: (v2) => update("subtitleDefault", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-translate", title: "Язык субтитров" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Предпочитаемый язык", hint: "Нативный язык: при наличии такой дорожки, она будет выбрана автоматически", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          draft.subtitleMode !== "none" && draft.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSubtitleBurn"), hint: t2("hintSubtitleBurn"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleBurn, onChange: (v2) => update("subtitleBurn", v2) }) }),
+          draft.subtitleMode !== "none" && !draft.subtitleBurn && draft.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSubtitleDefault"), hint: t2("hintSubtitleDefaultShort"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleDefault, onChange: (v2) => update("subtitleDefault", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-translate", title: t2("sectionSubtitleLang") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSubtitleLang"), hint: t2("hintSubtitleLang"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.subtitleLanguage || "any",
               options: [
-                { value: "any", label: "Любой (не фильтровать)" },
-                { value: "eng", label: "Английский (eng)" },
-                { value: "rus", label: "Русский (rus)" },
-                { value: "jpn", label: "Японский (jpn)" },
-                { value: "chi", label: "Китайский (chi)" },
-                { value: "kor", label: "Корейский (kor)" },
-                { value: "fra", label: "Французский (fra)" },
-                { value: "deu", label: "Немецкий (deu)" },
-                { value: "spa", label: "Испанский (spa)" },
-                { value: "por", label: "Португальский (por)" },
-                { value: "ita", label: "Итальянский (ita)" },
-                { value: "ara", label: "Арабский (ara)" }
+                { value: "any", label: t2("subLangAny") },
+                { value: "eng", label: t2("subLangEng") },
+                { value: "rus", label: t2("subLangRus") },
+                { value: "jpn", label: t2("subLangJpn") },
+                { value: "chi", label: t2("subLangChi") },
+                { value: "kor", label: t2("subLangKor") },
+                { value: "fra", label: t2("subLangFra") },
+                { value: "deu", label: t2("subLangDeu") },
+                { value: "spa", label: t2("subLangSpa") },
+                { value: "por", label: t2("subLangPor") },
+                { value: "ita", label: t2("subLangIta") },
+                { value: "ara", label: t2("subLangAra") }
               ],
               onChange: (v2) => update("subtitleLanguage", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-file-earmark-text", title: "Внешний файл субтитров" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Файл субтитров", hint: "Прикрепить внешний файл .srt / .ass / .ssa", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-file-pick", children: [
-            draft.subtitleExternalFile ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-file-pick__name", title: draft.subtitleExternalFile, children: draft.subtitleExternalFile.split(/[\\/]/).pop() }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-file-pick__empty", children: "Не выбран" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-file-earmark-text", title: t2("sectionSubtitleExt") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSubtitleExtFile"), hint: t2("hintSubtitleExtFile"), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-file-pick", children: [
+            draft.subtitleExternalFile ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-file-pick__name", title: draft.subtitleExternalFile, children: draft.subtitleExternalFile.split(/[\\/]/).pop() }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vsp-file-pick__empty", children: t2("subExtFileEmpty") }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
@@ -8656,132 +9930,132 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
               {
                 className: "vsp-file-pick__clear",
                 type: "button",
-                title: "Убрать файл",
+                title: t2("removeFile"),
                 onClick: () => update("subtitleExternalFile", ""),
                 children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" })
               }
             )
           ] }) }),
-          draft.subtitleExternalFile && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Вшить внешние субтитры", hint: "Рендерить сабы прямо в кадр (burn-in), иначе — как отдельная дорожка", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleBurn, onChange: (v2) => update("subtitleBurn", v2) }) }),
-          draft.subtitleExternalFile && !draft.subtitleBurn && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Субтитры по умолчанию", hint: "Отметить как выбранную по умолчанию в плеере", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleDefault, onChange: (v2) => update("subtitleDefault", v2) }) })
+          draft.subtitleExternalFile && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSubtitleExtBurn"), hint: t2("hintSubtitleExtBurn"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleBurn, onChange: (v2) => update("subtitleBurn", v2) }) }),
+          draft.subtitleExternalFile && !draft.subtitleBurn && /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSubtitleDefault"), hint: t2("hintSubtitleDefaultShort"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.subtitleDefault, onChange: (v2) => update("subtitleDefault", v2) }) })
         ] }),
         activeTab === "filters" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-intersect", title: "Деинтерлейс" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Деинтерлейс", hint: "Устраняет гребёнку от чересстрочной развёртки", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-intersect", title: t2("sectionDeinterlace") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowDeinterlace"), hint: t2("hintDeinterlace"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.deinterlace || "off",
               options: [
-                { value: "off", label: "Отключён" },
-                { value: "yadif_default", label: "Yadif — стандартный" },
-                { value: "yadif_bob", label: "Yadif Bob (двойной FPS)" },
-                { value: "bwdif_default", label: "BWDif — стандартный" },
-                { value: "bwdif_bob", label: "BWDif Bob (двойной FPS)" }
+                { value: "off", label: t2("deintOff") },
+                { value: "yadif_default", label: t2("deintYadif") },
+                { value: "yadif_bob", label: t2("deintYadifBob") },
+                { value: "bwdif_default", label: t2("deintBwdif") },
+                { value: "bwdif_bob", label: t2("deintBwdifBob") }
               ],
               onChange: (v2) => update("deinterlace", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-snow2", title: "Шумоподавление" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Денойз", hint: "Убирает видеошум. Требует дополнительного времени.", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-snow2", title: t2("sectionDenoise") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowDenoise"), hint: t2("hintDenoise"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.denoise || "off",
               options: [
-                { value: "off", label: "Отключено" },
-                { value: "nlmeans_ultralight", label: "NL-Means — минимальный" },
-                { value: "nlmeans_light", label: "NL-Means — лёгкий" },
-                { value: "nlmeans_medium", label: "NL-Means — средний" },
-                { value: "nlmeans_strong", label: "NL-Means — сильный" },
-                { value: "hqdn3d_light", label: "HQ 3D — лёгкий" },
-                { value: "hqdn3d_medium", label: "HQ 3D — средний" },
-                { value: "hqdn3d_strong", label: "HQ 3D — сильный" }
+                { value: "off", label: t2("denoiseOff") },
+                { value: "nlmeans_ultralight", label: t2("denoiseNlUltralight") },
+                { value: "nlmeans_light", label: t2("denoiseNlLight") },
+                { value: "nlmeans_medium", label: t2("denoiseNlMedium") },
+                { value: "nlmeans_strong", label: t2("denoiseNlStrong") },
+                { value: "hqdn3d_light", label: t2("denoiseHqLight") },
+                { value: "hqdn3d_medium", label: t2("denoiseHqMedium") },
+                { value: "hqdn3d_strong", label: t2("denoiseHqStrong") }
               ],
               onChange: (v2) => update("denoise", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-grid-3x3", title: "Деблокинг" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Деблокинг", hint: "Убирает блочные артефакты от кодека источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-grid-3x3", title: t2("sectionDeblock") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowDeblock"), hint: t2("hintDeblock"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.deblock || "off",
               options: [
-                { value: "off", label: "Отключён" },
-                { value: "ultralight", label: "Минимальный" },
-                { value: "light", label: "Лёгкий" },
-                { value: "medium", label: "Средний" },
-                { value: "strong", label: "Сильный" },
-                { value: "stronger", label: "Максимальный" }
+                { value: "off", label: t2("deblockOff") },
+                { value: "ultralight", label: t2("deblockUltralight") },
+                { value: "light", label: t2("deblockLight") },
+                { value: "medium", label: t2("deblockMedium") },
+                { value: "strong", label: t2("deblockStrong") },
+                { value: "stronger", label: t2("deblockStronger") }
               ],
               onChange: (v2) => update("deblock", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-zoom-in", title: "Резкость" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Повышение резкости", hint: "Unsharp Mask или Laplacian Sharpen", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-zoom-in", title: t2("sectionSharpen") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowSharpen"), hint: t2("hintSharpen"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.sharpen || "off",
               options: [
-                { value: "off", label: "Отключено" },
-                { value: "unsharp_ultralight", label: "Unsharp — минимальный" },
-                { value: "unsharp_light", label: "Unsharp — лёгкий" },
-                { value: "unsharp_medium", label: "Unsharp — средний" },
-                { value: "unsharp_strong", label: "Unsharp — сильный" },
-                { value: "lapsharp_ultralight", label: "Lapsharp — минимальный" },
-                { value: "lapsharp_light", label: "Lapsharp — лёгкий" },
-                { value: "lapsharp_medium", label: "Lapsharp — средний" },
-                { value: "lapsharp_strong", label: "Lapsharp — сильный" }
+                { value: "off", label: t2("sharpenOff") },
+                { value: "unsharp_ultralight", label: t2("sharpenUnsharpUltralight") },
+                { value: "unsharp_light", label: t2("sharpenUnsharpLight") },
+                { value: "unsharp_medium", label: t2("sharpenUnsharpMedium") },
+                { value: "unsharp_strong", label: t2("sharpenUnsharpStrong") },
+                { value: "lapsharp_ultralight", label: t2("sharpenLapUltralight") },
+                { value: "lapsharp_light", label: t2("sharpenLapLight") },
+                { value: "lapsharp_medium", label: t2("sharpenLapMedium") },
+                { value: "lapsharp_strong", label: t2("sharpenLapStrong") }
               ],
               onChange: (v2) => update("sharpen", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-camera", title: "Трансформация кадра" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Чёрно-белый режим", hint: "Удаляет цветовую информацию (grayscale)", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.grayscale, onChange: (v2) => update("grayscale", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Поворот / отражение", hint: "Повернуть или отразить кадр", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-camera", title: t2("sectionFrameTransform") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowGrayscale"), hint: t2("hintGrayscale"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.grayscale, onChange: (v2) => update("grayscale", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowRotate"), hint: t2("hintRotate"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.rotate || "0",
               options: [
-                { value: "0", label: "Без поворота" },
-                { value: "90", label: "90° по часовой" },
-                { value: "180", label: "180°" },
-                { value: "270", label: "270° (90° против часовой)" },
-                { value: "hflip", label: "Горизонтальное отражение" }
+                { value: "0", label: t2("rotateNone") },
+                { value: "90", label: t2("rotate90") },
+                { value: "180", label: t2("rotate180") },
+                { value: "270", label: t2("rotate270") },
+                { value: "hflip", label: t2("rotateHflip") }
               ],
               onChange: (v2) => update("rotate", v2)
             }
           ) })
         ] }),
         activeTab === "hdr" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-section", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-brightness-high", title: "HDR" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Динамические метаданные HDR", hint: "Передать HDR10+ или Dolby Vision metadata в выходной файл", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-brightness-high", title: t2("sectionHdr") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowHdrMetadata"), hint: t2("hintHdrMetadata"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             PanelSelect,
             {
               value: draft.hdrMetadata || "off",
               options: [
-                { value: "off", label: "Отключено" },
+                { value: "off", label: t2("hdrOff") },
                 { value: "hdr10plus", label: "HDR10+" },
                 { value: "dolbyvision", label: "Dolby Vision" },
-                { value: "all", label: "Все (HDR10+ и Dolby Vision)" }
+                { value: "all", label: t2("hdrAll") }
               ],
               onChange: (v2) => update("hdrMetadata", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-tag", title: "Метаданные файла" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Сохранять метаданные", hint: "Копировать теги, описание, обложку из источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.keepMetadata, onChange: (v2) => update("keepMetadata", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: "Inline Parameter Sets", hint: "SPS/PPS inline в каждом кадре — требуется для HLS-стриминга", children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.inlineParamSets, onChange: (v2) => update("inlineParamSets", v2) }) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspSectionHeader, { icon: "bi-tag", title: t2("sectionFileMeta") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowKeepMetadata"), hint: t2("hintKeepMetadataShort"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.keepMetadata, onChange: (v2) => update("keepMetadata", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(VspRow, { label: t2("rowInlineParamSets"), hint: t2("hintInlineParamSets"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(VspToggle, { value: !!draft.inlineParamSets, onChange: (v2) => update("inlineParamSets", v2) }) })
         ] })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-footer", children: [
       (video.customSettings || video.conversionSettings) && !isYtdl && /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "vsp-reset-btn", onClick: handleReset, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-counterclockwise" }),
-        "Сбросить (глобальные)"
+        t2("vspResetBtn")
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "vsp-footer-right", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "vsp-cancel-btn", onClick: onClose, children: "Отмена" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "vsp-cancel-btn", onClick: onClose, children: t2("cancel") }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "vsp-save-btn", onClick: handleSave, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check2" }),
-          "Применить"
+          t2("apply")
         ] })
       ] })
     ] })
@@ -8808,6 +10082,7 @@ function ListPage({
   onYtdlFormatChange,
   onYtdlConvertToggle,
   onYtdlConversionSettings,
+  onYtdlClipChange,
   isDraggingOnList,
   onListDragEnter,
   onListDragLeave,
@@ -8823,6 +10098,7 @@ function ListPage({
   const [addUrl, setAddUrl] = reactExports.useState("");
   const [isAddingUrl, setIsAddingUrl] = reactExports.useState(false);
   const [addUrlError, setAddUrlError] = reactExports.useState("");
+  const { t: t2 } = useLanguage();
   reactExports.useEffect(() => {
     if (!isEncoding) return;
     const timer = setInterval(() => setTickNow(Date.now()), 1e3);
@@ -8853,7 +10129,7 @@ function ListPage({
       await onDownload(addUrlTrimmed, addUrlService);
       setAddUrl("");
     } catch (err) {
-      setAddUrlError(err?.message || "Ошибка");
+      setAddUrlError(err?.message || t2("error"));
     } finally {
       setIsAddingUrl(false);
     }
@@ -8868,7 +10144,7 @@ function ListPage({
   videos.every(
     (v2) => v2.isYtdlItem ? ["format_select", "error"].includes(v2.status) : ["ready", "done", "error"].includes(v2.status)
   );
-  const startBtnLabel = hasOnlyDownloads ? "СКАЧАТЬ" : hasDownloads ? "ЗАПУСТИТЬ" : "КОНВЕРТИРОВАТЬ";
+  const startBtnLabel = hasOnlyDownloads ? t2("btnDownload") : hasDownloads ? t2("btnStart") : t2("btnConvert");
   const editingVideo = editingVideoId !== null ? videos.find((v2) => v2.id === editingVideoId) : null;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-list-container", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-list-header", children: [
@@ -8880,7 +10156,7 @@ function ListPage({
             {
               className: "list-url-input",
               type: "url",
-              placeholder: "Ссылка для загрузки (YouTube, TikTok ...)",
+              placeholder: t2("urlPlaceholder"),
               value: addUrl,
               onChange: (e) => {
                 setAddUrl(e.target.value);
@@ -8898,7 +10174,7 @@ function ListPage({
               className: "list-url-btn",
               onClick: handleAddUrl,
               disabled: !addUrlTrimmed || isAddingUrl || addUrlUnsupported || isEncoding,
-              title: "Добавить в очередь",
+              title: t2("addToQueueTitle"),
               children: isAddingUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-url-spinner" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down-fill" })
             }
           )
@@ -8909,7 +10185,7 @@ function ListPage({
             className: "add-button",
             onClick: onAddFiles,
             disabled: isEncoding,
-            title: "Добавить файлы",
+            title: t2("addFilesTitle"),
             children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-plus-lg" })
           }
         ),
@@ -8919,7 +10195,7 @@ function ListPage({
             className: "add-button clear-button",
             onClick: onClearQueue,
             disabled: isEncoding,
-            title: "Очистить очередь",
+            title: t2("clearQueueTitle"),
             children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-trash3" })
           }
         )
@@ -8956,11 +10232,11 @@ function ListPage({
                   ] }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-info", children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-title-row", children: [
-                      v2.downloadService && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "svc-icon-tag", style: { color: v2.downloadService.color }, title: v2.downloadService.name, children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${v2.downloadService.icon}` }) }),
+                      v2.downloadService && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "svc-icon-tag", style: { color: v2.downloadService.color }, title: v2.downloadService.name, children: v2.downloadService.svgPath ? /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { viewBox: "0 0 24 24", fill: "currentColor", className: "svc-svg-icon", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: v2.downloadService.svgPath }) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${v2.downloadService.icon}` }) }),
                       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "video-title", children: v2.title }),
                       (v2.customSettings || v2.isYtdlItem && v2.conversionSettings) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "vtag custom-tag", children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-sliders2" }),
-                        "Инд."
+                        t2("indCustomTag")
                       ] }),
                       !isEncoding && !isActive && (editingId === v2.id ? /* @__PURE__ */ jsxRuntimeExports.jsx(
                         "input",
@@ -8981,7 +10257,7 @@ function ListPage({
                             e.stopPropagation();
                             startEdit(v2);
                           },
-                          title: "Переименовать выходной файл",
+                          title: t2("renameFileTitle"),
                           children: [
                             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-pencil" }),
                             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: v2.outputName || v2.title })
@@ -9030,12 +10306,12 @@ function ListPage({
                       return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-controls", children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-format-row", children: [
                           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down ytdl-icon" }),
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: "Формат:" }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: t2("ytdlFormatLabel") }),
                           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { onClick: (e) => e.stopPropagation(), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
                             GsSelect,
                             {
                               className: "ytdl-format-gs",
-                              groups: buildYtdlFormatGroups(v2.ytdlFormats),
+                              groups: buildYtdlFormatGroups(v2.ytdlFormats, t2),
                               value: v2.ytdlSelectedFormat || "",
                               onChange: (val) => onYtdlFormatChange(v2.id, val),
                               disabled: isEncoding,
@@ -9050,24 +10326,24 @@ function ListPage({
                               disabled: isEncoding
                             }
                           ) }),
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: "Конвертировать" })
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-label", children: t2("ytdlConvertLabel") })
                         ] }),
-                        fmtTags.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-fmt-tags", children: fmtTags.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `vtag transform-tag ${t2.cls}`, children: [
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${t2.icon}` }),
-                          t2.label
-                        ] }, t2.key)) })
+                        fmtTags.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ytdl-fmt-tags", children: fmtTags.map((t22) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `vtag transform-tag ${t22.cls}`, children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${t22.icon}` }),
+                          t22.label
+                        ] }, t22.key)) })
                       ] });
                     })(),
                     (!v2.isYtdlItem || v2.convertAfterDownload) && (() => {
                       const effectiveSettings = v2.isYtdlItem ? v2.conversionSettings || settings : v2.customSettings || settings;
-                      const transformTags = getTransformTags(v2, effectiveSettings);
+                      const transformTags = getTransformTags(v2, effectiveSettings, t2);
                       if (!transformTags.length) return null;
                       return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-transform-tags", children: [
                         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "vtag-arrow", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-down-short" }) }),
-                        transformTags.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `vtag transform-tag ${t2.cls}`, children: [
-                          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${t2.icon}` }),
-                          t2.label
-                        ] }, t2.key))
+                        transformTags.map((t22) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `vtag transform-tag ${t22.cls}`, children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${t22.icon}` }),
+                          t22.label
+                        ] }, t22.key))
                       ] });
                     })(),
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-progress", children: [
@@ -9094,10 +10370,14 @@ function ListPage({
                     v2.status === "done" && v2.startTime && v2.endTime && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "video-time-info done", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "vtime done", children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check2-circle" }),
                       formatTime((v2.endTime - v2.startTime) / 1e3)
+                    ] }) }),
+                    v2.status === "error" && v2.startTime && v2.endTime && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "video-time-info error", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "vtime error", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-exclamation-circle" }),
+                      formatTime((v2.endTime - v2.startTime) / 1e3)
                     ] }) })
                   ] }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "video-size", children: [
-                    v2.status === "done" ? /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check-circle-fill success" }) : (() => {
+                    v2.status === "done" ? /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check-circle-fill success" }) : v2.status === "error" ? /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-circle-fill error-icon" }) : (() => {
                       if (v2.isYtdlItem) return null;
                       const effectiveSettings = v2.customSettings || settings;
                       const estimated = v2.status !== "encoding" ? estimateOutputSize(v2, effectiveSettings) : null;
@@ -9129,13 +10409,13 @@ function ListPage({
           }) }),
           isDraggingOnList && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "list-drop-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "list-drop-inner", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-plus-circle" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "ДОБАВИТЬ В ОЧЕРЕДЬ" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: t2("addToQueueLabel") })
           ] }) })
         ]
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "list-bottom-panel", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "list-bottom-header", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-bottom-title", children: hasOnlyDownloads ? "Настройки загрузки" : hasDownloads ? "Глобальные настройки конвертации" : "Глобальные настройки конвертации" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "list-bottom-header", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-bottom-title", children: hasOnlyDownloads ? t2("downloadSettings") : hasDownloads ? t2("globalConvSettings") : t2("globalConvSettings") }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `gs-section${!globalSettingsActive ? " gs-section--dimmed" : ""}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
         GlobalSettings,
         {
@@ -9149,20 +10429,21 @@ function ListPage({
       hasRegular && hasDownloads && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ytdl-global-notice", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-info-circle-fill" }),
         videos.filter((v2) => v2.isYtdlItem).length,
-        " файл(ов) для загрузки — у каждого свои настройки (откройте карточку)."
+        " ",
+        t2("mixedQueueNotice")
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "list-bottom-actions", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "list-output-section", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "list-output-top", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-output-label", children: hasOnlyDownloads ? "Папка для загрузки" : "Папка для сохранения" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "list-output-label", children: hasOnlyDownloads ? t2("downloadFolder") : t2("saveFolder") }),
             !hasOnlyDownloads && /* @__PURE__ */ jsxRuntimeExports.jsx(
               GsSelect,
               {
                 value: outputMode,
                 options: [
-                  { value: "default", label: "По умолчанию" },
-                  { value: "custom", label: "Своя папка" },
-                  { value: "source", label: "Исходный путь" }
+                  { value: "default", label: t2("outputDefault") },
+                  { value: "custom", label: t2("outputCustom") },
+                  { value: "source", label: t2("outputSource") }
                 ],
                 onChange: onOutputModeChange,
                 disabled: isEncoding,
@@ -9171,7 +10452,7 @@ function ListPage({
             )
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "list-output-path-row", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "list-output-path-display", children: outputMode === "custom" ? customOutputDir || "Downloaded (рядом с программой)" : outputMode === "source" ? "Исходный путь файла" : defaultOutputDir || "Downloaded (рядом с программой)" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "list-output-path-display", children: outputMode === "custom" ? customOutputDir || t2("downloadsFolderDefault") : outputMode === "source" ? t2("outputSourcePath") : defaultOutputDir || t2("downloadsFolderDefault") }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
@@ -9215,7 +10496,8 @@ function ListPage({
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-cloud-arrow-down" }),
             " ",
             /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: videos.filter((v2) => v2.isYtdlItem).length }),
-            " загрузок"
+            " ",
+            t2("countDownloads")
           ] }),
           hasDownloads && hasRegular && /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: "  ·  " }),
           hasRegular && globalCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -9223,8 +10505,9 @@ function ListPage({
             " ",
             /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: globalCount }),
             " ",
-            globalCount === 1 ? "файл" : globalCount < 5 ? "файла" : "файлов",
-            " по глобальным"
+            globalCount === 1 ? t2("countInQueue1") : globalCount < 5 ? t2("countInQueue234") : t2("countInQueueMany"),
+            " ",
+            t2("countByGlobal")
           ] }),
           hasRegular && globalCount > 0 && customCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: "  ·  " }),
           hasRegular && customCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -9232,13 +10515,15 @@ function ListPage({
             " ",
             /* @__PURE__ */ jsxRuntimeExports.jsx("b", { children: customCount }),
             " ",
-            customCount === 1 ? "файл" : customCount < 5 ? "файла" : "файлов",
-            " по индивидуальным"
+            customCount === 1 ? t2("countInQueue1") : customCount < 5 ? t2("countInQueue234") : t2("countInQueueMany"),
+            " ",
+            t2("countByCustom")
           ] }),
           videos.some((v2) => v2.status === "done") && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
             "  ·  ",
             videos.filter((v2) => v2.status === "done").length,
-            " готово"
+            " ",
+            t2("countDone")
           ] }),
           isEncoding && encodingStartTime && (() => {
             const elapsed = (tickNow - encodingStartTime) / 1e3;
@@ -9264,8 +10549,7 @@ function ListPage({
         /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
           videos.length,
           " ",
-          videos.length === 1 ? "файл" : videos.length < 5 ? "файла" : "файлов",
-          " в очереди"
+          videos.length === 1 ? t2("countInQueue1") : videos.length < 5 ? t2("countInQueue234") : t2("countInQueueMany")
         ] })
       ] })
     ] }),
@@ -9278,7 +10562,8 @@ function ListPage({
         onSave: editingVideo.isYtdlItem ? onYtdlConversionSettings : onVideoSettingsChange,
         onReset: (id2) => editingVideo.isYtdlItem ? onYtdlConversionSettings(id2, null) : onVideoSettingsChange(id2, null),
         onYtdlFormatChange,
-        onYtdlConvertToggle
+        onYtdlConvertToggle,
+        onYtdlClipChange
       }
     )
   ] });
@@ -9322,34 +10607,36 @@ const LIBRARIES = [
   { name: "fluent-ffmpeg", url: "https://github.com/fluent-ffmpeg/node-fluent-ffmpeg", license: "MIT" },
   { name: "Bootstrap Icons", url: "https://icons.getbootstrap.com/", license: "MIT" }
 ];
-const TABS$1 = [
-  { id: "me", label: "Обо мне", icon: "bi-person-circle" },
-  { id: "about", label: "О программе", icon: "bi-info-circle" },
-  { id: "thanks", label: "Благодарности", icon: "bi-heart" },
-  { id: "license", label: "Лицензия", icon: "bi-file-earmark-text" },
-  { id: "libraries", label: "Библиотеки", icon: "bi-box-seam" }
-];
 const THANKS = [
-  { name: "Андрей Виноградов", tg: "resonaura", url: "https://t.me/resonaura" },
-  { name: "Святослав Драгунов", tg: "memsteel", url: "https://t.me/memsteel" },
-  { name: "Павел Яшкин", tg: null, url: null },
-  { name: "Барвашов Егор", tg: null, url: null }
+  { nameKey: "thanksName1", tg: "resonaura", url: "https://t.me/resonaura" },
+  { nameKey: "thanksName2", tg: "memsteel", url: "https://t.me/memsteel" },
+  { nameKey: "thanksName3", tg: null, url: null },
+  { nameKey: "thanksName4", tg: null, url: null }
 ];
 function AboutPage({ theme, onBack }) {
   const [activeTab, setActiveTab] = reactExports.useState("me");
+  const { t: t2 } = useLanguage();
+  const TABS = [
+    { id: "me", label: t2("aboutTabMe"), icon: "bi-person-circle" },
+    { id: "about", label: t2("aboutTabProgram"), icon: "bi-info-circle" },
+    { id: "thanks", label: t2("aboutTabCredits"), icon: "bi-heart" },
+    { id: "license", label: t2("aboutTabLicense"), icon: "bi-file-earmark-text" },
+    { id: "libraries", label: t2("aboutTabLibraries"), icon: "bi-box-seam" }
+  ];
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `about-container ${theme}`, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "ap-back-btn", onClick: onBack, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-left" }),
-        " Назад"
+        " ",
+        t2("back")
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "about-logo", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: theme === "dark" ? logoWhite : logoDark, alt: "Logo" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "about-logo", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: theme === "dark" ? logoWhite : logoColor, alt: "Logo" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-title-block", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: "Gorex" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "version-info", children: "Version 1.0.0 · Web Edition · GPLv2" })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "about-tabs", children: TABS$1.map((tab) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "about-tabs", children: TABS.map((tab) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "button",
       {
         className: `about-tab ${activeTab === tab.id ? "active" : ""}`,
@@ -9364,11 +10651,11 @@ function AboutPage({ theme, onBack }) {
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-content-scroll", children: [
       activeTab === "me" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section me-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-hero", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: myPhoto, alt: "Ахматьяров Егор", className: "me-photo" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: myPhoto, alt: t2("meAuthorName"), className: "me-photo" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-hero-text", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-eyebrow", children: "Дизайнер · Видеограф" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "me-name", children: "Ахматьяров Егор" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-role", children: "Автор идеи и создатель Gorex" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-eyebrow", children: t2("meEyebrow") }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "me-name", children: t2("meAuthorName") }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-role", children: t2("meRole") })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-qr-wrap", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: tgQr, alt: "TG QR", className: "me-qr" }),
@@ -9376,12 +10663,12 @@ function AboutPage({ theme, onBack }) {
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-story", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-story-lead", children: "Я не программист. Я дизайнер и видеограф — человек, который годами работает с видео и остро чувствует, каким должен быть инструмент для таких же людей, как я." }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Всё существующее либо выглядит так, будто застряло в 2005-м, либо стоит денег за каждый чих, либо просто не работает как надо. Я давно хотел сделать что-то по-настоящему красивое и удобное — не для разработчиков, а для людей из сферы. Концепт жил у меня в голове очень долго, но реализовать его самому было невозможно." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "me-story-lead", children: t2("meStoryLead") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: t2("meStoryP2") }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-            "И вот благодаря технологиям ИИ — ",
+            t2("meStoryP3a"),
             /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "https://claude.ai", target: "_blank", rel: "noreferrer", className: "me-story-link", children: "Claude" }),
-            " — я наконец смог воплотить эту идею в жизнь. Gorex — это не просто обёртка над HandBrake. Это концепция: инструмент, который уважает твоё время, выглядит как продукт, за который не стыдно, и работает именно так, как ожидает профессионал в видео."
+            t2("meStoryP3b")
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "me-contacts", children: [
@@ -9392,11 +10679,15 @@ function AboutPage({ theme, onBack }) {
           /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://github.com/Gor80hd/Gorex", target: "_blank", rel: "noreferrer", className: "me-contact-gh", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-github" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Gorex on GitHub" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://dalink.to/akhmatyarov", target: "_blank", rel: "noreferrer", className: "me-contact-donate", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-heart-fill" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: t2("donate") })
           ] })
         ] })
       ] }),
       activeTab === "about" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "about-description", children: "Gorex — современный Electron-интерфейс для легендарного транскодера HandBrake и загрузчика yt-dlp. Сохраняет всю мощь оригинального HandBrake CLI, предоставляя удобный и эстетичный пользовательский опыт с открытым исходным кодом." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "about-description", children: t2("aboutDescription") }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-links", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: "https://github.com/Gor80hd/Gorex", target: "_blank", rel: "noreferrer", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-github" }),
@@ -9414,38 +10705,40 @@ function AboutPage({ theme, onBack }) {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "license-notice", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-shield-check" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-            "Gorex использует HandBrake и yt-dlp — программы с открытым исходным кодом. HandBrake распространяется под лицензией ",
+            t2("aboutLicenseNotice1"),
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "GNU GPL v2" }),
-            ". Graphic assets — ",
+            ".",
+            " ",
+            "Graphic assets — ",
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "CC BY-SA 4.0" }),
-            ". Web UI дополнительно использует MIT-библиотеки React, Vite и Electron."
+            ".",
+            t2("aboutLicenseNotice3")
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("footer", { className: "about-footer", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "© 2026 Gorex. Distributed under GNU General Public License Version 2." }) })
       ] }),
       activeTab === "thanks" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "thanks-intro", children: "Огромная благодарность этим людям за поддержку и вдохновение." }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "thanks-intro", children: t2("aboutThanksIntro") }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "thanks-grid", children: THANKS.map((person) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "thanks-item", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "thanks-icon", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-telegram" }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "thanks-info", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "thanks-name", children: person.name }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "thanks-name", children: t2(person.nameKey) }),
             person.url ? /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: person.url, target: "_blank", rel: "noreferrer", className: "thanks-tg", children: [
               "@",
               person.tg
-            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "thanks-tg thanks-tg--offline", children: "нет ссылки" })
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "thanks-tg thanks-tg--offline", children: t2("aboutNoLink") })
           ] })
         ] }, person.name)) })
       ] }),
       activeTab === "license" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "about-section", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "license-summary", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-            "Большинство файлов HandBrake распространяется под лицензией",
-            " ",
+            t2("licenseSummary1a"),
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "GNU General Public License Version 2 (GPLv2)" }),
-            ". Некоторые файлы — под GPLv2+, LGPLv2.1+ или BSD/MIT/X11. Скомпилированная сборка HandBrake лицензирована под GPLv2."
+            t2("licenseSummary1b")
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-            "Графические ресурсы распространяются под лицензией ",
+            t2("licenseSummary2a"),
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "CC BY-SA 4.0 International" }),
             "."
           ] })
@@ -9558,7 +10851,7 @@ const AUDIO_CODECS = [
   { value: "flac16", label: "FLAC 16-bit" },
   { value: "flac24", label: "FLAC 24-bit" },
   { value: "opus", label: "Opus" },
-  { value: "copy", label: "Passthru (авто)" },
+  { value: "copy", label: "Passthru (auto/авто)" },
   { value: "copy:aac", label: "AAC Passthru" },
   { value: "copy:ac3", label: "AC3 Passthru" },
   { value: "copy:eac3", label: "E-AC3 Passthru" },
@@ -9580,13 +10873,13 @@ function getGpuMeta(gpuName) {
   if (n2.includes("intel")) return GPU_VENDOR_LABEL.intel;
   return GPU_VENDOR_LABEL.unknown;
 }
-const TABS = [
-  { id: "app", label: "Приложение", icon: "bi-gear" },
-  { id: "video", label: "Видео", icon: "bi-camera-video" },
-  { id: "audio", label: "Аудио", icon: "bi-music-note-beamed" },
-  { id: "subtitles", label: "Субтитры", icon: "bi-badge-cc" },
-  { id: "filters", label: "Фильтры", icon: "bi-sliders" },
-  { id: "hdr", label: "HDR / Мета", icon: "bi-stars" }
+const TABS_IDS = [
+  { id: "app", icon: "bi-gear" },
+  { id: "video", icon: "bi-camera-video" },
+  { id: "audio", icon: "bi-music-note-beamed" },
+  { id: "subtitles", icon: "bi-badge-cc" },
+  { id: "filters", icon: "bi-sliders" },
+  { id: "hdr", icon: "bi-stars" }
 ];
 function Toggle({ value, onChange, disabled }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -9615,9 +10908,14 @@ function SectionHeader({ icon, title }) {
   ] });
 }
 function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings, onSave }) {
+  const { t: t2, lang, setLang } = useLanguage();
   const [activeSection, setActiveSection] = reactExports.useState("app");
   const [savedFlash, setSavedFlash] = reactExports.useState(false);
   const [gpuInfo, setGpuInfo] = reactExports.useState({ gpus: [], vendor: "unknown" });
+  const TABS = TABS_IDS.map((tab) => ({
+    ...tab,
+    label: t2({ app: "tabApp", video: "tabVideo", audio: "tabAudio", subtitles: "tabSubtitles", filters: "tabFilters", hdr: "tabHdr" }[tab.id])
+  }));
   const [appConfig, setAppConfig] = reactExports.useState({
     defaultOutputDir: ""
   });
@@ -9727,23 +11025,23 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "sp-back-btn", onClick: onBack, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-left" }),
-        "Назад"
+        t2("back")
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-header-title", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-gear-fill" }),
-        "Настройки"
+        t2("settingsTitle")
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-header-actions", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "sp-btn-reset", onClick: handleReset, title: "Сбросить настройки кодирования до значений по умолчанию", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "sp-btn-reset", onClick: handleReset, title: t2("settingsResetTitle"), children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-counterclockwise" }),
-          "Сброс"
+          t2("reset")
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `sp-btn-save${savedFlash ? " saved" : ""}`, onClick: handleSave, children: savedFlash ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check-lg" }),
-          "Сохранено"
+          t2("saved")
         ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-floppy" }),
-          "Сохранить"
+          t2("save")
         ] }) })
       ] })
     ] }),
@@ -9762,16 +11060,16 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
           tab.id
         )),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sp-sidebar-spacer" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "sp-sidebar-hint", children: "Настройки применяются как значения по умолчанию для новых задач кодирования" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "sp-sidebar-hint", children: t2("settingsSidebarHint") })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-content", ref: contentRef, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-section", "data-section": "app", ref: sectionRef("app"), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-palette", title: "Оформление" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Тема оформления", hint: "Выбор темы интерфейса приложения", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sp-theme-selector", children: [
-            { mode: "dark", icon: "bi-moon-fill", label: "Тёмная" },
-            { mode: "light", icon: "bi-sun-fill", label: "Светлая" },
-            { mode: "auto", icon: "bi-circle-half", label: "Авто" }
-          ].map(({ mode, icon, label }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-palette", title: t2("sectionAppearance") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowTheme"), hint: t2("hintTheme"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sp-theme-selector", children: [
+            { mode: "dark", icon: "bi-moon-fill", labelKey: "themeDark" },
+            { mode: "light", icon: "bi-sun-fill", labelKey: "themeLight" },
+            { mode: "auto", icon: "bi-circle-half", labelKey: "themeAuto" }
+          ].map(({ mode, icon, labelKey }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
               className: `sp-theme-btn${themeMode === mode ? " active" : ""}`,
@@ -9779,28 +11077,44 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               type: "button",
               children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${icon}` }),
-                label
+                t2(labelKey)
               ]
             },
             mode
           )) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-terminal", title: "HandBrake CLI" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(Row, { label: "Статус", hint: "HandBrakeCLI.exe рядом с приложением", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-translate", title: t2("sectionLanguage") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowLanguage"), hint: t2("hintLanguage"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sp-theme-selector", children: [
+            { code: "ru", labelKey: "langRu" },
+            { code: "en", labelKey: "langEn" }
+          ].map(({ code, labelKey }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              className: `sp-theme-btn${lang === code ? " active" : ""}`,
+              onClick: () => setLang(code),
+              type: "button",
+              children: t2(labelKey)
+            },
+            code
+          )) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-terminal", title: t2("sectionCli") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(Row, { label: t2("rowCliStatus"), hint: t2("hintCliStatus"), children: [
             cliStatus === "checking" && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "sp-cli-status sp-cli-status--checking", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-repeat" }),
-              " Проверка..."
+              " ",
+              t2("cliChecking")
             ] }),
             cliStatus === "ok" && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "sp-cli-status sp-cli-status--ok", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check-circle-fill" }),
-              "Обнаружен",
+              t2("cliFound"),
               cliVersion ? ` · v${cliVersion}` : ""
             ] }),
             cliStatus === "error" && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "sp-cli-status sp-cli-status--error", title: cliPath, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-circle-fill" }),
-              " Не найден"
+              " ",
+              t2("cliNotFound")
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-gpu-card", title: "Видеокарта" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-gpu-card", title: t2("sectionGpu") }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sp-gpu-widget", children: gpuInfo.gpus.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "sp-gpu-items-row", children: gpuInfo.gpus.map((gpu, i) => {
               const meta = getGpuMeta(gpu);
@@ -9821,31 +11135,32 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sp-gpu-name", children: gpu })
               ] }, i);
             }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sp-gpu-hint", children: "Доступные кодеки GPU автоматически показаны первыми в разделе «Видеокодек»" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sp-gpu-hint", children: t2("gpuCodecHint") })
           ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "sp-gpu-none", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-question-circle" }),
-            "Видеокарта не определена — показаны программные кодеки"
+            t2("gpuUnknown")
           ] }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Показывать все кодеки", hint: "На странице конвертации показывать все, а не только GPU-рекомендованные", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.showAllCodecs, onChange: (v2) => updateEnc("showAllCodecs", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-folder2", title: "Папка вывода по умолчанию" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowShowAllCodecs"), hint: t2("hintShowAllCodecs"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.showAllCodecs, onChange: (v2) => updateEnc("showAllCodecs", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-folder2", title: t2("sectionOutputFolder") }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-folder-widget", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-folder-widget__info", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sp-folder-widget__path", children: resolvedOutputDir || "…" }),
-              !appConfig.defaultOutputDir && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sp-folder-widget__tag", children: "папка «Видео» по умолчанию" })
+              !appConfig.defaultOutputDir && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sp-folder-widget__tag", children: t2("folderDefault") })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-folder-widget__actions", children: [
-              appConfig.defaultOutputDir && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "sp-folder-widget__reset", onClick: handleResetOutputDir, title: "Сбросить к папке Видео", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" }) }),
+              appConfig.defaultOutputDir && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "sp-folder-widget__reset", onClick: handleResetOutputDir, title: t2("folderResetTitle"), children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "sp-folder-widget__browse", onClick: handleBrowseOutputDir, children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-folder2-open" }),
-                " Изменить"
+                " ",
+                t2("folderChange")
               ] })
             ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-section", "data-section": "video", ref: sectionRef("video"), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "sp-tab-description", children: "Параметры кодирования по умолчанию. Применяются к каждому новому файлу — можно изменить для конкретной задачи в списке." }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-file-earmark-play", title: "Контейнер" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Формат", hint: "Контейнер для выходного файла", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "sp-tab-description", children: t2("videoTabDesc") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-file-earmark-play", title: t2("sectionContainer") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowFormat"), hint: t2("hintFormat"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.format,
@@ -9875,8 +11190,8 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               }
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-cpu", title: "Кодировщик" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Видеокодек", hint: "Алгоритм сжатия видео", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-cpu", title: t2("sectionEncoder") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowVideoCodec"), hint: t2("hintVideoCodec"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.encoder,
@@ -9895,7 +11210,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               }
             }
           ) }),
-          speedPresets.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Скорость / пресет", hint: "Соотношение скорость↔эффективность кодека", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          speedPresets.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowSpeedPreset"), hint: t2("hintSpeedPreset"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.encoderSpeed,
@@ -9903,18 +11218,18 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               onChange: (v2) => updateEnc("encoderSpeed", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-sliders2", title: "Качество" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Режим качества", hint: "Предустановка или точное значение RF/CRF", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-sliders2", title: t2("sectionQuality") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowQualityMode"), hint: t2("hintQualityMode"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.quality,
               options: [
-                { value: "source", label: "Исходное (без потерь)" },
-                { value: "high", label: `Высокое (RF ${rfTable.high})` },
-                { value: "medium", label: `Среднее (RF ${rfTable.medium})` },
-                { value: "low", label: `Низкое (RF ${rfTable.low})` },
-                { value: "potato", label: `Максимальное сжатие (RF ${rfTable.potato})` },
-                { value: "custom", label: enc.quality === "custom" ? `Своё (RF ${enc.customQuality})` : "Своё значение..." }
+                { value: "source", label: t2("qualitySource") },
+                { value: "high", label: `${t2("qualityHigh")} (RF ${rfTable.high})` },
+                { value: "medium", label: `${t2("qualityMedium")} (RF ${rfTable.medium})` },
+                { value: "low", label: `${t2("qualityLow")} (RF ${rfTable.low})` },
+                { value: "potato", label: `${t2("qualityPotato")} (RF ${rfTable.potato})` },
+                { value: "custom", label: enc.quality === "custom" ? `${t2("qualityCustomLabel")} (RF ${enc.customQuality})` : t2("qualityCustomEmpty") }
               ],
               onChange: (v2) => updateEnc("quality", v2)
             }
@@ -9923,7 +11238,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
             Row,
             {
               label: `RF / CRF: ${enc.customQuality}`,
-              hint: `Диапазон: ${rfTable.min} (лучше) — ${rfTable.max} (хуже)`,
+              hint: `${t2("rfRange")} ${rfTable.min} (${t2("rfBetter")}) — ${rfTable.max} (${t2("rfWorse")})`,
               children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-slider-wrap", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "sp-slider-edge", children: rfTable.min }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -9942,13 +11257,13 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               ] })
             }
           ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-aspect-ratio", title: "Разрешение и частота кадров" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Разрешение", hint: "Максимальное разрешение (масштабирование вниз)", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-aspect-ratio", title: t2("sectionResFps") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowResolution"), hint: t2("hintResolution"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.resolution,
               options: [
-                { value: "source", label: "По исходному" },
+                { value: "source", label: t2("resSource") },
                 { value: "4k", label: "4K (2160p)" },
                 { value: "1440p", label: "2K (1440p)" },
                 { value: "1080p", label: "1080p (Full HD)" },
@@ -9958,51 +11273,51 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               onChange: (v2) => updateEnc("resolution", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Частота кадров", hint: "Целевой FPS выходного видео", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowFps"), hint: t2("hintFps"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.fps,
               options: [
-                { value: "source", label: "По исходному" },
+                { value: "source", label: t2("fpsSource") },
                 { value: "60", label: "60 fps" },
                 { value: "30", label: "30 fps" },
                 { value: "25", label: "25 fps (PAL)" },
-                { value: "24", label: "24 fps (кино)" },
+                { value: "24", label: t2("fpsCinema") },
                 { value: "23.976", label: "23.976 fps (NTSC)" }
               ],
               onChange: (v2) => updateEnc("fps", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Режим FPS", hint: "VFR = переменный, CFR = постоянный, PFR = с ограничением", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowFpsMode"), hint: t2("hintFpsMode"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.fpsMode || "vfr",
               options: [
-                { value: "vfr", label: "VFR — переменный (рекомендован)" },
-                { value: "cfr", label: "CFR — постоянный" },
-                { value: "pfr", label: "PFR — с пиковым ограничением" }
+                { value: "vfr", label: t2("fpsVfr") },
+                { value: "cfr", label: t2("fpsCfr") },
+                { value: "pfr", label: t2("fpsPfr") }
               ],
               onChange: (v2) => updateEnc("fpsMode", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-lightning-charge", title: "Аппаратное ускорение" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Аппаратное декодирование", hint: "Разгружает CPU при чтении источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-lightning-charge", title: t2("sectionHwAccel") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowHwDecoding"), hint: t2("hintHwDecoding"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.hwDecoding || "none",
               options: [
-                { value: "none", label: "Отключено (программное)" },
+                { value: "none", label: t2("hwDecodingNone") },
                 { value: "nvdec", label: "NVDEC (NVIDIA)" },
                 { value: "qsv", label: "Quick Sync (Intel)" }
               ],
               onChange: (v2) => updateEnc("hwDecoding", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Двухпроходное кодирование", hint: "2-pass: лучше распределяет битрейт, кодирует в 2× дольше", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.multiPass, onChange: (v2) => updateEnc("multiPass", v2) }) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowMultiPass"), hint: t2("hintMultiPass"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.multiPass, onChange: (v2) => updateEnc("multiPass", v2) }) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-section", "data-section": "audio", ref: sectionRef("audio"), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-music-note-beamed", title: "Кодек аудио" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Аудиокодек", hint: "Кодек для аудиодорожки выходного файла", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-music-note-beamed", title: t2("sectionAudioCodec") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowAudioCodec"), hint: t2("hintAudioCodec"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.audioCodec || "av_aac",
@@ -10014,8 +11329,8 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
             }
           ) }),
           !isPassthru && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-speaker", title: "Параметры аудио" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Битрейт", hint: "Битрейт аудиодорожки в кбит/с", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-speaker", title: t2("sectionAudioParams") }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowBitrate"), hint: t2("hintBitrate"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               GsSelect,
               {
                 value: enc.audioBitrate || "160",
@@ -10023,7 +11338,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                   { value: "64", label: "64 kbps" },
                   { value: "96", label: "96 kbps" },
                   { value: "128", label: "128 kbps" },
-                  { value: "160", label: "160 kbps (по умолчанию)" },
+                  { value: "160", label: `160 kbps (${t2("bitrateDefault")})` },
                   { value: "192", label: "192 kbps" },
                   { value: "256", label: "256 kbps" },
                   { value: "320", label: "320 kbps" }
@@ -10031,13 +11346,13 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                 onChange: (v2) => updateEnc("audioBitrate", v2)
               }
             ) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Микшинг", hint: "Количество каналов в выходной аудиодорожке", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowMixdown"), hint: t2("hintMixdown"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               GsSelect,
               {
                 value: enc.audioMixdown || "stereo",
                 options: [
-                  { value: "mono", label: "Моно (1.0)" },
-                  { value: "stereo", label: "Стерео (2.0)" },
+                  { value: "mono", label: t2("mixMono") },
+                  { value: "stereo", label: t2("mixStereo") },
                   { value: "dpl2", label: "Dolby Pro Logic II" },
                   { value: "5point1", label: "Surround 5.1" },
                   { value: "6point1", label: "Surround 6.1" },
@@ -10046,12 +11361,12 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                 onChange: (v2) => updateEnc("audioMixdown", v2)
               }
             ) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Частота дискретизации", hint: "Sample rate аудио", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowSampleRate"), hint: t2("hintSampleRate"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
               GsSelect,
               {
                 value: enc.audioSampleRate || "auto",
                 options: [
-                  { value: "auto", label: "Авто (по исходному)" },
+                  { value: "auto", label: t2("srAuto") },
                   { value: "22.05", label: "22.05 kHz" },
                   { value: "32", label: "32 kHz" },
                   { value: "44.1", label: "44.1 kHz" },
@@ -10062,9 +11377,9 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
               }
             ) })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-collection-play", title: "Метаданные файла" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Метки глав (Chapter markers)", hint: "Добавлять chapter markers в контейнер", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: enc.chapterMarkers !== false, onChange: (v2) => updateEnc("chapterMarkers", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Оптимизировать MP4 (fast start)", hint: "Moov-атом в начале файла — для HTTP стриминга. Только MP4.", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-collection-play", title: t2("sectionFileMetadata") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowChapterMarkers"), hint: t2("hintChapterMarkers"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: enc.chapterMarkers !== false, onChange: (v2) => updateEnc("chapterMarkers", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowOptimizeMp4"), hint: t2("hintOptimizeMp4"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             Toggle,
             {
               value: !!enc.optimizeMP4,
@@ -10074,171 +11389,353 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
           ) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-section", "data-section": "subtitles", ref: sectionRef("subtitles"), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-badge-cc", title: "Дорожки субтитров" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Субтитры", hint: "Какие дорожки субтитров включить в выходной файл", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-badge-cc", title: t2("sectionSubtitleTracks") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowSubtitles"), hint: t2("hintSubtitles"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.subtitleMode || "none",
               options: [
-                { value: "none", label: "Не включать" },
-                { value: "first", label: "Первая дорожка" },
-                { value: "all", label: "Все дорожки" },
-                { value: "scan_forced", label: "Авто (принудительные / иностранные)" }
+                { value: "none", label: t2("subNone") },
+                { value: "first", label: t2("subFirst") },
+                { value: "all", label: t2("subAll") },
+                { value: "scan_forced", label: t2("subScanForced") }
               ],
               onChange: (v2) => updateEnc("subtitleMode", v2)
             }
           ) }),
-          enc.subtitleMode !== "none" && enc.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Вшивать субтитры", hint: "Субтитры рендерятся прямо в кадр (burn-in). Не требует поддержки контейнером", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.subtitleBurn, onChange: (v2) => updateEnc("subtitleBurn", v2) }) }),
-          enc.subtitleMode !== "none" && !enc.subtitleBurn && enc.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Субтитры по умолчанию", hint: "Отметить дорожку субтитров как выбранную по умолчанию в плеере", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.subtitleDefault, onChange: (v2) => updateEnc("subtitleDefault", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-translate", title: "Язык субтитров" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Предпочитаемый язык", hint: "Нативный язык: при наличии такой дорожки, она будет выбрана автоматически", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          enc.subtitleMode !== "none" && enc.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowSubtitleBurn"), hint: t2("hintSubtitleBurn"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.subtitleBurn, onChange: (v2) => updateEnc("subtitleBurn", v2) }) }),
+          enc.subtitleMode !== "none" && !enc.subtitleBurn && enc.subtitleMode !== "all" && /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowSubtitleDefault"), hint: t2("hintSubtitleDefault"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.subtitleDefault, onChange: (v2) => updateEnc("subtitleDefault", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-translate", title: t2("sectionSubtitleLang") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowSubtitleLang"), hint: t2("hintSubtitleLang"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.subtitleLanguage || "any",
               options: [
-                { value: "any", label: "Любой (не фильтровать)" },
-                { value: "eng", label: "Английский (eng)" },
-                { value: "rus", label: "Русский (rus)" },
-                { value: "jpn", label: "Японский (jpn)" },
-                { value: "chi", label: "Китайский (chi)" },
-                { value: "kor", label: "Корейский (kor)" },
-                { value: "fra", label: "Французский (fra)" },
-                { value: "deu", label: "Немецкий (deu)" },
-                { value: "spa", label: "Испанский (spa)" },
-                { value: "por", label: "Португальский (por)" },
-                { value: "ita", label: "Итальянский (ita)" },
-                { value: "ara", label: "Арабский (ara)" }
+                { value: "any", label: t2("subLangAny") },
+                { value: "eng", label: t2("subLangEng") },
+                { value: "rus", label: t2("subLangRus") },
+                { value: "jpn", label: t2("subLangJpn") },
+                { value: "chi", label: t2("subLangChi") },
+                { value: "kor", label: t2("subLangKor") },
+                { value: "fra", label: t2("subLangFra") },
+                { value: "deu", label: t2("subLangDeu") },
+                { value: "spa", label: t2("subLangSpa") },
+                { value: "por", label: t2("subLangPor") },
+                { value: "ita", label: t2("subLangIta") },
+                { value: "ara", label: t2("subLangAra") }
               ],
               onChange: (v2) => updateEnc("subtitleLanguage", v2)
             }
           ) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-section", "data-section": "filters", ref: sectionRef("filters"), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-intersect", title: "Деинтерлейс" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Деинтерлейс", hint: "Устраняет гребёнку от чересстрочной развёртки", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-intersect", title: t2("sectionDeinterlace") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowDeinterlace"), hint: t2("hintDeinterlace"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.deinterlace || "off",
               options: [
-                { value: "off", label: "Отключён" },
-                { value: "yadif_default", label: "Yadif — стандартный" },
-                { value: "yadif_bob", label: "Yadif Bob (двойной FPS)" },
-                { value: "bwdif_default", label: "BWDif — стандартный" },
-                { value: "bwdif_bob", label: "BWDif Bob (двойной FPS)" }
+                { value: "off", label: t2("deintOff") },
+                { value: "yadif_default", label: t2("deintYadif") },
+                { value: "yadif_bob", label: t2("deintYadifBob") },
+                { value: "bwdif_default", label: t2("deintBwdif") },
+                { value: "bwdif_bob", label: t2("deintBwdifBob") }
               ],
               onChange: (v2) => updateEnc("deinterlace", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-snow2", title: "Шумоподавление" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Денойз", hint: "Убирает видеошум. Требует дополнительного времени.", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-snow2", title: t2("sectionDenoise") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowDenoise"), hint: t2("hintDenoise"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.denoise || "off",
               options: [
-                { value: "off", label: "Отключено" },
-                { value: "nlmeans_ultralight", label: "NL-Means — минимальный" },
-                { value: "nlmeans_light", label: "NL-Means — лёгкий" },
-                { value: "nlmeans_medium", label: "NL-Means — средний" },
-                { value: "nlmeans_strong", label: "NL-Means — сильный" },
-                { value: "hqdn3d_light", label: "HQ 3D — лёгкий" },
-                { value: "hqdn3d_medium", label: "HQ 3D — средний" },
-                { value: "hqdn3d_strong", label: "HQ 3D — сильный" }
+                { value: "off", label: t2("denoiseOff") },
+                { value: "nlmeans_ultralight", label: t2("denoiseNlUltralight") },
+                { value: "nlmeans_light", label: t2("denoiseNlLight") },
+                { value: "nlmeans_medium", label: t2("denoiseNlMedium") },
+                { value: "nlmeans_strong", label: t2("denoiseNlStrong") },
+                { value: "hqdn3d_light", label: t2("denoiseHqLight") },
+                { value: "hqdn3d_medium", label: t2("denoiseHqMedium") },
+                { value: "hqdn3d_strong", label: t2("denoiseHqStrong") }
               ],
               onChange: (v2) => updateEnc("denoise", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-grid-3x3", title: "Деблокинг" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Деблокинг", hint: "Убирает блочные артефакты от кодека источника", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-grid-3x3", title: t2("sectionDeblock") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowDeblock"), hint: t2("hintDeblock"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.deblock || "off",
               options: [
-                { value: "off", label: "Отключён" },
-                { value: "ultralight", label: "Минимальный" },
-                { value: "light", label: "Лёгкий" },
-                { value: "medium", label: "Средний" },
-                { value: "strong", label: "Сильный" },
-                { value: "stronger", label: "Максимальный" }
+                { value: "off", label: t2("deblockOff") },
+                { value: "ultralight", label: t2("deblockUltralight") },
+                { value: "light", label: t2("deblockLight") },
+                { value: "medium", label: t2("deblockMedium") },
+                { value: "strong", label: t2("deblockStrong") },
+                { value: "stronger", label: t2("deblockStronger") }
               ],
               onChange: (v2) => updateEnc("deblock", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-zoom-in", title: "Резкость" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Повышение резкости", hint: "Unsharp Mask или Laplacian Sharpen", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-zoom-in", title: t2("sectionSharpen") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowSharpen"), hint: t2("hintSharpen"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.sharpen || "off",
               options: [
-                { value: "off", label: "Отключено" },
-                { value: "unsharp_ultralight", label: "Unsharp — минимальный" },
-                { value: "unsharp_light", label: "Unsharp — лёгкий" },
-                { value: "unsharp_medium", label: "Unsharp — средний" },
-                { value: "unsharp_strong", label: "Unsharp — сильный" },
-                { value: "lapsharp_ultralight", label: "Lapsharp — минимальный" },
-                { value: "lapsharp_light", label: "Lapsharp — лёгкий" },
-                { value: "lapsharp_medium", label: "Lapsharp — средний" },
-                { value: "lapsharp_strong", label: "Lapsharp — сильный" }
+                { value: "off", label: t2("sharpenOff") },
+                { value: "unsharp_ultralight", label: t2("sharpenUnsharpUltralight") },
+                { value: "unsharp_light", label: t2("sharpenUnsharpLight") },
+                { value: "unsharp_medium", label: t2("sharpenUnsharpMedium") },
+                { value: "unsharp_strong", label: t2("sharpenUnsharpStrong") },
+                { value: "lapsharp_ultralight", label: t2("sharpenLapUltralight") },
+                { value: "lapsharp_light", label: t2("sharpenLapLight") },
+                { value: "lapsharp_medium", label: t2("sharpenLapMedium") },
+                { value: "lapsharp_strong", label: t2("sharpenLapStrong") }
               ],
               onChange: (v2) => updateEnc("sharpen", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-camera", title: "Трансформация кадра" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Чёрно-белый режим", hint: "Удаляет цветовую информацию (grayscale)", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.grayscale, onChange: (v2) => updateEnc("grayscale", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Поворот / отражение", hint: "Повернуть или отразить кадр", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-camera", title: t2("sectionFrameTransform") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowGrayscale"), hint: t2("hintGrayscale"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.grayscale, onChange: (v2) => updateEnc("grayscale", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowRotate"), hint: t2("hintRotate"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.rotate || "0",
               options: [
-                { value: "0", label: "Без поворота" },
-                { value: "90", label: "90° по часовой" },
-                { value: "180", label: "180°" },
-                { value: "270", label: "270° (90° против часовой)" },
-                { value: "hflip", label: "Горизонтальное отражение" }
+                { value: "0", label: t2("rotateNone") },
+                { value: "90", label: t2("rotate90") },
+                { value: "180", label: t2("rotate180") },
+                { value: "270", label: t2("rotate270") },
+                { value: "hflip", label: t2("rotateHflip") }
               ],
               onChange: (v2) => updateEnc("rotate", v2)
             }
           ) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "sp-section", "data-section": "hdr", ref: sectionRef("hdr"), children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-brightness-high", title: "HDR" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Динамические метаданные HDR", hint: "Передать HDR10+ или Dolby Vision metadata в выходной файл", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-brightness-high", title: t2("sectionHdr") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowHdrMetadata"), hint: t2("hintHdrMetadata"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             GsSelect,
             {
               value: enc.hdrMetadata || "off",
               options: [
-                { value: "off", label: "Отключено" },
+                { value: "off", label: t2("hdrOff") },
                 { value: "hdr10plus", label: "HDR10+" },
                 { value: "dolbyvision", label: "Dolby Vision" },
-                { value: "all", label: "Все (HDR10+ и Dolby Vision)" }
+                { value: "all", label: t2("hdrAll") }
               ],
               onChange: (v2) => updateEnc("hdrMetadata", v2)
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-tag", title: "Метаданные файла" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Сохранять метаданные", hint: "Копировать теги, описание, обложку из источника в выходной файл", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.keepMetadata, onChange: (v2) => updateEnc("keepMetadata", v2) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: "Inline Parameter Sets", hint: "SPS/PPS inline в каждом кадре — требуется для HLS-стриминга", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.inlineParamSets, onChange: (v2) => updateEnc("inlineParamSets", v2) }) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx(SectionHeader, { icon: "bi-tag", title: t2("sectionFileMeta") }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowKeepMetadata"), hint: t2("hintKeepMetadata"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.keepMetadata, onChange: (v2) => updateEnc("keepMetadata", v2) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Row, { label: t2("rowInlineParamSets"), hint: t2("hintInlineParamSets"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toggle, { value: !!enc.inlineParamSets, onChange: (v2) => updateEnc("inlineParamSets", v2) }) })
         ] })
       ] })
     ] })
   ] });
 }
-function getEncoderErrorHint(stderr) {
+const SLIDES = {
+  en: [
+    {
+      icon: "bi-palette2",
+      accent: "#7c3aed",
+      title: "Design that respects you",
+      sub: "Most video tools look like they were made in 2005. Gorex is different.",
+      points: [
+        { icon: "bi-moon-stars", text: "Dark and light themes, clean and spacious layout" },
+        { icon: "bi-stars", text: "Smooth animations and transitions — every interaction feels polished" },
+        { icon: "bi-grid-1x2", text: "Every element has its place — nothing is in the way" }
+      ]
+    },
+    {
+      icon: "bi-hand-index-thumb",
+      accent: "#0ea5e9",
+      title: "Works the way you think",
+      sub: "No manuals, no guessing. Open, drop, run.",
+      points: [
+        { icon: "bi-file-earmark-arrow-down", text: "Drag & drop files — they're ready in seconds" },
+        { icon: "bi-sliders", text: "Sensible defaults — tweak only what you need" },
+        { icon: "bi-check2-circle", text: "Each file in the queue can have its own settings" }
+      ]
+    },
+    {
+      icon: "bi-lightning-charge-fill",
+      accent: "#f59e0b",
+      title: "Fast. Very fast.",
+      sub: "Gorex gets out of the way and lets your hardware do the work.",
+      points: [
+        { icon: "bi-gpu-card", text: "GPU encoding — NVENC, QSV, AMF detected automatically" },
+        { icon: "bi-stack", text: "Full queue processing — all files, one click" },
+        { icon: "bi-bar-chart-line", text: "Real-time progress per file, no surprises" }
+      ]
+    },
+    {
+      icon: "bi-boxes",
+      accent: "#10b981",
+      title: "One tool for everything",
+      sub: "Convert local files or grab video straight from the web.",
+      points: [
+        { icon: "bi-cloud-arrow-down", text: "YouTube, TikTok, Twitter — paste link, download done" },
+        { icon: "bi-film", text: "MP4, MKV, WebM — all major formats and codecs" },
+        { icon: "bi-scissors", text: "Time clipping, subtitles, filters, HDR metadata" }
+      ]
+    }
+  ],
+  ru: [
+    {
+      icon: "bi-palette2",
+      accent: "#7c3aed",
+      title: "Дизайн, который уважает тебя",
+      sub: "Большинство видеоинструментов выглядят как 2005 год. Gorex — нет.",
+      points: [
+        { icon: "bi-moon-stars", text: "Тёмная и светлая темы, чистый и просторный интерфейс" },
+        { icon: "bi-stars", text: "Плавные анимации и переходы — каждое действие ощущается отточенным" },
+        { icon: "bi-grid-1x2", text: "Каждый элемент на своём месте — ничто не мешает работе" }
+      ]
+    },
+    {
+      icon: "bi-hand-index-thumb",
+      accent: "#0ea5e9",
+      title: "Работает так, как ты думаешь",
+      sub: "Никаких мануалов, никаких догадок. Открыл, перетащил, запустил.",
+      points: [
+        { icon: "bi-file-earmark-arrow-down", text: "Drag & drop файлов — готово за секунды" },
+        { icon: "bi-sliders", text: "Умные настройки по умолчанию — меняй только нужное" },
+        { icon: "bi-check2-circle", text: "Каждый файл в очереди может иметь свои настройки" }
+      ]
+    },
+    {
+      icon: "bi-lightning-charge-fill",
+      accent: "#f59e0b",
+      title: "Быстро. Очень быстро.",
+      sub: "Gorex уходит в сторону и даёт железу делать своё дело.",
+      points: [
+        { icon: "bi-gpu-card", text: "GPU-кодирование — NVENC, QSV, AMF определяются автоматически" },
+        { icon: "bi-stack", text: "Полная очередь — все файлы, один клик" },
+        { icon: "bi-bar-chart-line", text: "Прогресс в реальном времени по каждому файлу" }
+      ]
+    },
+    {
+      icon: "bi-boxes",
+      accent: "#10b981",
+      title: "Один инструмент для всего",
+      sub: "Конвертируй локальные файлы или забирай видео прямо из сети.",
+      points: [
+        { icon: "bi-cloud-arrow-down", text: "YouTube, TikTok, Twitter — вставь ссылку, готово" },
+        { icon: "bi-film", text: "MP4, MKV, WebM — все основные форматы и кодеки" },
+        { icon: "bi-scissors", text: "Обрезка, субтитры, фильтры, HDR-метаданные" }
+      ]
+    }
+  ]
+};
+const LABELS = {
+  en: { step1Title: "Choose your language", step1Sub: "You can change it later in Settings", next: "Continue", back: "Back", start: "Get Started", skip: "Skip" },
+  ru: { step1Title: "Выберите язык", step1Sub: "Вы сможете изменить его позже в Настройках", next: "Продолжить", back: "Назад", start: "Начать работу", skip: "Пропустить" }
+};
+const TOTAL = 5;
+function OnboardingScreen({ theme, onDone }) {
+  const { setLang } = useLanguage();
+  const [step, setStep] = reactExports.useState(1);
+  const [selectedLang, setSelectedLang] = reactExports.useState("en");
+  const [animKey, setAnimKey] = reactExports.useState(0);
+  const [dir, setDir] = reactExports.useState(1);
+  const L2 = LABELS[selectedLang];
+  const slides = SLIDES[selectedLang];
+  const slideIndex = step - 2;
+  const go = (nextStep) => {
+    setDir(nextStep > step ? 1 : -1);
+    setAnimKey((k2) => k2 + 1);
+    setStep(nextStep);
+  };
+  const handleNext = () => {
+    if (step === 1) setLang(selectedLang);
+    if (step < TOTAL) go(step + 1);
+    else onDone();
+  };
+  const handleBack = () => {
+    if (step > 1) go(step - 1);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `onboarding-overlay ${theme}`, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "onboarding-card", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "onboarding-logo", children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: theme === "dark" ? logoWhite : logoColor, alt: "Gorex" }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "onboarding-steps", children: Array.from({ length: TOTAL }).map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `onboarding-dot${step === i + 1 ? " active" : step > i + 1 ? " done" : ""}` }, i)) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `onboarding-step ob-dir-${dir > 0 ? "fwd" : "bwd"}`, children: [
+      step === 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "onboarding-title", children: L2.step1Title }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "onboarding-sub", children: L2.step1Sub }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "onboarding-lang-grid", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              className: `onboarding-lang-card${selectedLang === "en" ? " selected" : ""}`,
+              onClick: () => setSelectedLang("en"),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "onboarding-lang-flag", children: "EN" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "onboarding-lang-name", children: "English" }),
+                selectedLang === "en" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "onboarding-lang-check", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check2" }) })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              className: `onboarding-lang-card${selectedLang === "ru" ? " selected" : ""}`,
+              onClick: () => setSelectedLang("ru"),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "onboarding-lang-flag", children: "RU" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "onboarding-lang-name", children: "Русский" }),
+                selectedLang === "ru" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "onboarding-lang-check", children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-check2" }) })
+              ]
+            }
+          )
+        ] })
+      ] }),
+      step >= 2 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ob-slide-icon", style: { "--ob-accent": slides[slideIndex].accent }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${slides[slideIndex].icon}` }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "onboarding-title", children: slides[slideIndex].title }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "onboarding-sub", children: slides[slideIndex].sub }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "ob-points", children: slides[slideIndex].points.map((p2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { className: "ob-point", style: { animationDelay: `${i * 80}ms` }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ob-point-icon", style: { "--ob-accent": slides[slideIndex].accent }, children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${p2.icon}` }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ob-point-text", children: p2.text })
+        ] }, i)) })
+      ] })
+    ] }, animKey),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "onboarding-footer", children: [
+      step > 1 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "onboarding-btn-ghost", onClick: handleBack, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-arrow-left" }),
+        L2.back
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "onboarding-btn-ghost", onClick: onDone, children: L2.skip }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "onboarding-btn-primary", onClick: handleNext, children: [
+        step === TOTAL ? L2.start : L2.next,
+        /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${step === TOTAL ? "bi-check2" : "bi-arrow-right"}` })
+      ] })
+    ] })
+  ] }) });
+}
+const _cliLogEmitter = { callback: null };
+window.api.onCliOutput((data) => _cliLogEmitter.callback?.({ type: "out", text: data }));
+window.api.onCliError((data) => _cliLogEmitter.callback?.({ type: "err", text: data }));
+window.api.onYtdlOutput(({ data }) => _cliLogEmitter.callback?.({ type: "ytdl", text: data }));
+function getEncoderErrorHint(stderr, t2) {
   if (/No capable devices found/i.test(stderr)) {
-    if (/av1_nvenc/i.test(stderr)) return "Ваш GPU не поддерживает AV1 NVENC.";
-    if (/h265_nvenc|hevc_nvenc/i.test(stderr)) return "Ваш GPU не поддерживает H.265 NVENC.";
-    if (/nvenc/i.test(stderr)) return "Ваш GPU не поддерживает выбранный NVENC-кодировщик.";
-    if (/av1_amf|av1_vce/i.test(stderr)) return "Ваш GPU не поддерживает AV1 VCE.";
-    if (/av1_qsv/i.test(stderr)) return "Ваш GPU не поддерживает AV1 QSV.";
-    return "Выбранный аппаратный кодировщик недоступен на данном GPU.";
+    if (/av1_nvenc/i.test(stderr)) return t2("gpuErrNvencAv1");
+    if (/h265_nvenc|hevc_nvenc/i.test(stderr)) return t2("gpuErrNvencH265");
+    if (/nvenc/i.test(stderr)) return t2("gpuErrNvenc");
+    if (/av1_amf|av1_vce/i.test(stderr)) return t2("gpuErrVceAv1");
+    if (/av1_qsv/i.test(stderr)) return t2("gpuErrQsvAv1");
+    return t2("gpuErrHwUnavailable");
   }
   if (/avcodec_open failed|Failure to initialise thread/i.test(stderr)) {
-    if (/nvenc/i.test(stderr)) return "Не удалось инициализировать NVENC. Убедитесь, что драйверы NVIDIA актуальны.";
-    if (/qsv/i.test(stderr)) return "Не удалось инициализировать Intel QSV. Проверьте драйверы Intel.";
-    if (/vce|amf/i.test(stderr)) return "Не удалось инициализировать AMD VCE/AMF. Проверьте драйверы AMD.";
+    if (/nvenc/i.test(stderr)) return t2("gpuErrNvencInit");
+    if (/qsv/i.test(stderr)) return t2("gpuErrQsvInit");
+    if (/vce|amf/i.test(stderr)) return t2("gpuErrVceInit");
   }
   return null;
 }
 function App() {
+  const { t: t2 } = useLanguage();
   const [view, setView] = reactExports.useState("source");
   const [videos, setVideos] = reactExports.useState([]);
   const [isDragging, setIsDragging] = reactExports.useState(false);
@@ -10249,7 +11746,15 @@ function App() {
   const [encodingStartTime, setEncodingStartTime] = reactExports.useState(null);
   const [cliErrors, setCliErrors] = reactExports.useState([]);
   const [copiedIdx, setCopiedIdx] = reactExports.useState(null);
+  const [cliLogs, setCliLogs] = reactExports.useState([]);
+  const [showCliConsole, setShowCliConsole] = reactExports.useState(false);
   const videosRef = reactExports.useRef([]);
+  reactExports.useEffect(() => {
+    _cliLogEmitter.callback = (entry) => setCliLogs((prev) => [...prev, entry]);
+    return () => {
+      _cliLogEmitter.callback = null;
+    };
+  }, []);
   const progressStateRef = reactExports.useRef(/* @__PURE__ */ new Map());
   const stoppedJobsRef = reactExports.useRef(/* @__PURE__ */ new Set());
   const [themeMode, setThemeMode] = reactExports.useState(() => {
@@ -10275,6 +11780,7 @@ function App() {
   const [defaultOutputDir, setDefaultOutputDir] = reactExports.useState("");
   const [appSettings, setAppSettings] = reactExports.useState(null);
   const [gpuVendor, setGpuVendor] = reactExports.useState("unknown");
+  const [showOnboarding, setShowOnboarding] = reactExports.useState(() => !localStorage.getItem("gorex-onboarding-done"));
   const nextIdRef = reactExports.useRef(0);
   const listDragCounter = reactExports.useRef(0);
   reactExports.useEffect(() => {
@@ -10331,7 +11837,7 @@ function App() {
   };
   const handleDownload = async (url, service) => {
     setIsLoading(true);
-    setLoadingMessage({ title: "Получение форматов...", subtitle: "Запрашиваем информацию о видео" });
+    setLoadingMessage({ title: t2("loadingFetchingFormats"), subtitle: t2("loadingRequestingInfo") });
     try {
       const info = await window.api.ytdlGetFormats(url);
       const safeOutputName = (info.title || "video").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/\.+$/, "").trim() || "video";
@@ -10354,6 +11860,10 @@ function App() {
         ytdlUrl: url,
         ytdlFormats: info.formats,
         ytdlSelectedFormat: bestFormatId,
+        ytdlChapters: info.chapters || [],
+        ytdlDuration: info.duration || 0,
+        clipStart: null,
+        clipEnd: null,
         title: info.title,
         outputName: safeOutputName,
         thumbnail: info.thumbnailUrl,
@@ -10381,6 +11891,9 @@ function App() {
   };
   const handleYtdlConversionSettings = (id2, settings) => {
     setVideos((prev) => prev.map((v2) => v2.id === id2 ? { ...v2, conversionSettings: settings } : v2));
+  };
+  const handleYtdlClipChange = (id2, clipStart, clipEnd) => {
+    setVideos((prev) => prev.map((v2) => v2.id === id2 ? { ...v2, clipStart, clipEnd } : v2));
   };
   const toggleTheme = () => {
     setTheme((prev) => {
@@ -10501,8 +12014,11 @@ function App() {
           outputDir: resolvedOutputDir,
           outputName: v2.outputName,
           convertAfterDownload: v2.convertAfterDownload,
-          conversionSettings: v2.conversionSettings,
-          videoResolution: v2.resolution
+          conversionSettings: v2.conversionSettings || selectedSettings,
+          videoResolution: v2.resolution,
+          clipStart: v2.clipStart ?? null,
+          clipEnd: v2.clipEnd ?? null,
+          ytdlDuration: v2.ytdlDuration ?? null
         });
       } else {
         window.api.runCli({
@@ -10593,9 +12109,9 @@ function App() {
       });
       if (code !== 0) {
         const v2 = videosRef.current.find((v22) => v22.id === id2);
-        const title = v2 ? v2.title || v2.path?.split(/[\/\\]/).pop() || "Неизвестный файл" : "Неизвестный файл";
-        const hint = getEncoderErrorHint(stderr || "");
-        setCliErrors((prev) => [...prev, { title, stderr: (stderr || "").trim() || "(нет вывода)", hint }]);
+        const title = v2 ? v2.title || v2.path?.split(/[/\\]/).pop() || t2("unknownFile") : t2("unknownFile");
+        const hint = getEncoderErrorHint(stderr || "", t2);
+        setCliErrors((prev) => [...prev, { title, stderr: (stderr || "").trim() || t2("noOutput"), hint }]);
       }
     });
   }, []);
@@ -10647,6 +12163,7 @@ function App() {
             onYtdlFormatChange: handleYtdlFormatChange,
             onYtdlConvertToggle: handleYtdlConvertToggle,
             onYtdlConversionSettings: handleYtdlConversionSettings,
+            onYtdlClipChange: handleYtdlClipChange,
             isDraggingOnList,
             onListDragEnter: handleListDragEnter,
             onListDragLeave: handleListDragLeave,
@@ -10687,19 +12204,20 @@ function App() {
         onStartEncoding: startEncoding,
         onPause: handlePause,
         onStop: handleStop,
-        onClearQueue: handleClearQueue
+        onClearQueue: handleClearQueue,
+        onOpenCliConsole: () => setShowCliConsole((v2) => !v2)
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "container", children: renderPage() }),
     isLoading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `loading-overlay ${theme}`, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "loading-popup", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "loading-popup-title", children: loadingMessage?.title ?? "Анализ файлов..." }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "loading-popup-subtitle", children: loadingMessage?.subtitle ?? "Считываем метаданные видео" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "loading-popup-title", children: loadingMessage?.title ?? t2("loadingAnalyzing") }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "loading-popup-subtitle", children: loadingMessage?.subtitle ?? t2("loadingReadingMeta") }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "loading-bar-track", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "loading-bar-fill" }) })
     ] }) }),
     cliErrors.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `cli-error-overlay ${theme}`, onClick: () => setCliErrors([]), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "cli-error-popup", onClick: (e) => e.stopPropagation(), children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "cli-error-header", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-exclamation-triangle-fill cli-error-icon" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cli-error-title", children: cliErrors.length === 1 ? "Ошибка кодирования" : `Ошибки кодирования (${cliErrors.length})` }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cli-error-title", children: cliErrors.length === 1 ? t2("encodingError") : `${t2("encodingErrors")} (${cliErrors.length})` }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "cli-error-close", onClick: () => setCliErrors([]), children: /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: "bi bi-x-lg" }) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "cli-error-body", children: cliErrors.map((err, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "cli-error-item", children: [
@@ -10709,7 +12227,7 @@ function App() {
             "button",
             {
               className: `cli-error-copy${copiedIdx === i ? " copied" : ""}`,
-              title: "Копировать",
+              title: t2("copyToClipboard"),
               onClick: () => {
                 navigator.clipboard.writeText(err.stderr);
                 setCopiedIdx(i);
@@ -10739,15 +12257,34 @@ ${e.stderr}`).join("\n\n");
             },
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("i", { className: `bi ${copiedIdx === "all" ? "bi-check-lg" : "bi-clipboard"}` }),
-              copiedIdx === "all" ? "Скопировано" : "Копировать всё"
+              copiedIdx === "all" ? t2("copied") : t2("copyAll")
             ]
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "cli-error-dismiss", onClick: () => setCliErrors([]), children: "Закрыть" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "cli-error-dismiss", onClick: () => setCliErrors([]), children: t2("close") })
       ] })
-    ] }) })
+    ] }) }),
+    showCliConsole && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      CliConsole,
+      {
+        logs: cliLogs,
+        onClear: () => setCliLogs([]),
+        onClose: () => setShowCliConsole(false),
+        theme
+      }
+    ),
+    showOnboarding && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      OnboardingScreen,
+      {
+        theme,
+        onDone: () => {
+          localStorage.setItem("gorex-onboarding-done", "1");
+          setShowOnboarding(false);
+        }
+      }
+    )
   ] });
 }
 client.createRoot(document.getElementById("root")).render(
-  /* @__PURE__ */ jsxRuntimeExports.jsx(React.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) })
+  /* @__PURE__ */ jsxRuntimeExports.jsx(React.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(LanguageProvider, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) })
 );

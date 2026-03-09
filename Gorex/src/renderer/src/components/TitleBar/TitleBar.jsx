@@ -111,6 +111,10 @@ function TitleBar({
                 </div>
 
                 <div className="titlebar-right">
+                    <a href="https://dalink.to/akhmatyarov" target="_blank" rel="noreferrer" className="tb-donate-btn" title={t('donate')}>
+                        <i className="bi bi-heart-fill"></i>
+                        <span>{t('donate')}</span>
+                    </a>
                     <div className="theme-toggle" onClick={handleToggle}>
                         <div className={`toggle-switch ${theme}${toggling ? ' toggling' : ''}`}>
                             <i className="bi bi-brightness-high toggle-icon-sun"></i>

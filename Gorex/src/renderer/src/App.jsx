@@ -355,7 +355,7 @@ function App() {
                     outputDir: resolvedOutputDir,
                     outputName: v.outputName,
                     convertAfterDownload: v.convertAfterDownload,
-                    conversionSettings: v.conversionSettings,
+                    conversionSettings: v.conversionSettings || selectedSettings,
                     videoResolution: v.resolution,
                     clipStart: v.clipStart ?? null,
                     clipEnd: v.clipEnd ?? null,

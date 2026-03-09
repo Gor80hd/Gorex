@@ -50,6 +50,10 @@ node_modules/
 Gorex/node_modules/
 Gorex/dist/
 
+# Gorex build artifacts and large binaries
+Gorex/installer/resources/gorex-app/
+Gorex/resources/ytdl/
+
 # Windows build binaries in others/
 others/win/CS/*/bin/
 others/win/CS/*/obj/

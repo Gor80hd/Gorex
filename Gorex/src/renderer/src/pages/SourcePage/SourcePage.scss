@@ -180,6 +180,14 @@
     line-height: 1;
 
     .bi { transition: color 0.2s; }
+    .svc-svg-icon { transition: color 0.2s; }
+}
+
+.svc-svg-icon {
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    flex-shrink: 0;
 }
 
 .dl-icon--placeholder {

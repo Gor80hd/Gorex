@@ -1,0 +1,41 @@
+{
+  "name": "gorex-setup",
+  "version": "1.0.0",
+  "description": "Gorex Installer",
+  "main": "main.js",
+  "author": "Akhmatyarov",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.akhmatyarov.gorex-setup",
+    "productName": "GorexSetup",
+    "files": [
+      "**/*",
+      "!resources/gorex-app/**"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "resources/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "extraResources": [
+      {
+        "from": "resources/gorex-app",
+        "to": "gorex-app"
+      },
+      {
+        "from": "resources/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "directories": {
+      "output": "../dist/installer-out"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1"
+  }
+}

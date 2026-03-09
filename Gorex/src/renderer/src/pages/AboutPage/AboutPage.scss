@@ -538,6 +538,28 @@
     &:hover { opacity: 0.85; }
 }
 
+.me-contact-donate {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #e11d48, #f43f5e);
+    box-shadow: 0 2px 12px rgba(225, 29, 72, 0.35);
+    transition: box-shadow 0.15s, transform 0.15s;
+
+    i { font-size: 1.0rem; }
+
+    &:hover {
+        box-shadow: 0 4px 18px rgba(225, 29, 72, 0.55);
+        transform: translateY(-1px);
+    }
+}
+
 .me-qr-wrap {
     display: flex;
     flex-direction: column;

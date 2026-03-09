@@ -149,6 +149,31 @@
     font-size: 0.85rem;
 }
 
+// ─── Donate button ─────────────────────────────────────────────────────────────
+.tb-donate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #e11d48, #f43f5e);
+    box-shadow: 0 1px 8px rgba(225, 29, 72, 0.35);
+    transition: box-shadow 0.15s, transform 0.15s;
+    -webkit-app-region: no-drag;
+    white-space: nowrap;
+
+    i { font-size: 0.78rem; }
+
+    &:hover {
+        box-shadow: 0 3px 14px rgba(225, 29, 72, 0.55);
+        transform: translateY(-1px);
+    }
+}
+
 .tb-item-shortcut {
     font-size: 0.72rem;
     opacity: 0.38;

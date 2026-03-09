@@ -34,6 +34,13 @@ function getYtdlPath() {
   }
   return path.join(path.dirname(process.execPath), "resources", "ytdl", bin);
 }
+function getFfmpegPath() {
+  const bin = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+  if (utils.is.dev) {
+    return path.join(electron.app.getAppPath(), "resources", "ytdl", bin);
+  }
+  return path.join(path.dirname(process.execPath), "resources", "ytdl", bin);
+}
 function getDownloadDir(customOutputDir) {
   if (customOutputDir) return customOutputDir;
   const s = readAppSettings();
@@ -57,6 +64,8 @@ function createWindow() {
       sandbox: false
     }
   });
+  const cleanUA = mainWindow.webContents.userAgent.replace(/\bElectron\/[\d.]+\s*/g, "").trim();
+  mainWindow.webContents.userAgent = cleanUA;
   mainWindow.on("ready-to-show", () => {
     mainWindow.show();
   });
@@ -71,7 +80,32 @@ function createWindow() {
   }
 }
 electron.app.whenReady().then(() => {
-  utils.electronApp.setAppUserModelId("com.antigravity.gorex");
+  utils.electronApp.setAppUserModelId("com.akhmatyarov.gorex");
+  {
+    const _fs = require("fs");
+    const fluentFfmpeg = require("fluent-ffmpeg");
+    const ffmpegBin = getFfmpegPath();
+    const ffprobeBin = path.join(require("path").dirname(ffmpegBin), process.platform === "win32" ? "ffprobe.exe" : "ffprobe");
+    if (_fs.existsSync(ffmpegBin)) {
+      fluentFfmpeg.setFfmpegPath(ffmpegBin);
+    } else {
+      try {
+        const ffmpegStatic = require("ffmpeg-static");
+        if (ffmpegStatic && _fs.existsSync(ffmpegStatic)) fluentFfmpeg.setFfmpegPath(ffmpegStatic);
+      } catch (_) {
+      }
+    }
+    if (_fs.existsSync(ffprobeBin)) {
+      fluentFfmpeg.setFfprobePath(ffprobeBin);
+    } else {
+      try {
+        const ffprobeStatic = require("ffprobe-static");
+        const p = ffprobeStatic && (ffprobeStatic.path || ffprobeStatic);
+        if (p && _fs.existsSync(p)) fluentFfmpeg.setFfprobePath(p);
+      } catch (_) {
+      }
+    }
+  }
   electron.app.on("browser-window-created", (_, window) => {
     utils.optimizer.watchWindowShortcuts(window);
   });
@@ -93,7 +127,40 @@ electron.app.whenReady().then(() => {
     const { canceled, filePaths } = await electron.dialog.showOpenDialog({
       properties: ["openFile", "multiSelections"],
       filters: [
-        { name: "Videos", extensions: ["mp4", "mkv", "avi", "mov"] }
+        {
+          name: "Videos",
+          extensions: [
+            "mp4",
+            "mkv",
+            "avi",
+            "mov",
+            "wmv",
+            "flv",
+            "m4v",
+            "ts",
+            "m2ts",
+            "mts",
+            "mpg",
+            "mpeg",
+            "vob",
+            "webm",
+            "3gp",
+            "3g2",
+            "ogv",
+            "ogg",
+            "divx",
+            "xvid",
+            "rmvb",
+            "asf",
+            "mxf",
+            "dv",
+            "f4v",
+            "h264",
+            "h265",
+            "hevc",
+            "avchd"
+          ]
+        }
       ]
     });
     return canceled ? [] : filePaths;
@@ -246,7 +313,8 @@ electron.app.whenReady().then(() => {
     if (convertAfterDownload && !fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true });
     const safeBase = (outputName || "video").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/\.+$/, "").trim() || "video";
     const fmtArg = !formatId || formatId === "best" ? "bestvideo+bestaudio/best" : formatId.includes("/") || formatId.includes("[") ? formatId : `${formatId}+bestaudio/${formatId}`;
-    const outputTemplate = path.join(downloadDir, safeBase + ".%(ext)s");
+    const downloadBase = convertAfterDownload ? `gorex_temp_${id}_${Date.now()}` : safeBase;
+    const outputTemplate = path.join(downloadDir, downloadBase + ".%(ext)s");
     const hasClip = clipStart != null && clipStart > 0 || clipEnd != null;
     const secToTimestamp = (s) => {
       const sec = Math.max(0, Math.floor(s));
@@ -255,6 +323,7 @@ electron.app.whenReady().then(() => {
       const ss = sec % 60;
       return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
     };
+    const ffmpegPath = getFfmpegPath();
     const ytdlArgs = [
       "-f",
       fmtArg,
@@ -263,7 +332,8 @@ electron.app.whenReady().then(() => {
       "--no-playlist",
       "--merge-output-format",
       "mp4",
-      "--newline"
+      "--newline",
+      ...require("fs").existsSync(ffmpegPath) ? ["--ffmpeg-location", ffmpegPath] : []
     ];
     if (hasClip) {
       const fromTs = secToTimestamp(clipStart ?? 0);
@@ -319,7 +389,7 @@ electron.app.whenReady().then(() => {
       parseProgress(str, false);
       const destMatch = str.match(/\[download\] Destination:\s+(.+)/);
       if (destMatch) downloadedPath = destMatch[1].trim();
-      const mergeMatch = str.match(/\[Merger\] Merging formats into "(.+)"/);
+      const mergeMatch = str.match(/\[(?:Merger|ffmpeg)\] Merging formats into "(.+)"/);
       if (mergeMatch) downloadedPath = mergeMatch[1].trim();
       const alreadyMatch = str.match(/\[download\] (.+) has already been downloaded/);
       if (alreadyMatch) downloadedPath = alreadyMatch[1].trim();
@@ -335,7 +405,7 @@ electron.app.whenReady().then(() => {
       activeJobs.delete(id);
       event.sender.send("ytdl-exit", { id, code: 1, error: err.message });
     });
-    child.on("close", (code) => {
+    child.on("close", async (code) => {
       console.log("[yt-dlp exit] code:", code);
       activeJobs.delete(id);
       if (code !== 0) {
@@ -345,12 +415,45 @@ electron.app.whenReady().then(() => {
       if (!downloadedPath || !fs.existsSync(downloadedPath)) {
         try {
           const files = fs.readdirSync(downloadDir);
-          const matching = files.filter((f) => f.startsWith(safeBase + ".") || f.startsWith(safeBase + " (")).map((f) => ({ f, mtime: fs.statSync(path.join(downloadDir, f)).mtimeMs })).sort((a, b) => b.mtime - a.mtime);
+          const matching = files.filter((f) => f.startsWith(downloadBase + ".") || f.startsWith(downloadBase + " (")).map((f) => ({ f, mtime: fs.statSync(path.join(downloadDir, f)).mtimeMs })).sort((a, b) => b.mtime - a.mtime);
           if (matching.length > 0) downloadedPath = path.join(downloadDir, matching[0].f);
         } catch (_) {
         }
       }
       if (convertAfterDownload && downloadedPath && fs.existsSync(downloadedPath) && fs.existsSync(cliPath)) {
+        const ffmpeg = require("fluent-ffmpeg");
+        let hasVideo = false;
+        try {
+          hasVideo = await new Promise((res) => {
+            ffmpeg.ffprobe(downloadedPath, (err, meta) => {
+              if (err) return res(false);
+              res(!!(meta && meta.streams && meta.streams.some((s2) => s2.codec_type === "video")));
+            });
+          });
+        } catch (_) {
+          hasVideo = false;
+        }
+        if (!hasVideo) {
+          const audioExt = require("path").extname(downloadedPath);
+          const audioBase = (outputName || safeBase).replace(/_converted(\s*\(\d+\))?$/i, "").trimEnd();
+          let audioOut = path.join(resolvedDir, audioBase + audioExt);
+          if (fs.existsSync(audioOut)) {
+            let c = 1;
+            while (fs.existsSync(path.join(resolvedDir, `${audioBase} (${c})${audioExt}`))) c++;
+            audioOut = path.join(resolvedDir, `${audioBase} (${c})${audioExt}`);
+          }
+          try {
+            fs.renameSync(downloadedPath, audioOut);
+          } catch (_) {
+            try {
+              fs.copyFileSync(downloadedPath, audioOut);
+              fs.unlinkSync(downloadedPath);
+            } catch (__) {
+            }
+          }
+          event.sender.send("ytdl-exit", { id, code: 0, outputPath: audioOut });
+          return;
+        }
         event.sender.send("ytdl-exit", { id, code: 0, outputPath: downloadedPath, converting: true });
         const s = conversionSettings || { format: "av_mp4", encoder: "x265", encoderSpeed: "slow", quality: "medium", fps: "source", resolution: "source" };
         const rawBase = (outputName || safeBase).replace(/_converted(\s*\(\d+\))?$/i, "").trimEnd();
@@ -684,7 +787,18 @@ electron.app.whenReady().then(() => {
       outputPath = path.join(outputDir, convertedBase + " (" + counter + ")." + ext);
     }
     const fallbackSettings = settings || { format: "av_mkv", encoder: "x265", encoderSpeed: "slow", quality: "high", fps: "source", resolution: "source" };
-    const args = buildCliArgs(filePath, outputPath, fallbackSettings, videoResolution);
+    let hbInputPath = filePath;
+    if (process.platform === "win32" && /[^\x00-\x7F]/.test(filePath)) {
+      const { extname } = require("path");
+      const { tmpdir } = require("os");
+      const asciiLink = path.join(tmpdir(), `gorex_encode_${id}_${Date.now()}${extname(filePath)}`);
+      try {
+        fs.linkSync(filePath, asciiLink);
+        hbInputPath = asciiLink;
+      } catch (_) {
+      }
+    }
+    const args = buildCliArgs(hbInputPath, outputPath, fallbackSettings, videoResolution);
     console.log(`Running CLI: ${cliPath} ${args.join(" ")}`);
     const stderrLines = [];
     const child = child_process.spawn(cliPath, args);
@@ -711,6 +825,12 @@ electron.app.whenReady().then(() => {
       event.sender.send("cli-error", str);
     });
     child.on("close", (code) => {
+      if (hbInputPath !== filePath && fs.existsSync(hbInputPath)) {
+        try {
+          fs.unlinkSync(hbInputPath);
+        } catch (_) {
+        }
+      }
       activeJobs.delete(id);
       event.sender.send("cli-exit", { id, code, outputPath, stderr: stderrLines.join("") });
     });
@@ -822,6 +942,16 @@ electron.app.whenReady().then(() => {
     const primaryGpu = gpuList.find((n) => vendorOfName(n) === finalVendor) || gpuList[0] || null;
     return { gpus: gpuList, vendor: finalVendor, primaryGpu };
   });
+  electron.session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ["*://*.youtube.com/*", "*://*.youtube-nocookie.com/*", "*://*.googlevideo.com/*", "*://*.ytimg.com/*"] },
+    (details, callback) => {
+      const headers = { ...details.requestHeaders };
+      if (!headers["Referer"] && !headers["referer"]) {
+        headers["Referer"] = "https://www.youtube.com/";
+      }
+      callback({ requestHeaders: headers });
+    }
+  );
   createWindow();
   electron.app.on("activate", function() {
     if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
