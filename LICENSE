@@ -17,10 +17,6 @@ Bundled third-party components
 Gorex distributes the following pre-built binaries as part of its release
 packages. Each component retains its own license:
 
-  HandBrake CLI (HandBrakeCLI.exe / HandBrakeCLI)
-    License: GNU General Public License Version 2
-    Source:  https://github.com/HandBrake/HandBrake
-
   yt-dlp (yt-dlp.exe / yt-dlp_macos)
     License: The Unlicense (public domain)
     Source:  https://github.com/yt-dlp/yt-dlp
@@ -28,11 +24,6 @@ packages. Each component retains its own license:
   ffmpeg / ffprobe
     License: GNU Lesser General Public License Version 2.1 (or later)
     Source:  https://ffmpeg.org
-
-Because Gorex bundles and distributes HandBrake CLI (GPLv2), the combined
-distribution as a whole is subject to the terms of the GNU General Public
-License Version 2. Gorex does not incorporate HandBrake source code; it
-invokes the HandBrake CLI binary as an external process.
 
 -------------------------------------------------------------------------------
 
