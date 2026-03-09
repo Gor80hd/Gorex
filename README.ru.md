@@ -61,7 +61,7 @@ Gorex — современный Electron-интерфейс для легенд
 
 ```bash
 # 1. Клонировать репозиторий
-git clone <repo-url>
+git clone (https://github.com/Gor80hd/Gorex.git)
 cd Gorex
 
 # 2. Установить зависимости
