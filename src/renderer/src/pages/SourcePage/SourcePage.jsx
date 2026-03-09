@@ -65,13 +65,11 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
     const { t } = useLanguage()
 
     const trimmed = url.trim()
-    const hasUrl = trimmed.length > 0
     const isUrl = isValidUrl(trimmed)
     const service = useMemo(() => detectService(trimmed), [trimmed])
-    const isUnsupported = hasUrl && isUrl && !service
 
     const handleDownload = async () => {
-        if (!trimmed || isDownloading || isUnsupported) return
+        if (!trimmed || isDownloading) return
         setDlError('')
         setDlHint('')
         setIsDownloading(true)
@@ -102,8 +100,6 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
         iconEl = service.svgPath
             ? <svg viewBox="0 0 24 24" fill="currentColor" className="svc-svg-icon" style={{ color: service.color }} title={service.name}><path d={service.svgPath} /></svg>
             : <i className={`bi ${service.icon}`} style={{ color: service.color }} title={service.name} />
-    } else if (isUnsupported) {
-        iconEl = <i className="bi bi-x-circle-fill dl-icon--unsupported" />
     } else {
         iconEl = <i className="bi bi-link-45deg dl-icon--placeholder" />
     }
@@ -113,7 +109,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
             <div className="dl-zone">
                 <span className="dl-zone-label">{t('dlFromWeb')}</span>
                 <div className="dl-bar">
-                    <div className={`dl-input-wrap${isUnsupported ? ' dl-input-wrap--error' : ''}${service ? ' dl-input-wrap--ok' : ''}`}>
+                    <div className={`dl-input-wrap${service ? ' dl-input-wrap--ok' : ''}`}>
                         <span className="dl-input-icon">{iconEl}</span>
                         <input
                             className="dl-input"
@@ -129,7 +125,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                         <button
                             className="dl-btn"
                             onClick={handleDownload}
-                            disabled={!trimmed || isDownloading || isUnsupported}
+                            disabled={!trimmed || isDownloading || !isUrl}
                         >
                             {isDownloading
                                 ? <span className="dl-spinner" />
@@ -138,9 +134,6 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                         </button>
                     </div>
 
-                    {isUnsupported && !dlError && (
-                        <span className="dl-hint">{t('dlUnsupported')}</span>
-                    )}
                     {dlError && <span className="dl-hint dl-hint--error">{dlError}</span>}
                 </div>
             </div>

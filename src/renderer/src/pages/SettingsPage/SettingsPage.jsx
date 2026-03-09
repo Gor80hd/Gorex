@@ -165,7 +165,7 @@ function SectionHeader({ icon, title }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings, onSave }) {
+function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave }) {
     const { t, lang, setLang } = useLanguage()
     const [activeSection, setActiveSection] = useState('app')
     const [savedFlash, setSavedFlash] = useState(false)
@@ -372,6 +372,24 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                                         <i className={`bi ${icon}`}></i>
                                         {t(labelKey)}
                                     </button>
+                                ))}
+                            </div>
+                        </Row>
+
+                        <Row label={t('rowAccentTheme')} hint={t('hintAccentTheme')}>
+                            <div className="sp-color-dots">
+                                {[
+                                    { key: 'purple', color: '#7c3aed', labelKey: 'accentThemePurple' },
+                                    { key: 'white',  color: '#ffffff', labelKey: 'accentThemeWhite'  },
+                                ].map(({ key, color, labelKey }) => (
+                                    <button
+                                        key={key}
+                                        className={`sp-color-dot${accentTheme === key ? ' active' : ''}`}
+                                        style={{ '--dot-color': color }}
+                                        onClick={() => onAccentThemeChange(key)}
+                                        type="button"
+                                        title={t(labelKey)}
+                                    />
                                 ))}
                             </div>
                         </Row>

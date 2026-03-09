@@ -1,4 +1,4 @@
-.about-container {
+﻿.about-container {
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -36,7 +36,7 @@
     h1 {
         font-size: 1.4rem;
         font-weight: 700;
-        background: linear-gradient(135deg, var(--accent-color), #a78bfa);
+        background: linear-gradient(135deg, var(--accent-color), var(--accent-color));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         line-height: 1.2;
@@ -295,7 +295,7 @@
     width: 44px;
     height: 44px;
     border-radius: 10px;
-    background: rgba(124, 58, 237, 0.12);
+    background: rgba(var(--accent-rgb), 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -475,7 +475,7 @@
     color: var(--accent-color);
     text-decoration: none;
     font-weight: 600;
-    border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+    border-bottom: 1px solid rgba(var(--accent-rgb), 0.3);
     transition: border-color 0.15s;
 
     &:hover { border-bottom-color: var(--accent-color); }
