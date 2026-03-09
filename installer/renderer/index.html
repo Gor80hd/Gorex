@@ -567,54 +567,6 @@ h2 {
     animation: logIn 0.2s var(--ease) both;
 }
 
-/* ── Already installed / Uninstall states ──────────────────────────────── */
-.installed-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.28);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: #34d399;
-    margin-bottom: 14px;
-}
-.warn-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.28);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    color: #f87171;
-    margin-bottom: 14px;
-}
-.success-icon.danger {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.28);
-    color: #f87171;
-}
-.btn-primary.btn-danger {
-    background: #dc2626;
-}
-.btn-primary.btn-danger:hover {
-    background: #b91c1c;
-    box-shadow: 0 0 24px rgba(220, 38, 38, 0.45);
-}
-.btn-ghost.btn-uninstall {
-    color: rgba(252, 165, 165, 0.85);
-    border-color: rgba(239, 68, 68, 0.22);
-}
-.btn-ghost.btn-uninstall:hover {
-    background: rgba(239, 68, 68, 0.07);
-    border-color: rgba(239, 68, 68, 0.38);
-    color: #fca5a5;
-}
 </style>
 </head>
 <body>
@@ -643,7 +595,6 @@ h2 {
 
         <!-- Step 1: Welcome -->
         <div class="step active" id="s1">
-            <div id="s1-normal" style="display:contents">
             <div class="logo-ring">
                 <div class="logo-inner">
                     <svg viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -664,17 +615,6 @@ h2 {
             <div class="btn-row">
                 <button class="btn-ghost" onclick="cancelInstall()">Cancel</button>
                 <button class="btn-primary" onclick="navigate(2)">Install &nbsp;→</button>
-            </div>
-            </div><!-- /s1-normal -->
-            <div id="s1-installed" style="display:none;flex-direction:column;align-items:center;width:100%">
-                <div class="installed-icon">✓</div>
-                <h2>Already installed</h2>
-                <p class="subtitle" style="margin-bottom:6px">Gorex <strong id="installedVersion"></strong> is installed at:</p>
-                <div class="install-path-done" id="installedPath" style="margin-bottom:24px"></div>
-                <div class="btn-row">
-                    <button class="btn-ghost btn-uninstall" onclick="goToUninstall()">Uninstall</button>
-                    <button class="btn-primary" onclick="navigate(2)">Reinstall &nbsp;→</button>
-                </div>
             </div>
         </div>
 
@@ -733,7 +673,7 @@ h2 {
                 </div>
                 <div class="log-area" id="logArea"></div>
             </div>
-            <button class="btn-primary" id="elevateBtn" style="display:none;margin-top:18px" onclick="elevateAndRelaunch()">↑ Запустить от имени администратора</button>
+            <button class="btn-primary" id="elevateBtn" style="display:none;margin-top:18px" onclick="elevateAndRelaunch()">Run as Administrator</button>
         </div>
 
         <!-- Step 4: Done -->
@@ -754,87 +694,20 @@ h2 {
             </div>
         </div>
 
-        <!-- Step 5: Uninstall Confirm -->
-        <div class="step" id="s5">
-            <div class="warn-icon">⚠</div>
-            <h2>Uninstall Gorex?</h2>
-            <p class="subtitle" style="margin-bottom:6px">This will permanently remove all Gorex files from:</p>
-            <div class="install-path-done" id="uninstPathLabel" style="margin-bottom:22px"></div>
-            <div class="btn-row">
-                <button class="btn-ghost" onclick="cancelUninstall()">← Cancel</button>
-                <button class="btn-primary btn-danger" onclick="startUninstall()">Uninstall</button>
-            </div>
-        </div>
-
-        <!-- Step 6: Uninstalling -->
-        <div class="step" id="s6">
-            <h2 id="uninstProgressTitle">Uninstalling…</h2>
-            <p class="subtitle">Please wait. This will only take a moment.</p>
-            <div class="progress-wrap">
-                <div class="progress-header">
-                    <span class="progress-label" id="uninstStatusText">Preparing…</span>
-                    <span class="progress-pct"   id="uninstPctText">0%</span>
-                </div>
-                <div class="progress-track">
-                    <div class="progress-fill" id="uninstProgressFill"></div>
-                </div>
-                <div class="log-area" id="uninstLogArea"></div>
-            </div>
-        </div>
-
-        <!-- Step 7: Uninstall Done -->
-        <div class="step" id="s7">
-            <div class="success-icon danger">✕</div>
-            <h2>Gorex uninstalled</h2>
-            <p class="subtitle">Gorex has been successfully removed from your computer.</p>
-            <div class="btn-row">
-                <button class="btn-primary" onclick="api.closeWindow()">Close</button>
-            </div>
-        </div>
-
     </div><!-- /content -->
 </div><!-- /app -->
 
 <script>
 'use strict'
 
-let currentStep      = 1
-let installPath      = ''
-let installedInfo    = { installed: false }
-let uninstallDir     = ''
-let uninstCancelDest = 1
+let currentStep = 1
+let installPath = ''
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-    const [mode, info] = await Promise.all([
-        window.api.getMode(),
-        window.api.checkInstalled(),
-    ])
-    installedInfo = info
-
-    if (mode === 'uninstall') {
-        document.getElementById('s1').classList.remove('active')
-        document.getElementById('s5').classList.add('active')
-        currentStep = 5
-        document.getElementById('uninstPathLabel').textContent = info.installed ? info.installDir : '(unknown)'
-        uninstallDir     = info.installDir ?? ''
-        uninstCancelDest = -1
-        return
-    }
-
-    if (info.installed) {
-        document.getElementById('installedVersion').textContent = info.version ?? ''
-        document.getElementById('installedPath').textContent    = info.installDir ?? ''
-        document.getElementById('s1-normal').style.display     = 'none'
-        document.getElementById('s1-installed').style.display  = 'flex'
-        document.getElementById('pathInput').value             = info.installDir ?? ''
-        uninstallDir = info.installDir ?? ''
-    } else {
-        const def = await window.api.getDefaultInstallDir()
-        document.getElementById('pathInput').value = def
-    }
-
-    updateDiskInfo(document.getElementById('pathInput').value)
+    const def = await window.api.getDefaultInstallDir()
+    document.getElementById('pathInput').value = def
+    updateDiskInfo(def)
     document.getElementById('pathInput').addEventListener('input', e => {
         updateDiskInfo(e.target.value)
     })
@@ -857,22 +730,6 @@ window.api.onInstallProgress(({ progress, status }) => {
     document.getElementById('statusText').textContent = status ?? ''
     if (progress >= 100) {
         setTimeout(() => navigate(4), 700)
-    }
-})
-
-// ── Uninstall progress listener ──────────────────────────────────────────────────
-window.api.onUninstallProgress(({ progress, status }) => {
-    if (progress < 0) {
-        document.getElementById('uninstProgressTitle').textContent = 'Uninstall failed'
-        setUninstProgress(0)
-        addUninstLog('[error] ' + status, true)
-        return
-    }
-    setUninstProgress(progress)
-    if (status) addUninstLog(status, progress === 100)
-    document.getElementById('uninstStatusText').textContent = status ?? ''
-    if (progress >= 100) {
-        setTimeout(() => navigate(7), 700)
     }
 })
 
@@ -984,43 +841,6 @@ function showError(msg) {
 }
 
 // ── Title bar ──────────────────────────────────────────────────────────────────
-function goToUninstall() {
-    document.getElementById('uninstPathLabel').textContent = installedInfo.installDir ?? ''
-    uninstallDir     = installedInfo.installDir ?? ''
-    uninstCancelDest = 1
-    navigate(5)
-}
-
-function cancelUninstall() {
-    if (uninstCancelDest < 0) {
-        window.api.closeWindow()
-    } else {
-        navigate(uninstCancelDest, true)
-    }
-}
-
-function startUninstall() {
-    navigate(6)
-    setTimeout(() => window.api.uninstall({ installDir: uninstallDir }), 400)
-}
-
-function setUninstProgress(pct) {
-    pct = Math.max(0, Math.min(100, pct))
-    document.getElementById('uninstProgressFill').style.width = pct + '%'
-    document.getElementById('uninstPctText').textContent      = pct + '%'
-}
-
-function addUninstLog(text, isCurrent = false) {
-    const area = document.getElementById('uninstLogArea')
-    area.querySelectorAll('.log-line.current').forEach(el => el.classList.remove('current'))
-    const line = document.createElement('div')
-    line.className   = 'log-line' + (isCurrent ? ' current' : '')
-    line.textContent = '› ' + text
-    area.appendChild(line)
-    while (area.children.length > 5) area.removeChild(area.firstChild)
-}
-
-// ── Title bar (legacy) ────────────────────────────────────────────────
 document.getElementById('minBtn').addEventListener('click',   () => window.api.minimizeWindow())
 document.getElementById('closeBtn').addEventListener('click', () => window.api.closeWindow())
 </script>

@@ -15,13 +15,6 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('install-progress', (_e, data) => cb(data))
     },
 
-    getMode:            ()        => ipcRenderer.invoke('get-mode'),
-    checkInstalled:     ()        => ipcRenderer.invoke('check-installed'),
-    uninstall:          (opts)    => ipcRenderer.send('uninstall', opts),
-    onUninstallProgress:(cb)      => {
-        ipcRenderer.on('uninstall-progress', (_e, data) => cb(data))
-    },
-
     launchApp:          (opts)    => ipcRenderer.send('launch-app', opts),
     elevate:            ()        => ipcRenderer.invoke('elevate'),
 })

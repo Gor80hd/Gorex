@@ -762,6 +762,20 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     />
                                 </VspRow>
 
+                                <VspSectionHeader icon="bi-arrow-repeat" title={t('vspConvertAfterDl')} />
+                                <VspRow label={t('vspConvertFile')} hint={t('vspHintConvertFile')}>
+                                    <VspToggle
+                                        value={convertAfterDownload}
+                                        onChange={v => setDraft(prev => ({ ...prev, _convertAfterDownload: v }))}
+                                    />
+                                </VspRow>
+                                {!convertAfterDownload && (
+                                    <div className="vsp-notice">
+                                        <i className="bi bi-info-circle"></i>
+                                        {t('vspConvertNotice')}
+                                    </div>
+                                )}
+
                                 {/* ── Time range clip ── */}
                                 {video.ytdlDuration > 0 && (
                                     <>
@@ -778,20 +792,6 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                             />
                                         </div>
                                     </>
-                                )}
-
-                                <VspSectionHeader icon="bi-arrow-repeat" title={t('vspConvertAfterDl')} />
-                                <VspRow label={t('vspConvertFile')} hint={t('vspHintConvertFile')}>
-                                    <VspToggle
-                                        value={convertAfterDownload}
-                                        onChange={v => setDraft(prev => ({ ...prev, _convertAfterDownload: v }))}
-                                    />
-                                </VspRow>
-                                {!convertAfterDownload && (
-                                    <div className="vsp-notice">
-                                        <i className="bi bi-info-circle"></i>
-                                        {t('vspConvertNotice')}
-                                    </div>
                                 )}
                             </div>
                         )}

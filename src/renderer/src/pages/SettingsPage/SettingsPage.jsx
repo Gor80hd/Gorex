@@ -452,6 +452,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, onBack, appSettings
                         </Row>
 
                         <SectionHeader icon="bi-folder2" title={t('sectionOutputFolder')} />
+                        <p className="sp-tab-description">{t('folderDesc')}</p>
                         <div className="sp-folder-widget">
                             <div className="sp-folder-widget__info">
                                 <span className="sp-folder-widget__path">{resolvedOutputDir || '…'}</span>

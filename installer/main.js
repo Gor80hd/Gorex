@@ -1,12 +1,10 @@
 'use strict'
 
-const isUninstallMode = process.argv.includes('--uninstall')
-
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
-const { execSync, execFileSync, spawn } = require('child_process')
+const { execSync, execFileSync } = require('child_process')
 
 let win
 
@@ -66,11 +64,6 @@ ipcMain.handle('get-disk-space', (_event, dirPath) => {
         return { free: null }
     }
 })
-
-// ── Check if installed ───────────────────────────────────────────────────────
-ipcMain.handle('get-mode', () => isUninstallMode ? 'uninstall' : 'install')
-
-ipcMain.handle('check-installed', () => getInstalledInfo())
 
 // ── Install ────────────────────────────────────────────────────────────────────
 ipcMain.on('install', (event, { destDir, createDesktopShortcut = true, createStartMenuShortcut = true }) => {
@@ -132,15 +125,12 @@ ipcMain.on('install', (event, { destDir, createDesktopShortcut = true, createSta
             }
             createShortcuts(destDir, { desktop: createDesktopShortcut, startMenu: createStartMenuShortcut, icoPath: icoInDest })
 
-            send(84, 'Copying uninstaller…')
-            const selfExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath
-            const uninstExe = path.join(destDir, 'Uninstall Gorex.exe')
-            if (path.extname(selfExe).toLowerCase() === '.exe' && fs.existsSync(selfExe)) {
-                try { fs.copyFileSync(selfExe, uninstExe) } catch { /* optional */ }
-            }
-
-            send(92, 'Writing uninstall record…')
-            writeUninstallKey(destDir)
+            send(90, 'Registering uninstaller…')
+            try {
+                const isAdminUser = isAdmin()
+                writeUninstaller(destDir)
+                registerUninstaller(destDir, { isAdminUser })
+            } catch { /* uninstaller registration is optional */ }
 
             send(100, 'Done!')
         } catch (err) {
@@ -156,8 +146,9 @@ ipcMain.handle('elevate', () => {
     // NSIS portable sets PORTABLE_EXECUTABLE_FILE to the original .exe path
     const exe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath
     const psPath = exe.replace(/`/g, '``').replace(/'/g, "''")
+    const startCmd = `Start-Process -FilePath '${psPath}' -Verb RunAs`
     try {
-        execSync(`powershell -NoProfile -NonInteractive -Command "Start-Process -FilePath '${psPath}' -Verb RunAs"`, { timeout: 8000 })
+        execSync(`powershell -NoProfile -NonInteractive -Command "${startCmd}"`, { timeout: 8000 })
         app.quit()
         return true
     } catch {
@@ -172,71 +163,19 @@ ipcMain.on('launch-app', (_event, { destDir }) => {
     app.quit()
 })
 
-// ── Uninstall ────────────────────────────────────────────────────────────────
-ipcMain.on('uninstall', (event, { installDir }) => {
-    void (async () => {
-        try {
-            const send = (progress, status) =>
-                event.sender.send('uninstall-progress', { progress, status })
-
-            send(10, 'Removing shortcuts…')
-            const isAdminUser = isAdmin()
-            const desktopDir = isAdminUser
-                ? path.join(process.env.PUBLIC ?? 'C:\\Users\\Public', 'Desktop')
-                : getDesktopPath()
-            const startMenuDir = isAdminUser
-                ? path.join(process.env.ProgramData ?? 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Gorex')
-                : path.join(process.env.APPDATA ?? '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Gorex')
-            try { fs.unlinkSync(path.join(desktopDir, 'Gorex.lnk')) } catch { /* optional */ }
-            try { fs.rmSync(startMenuDir, { recursive: true, force: true }) } catch { /* optional */ }
-
-            send(40, 'Removing registry entries…')
-            for (const root of ['HKCU', 'HKLM']) {
-                try { execSync(`reg delete "${root}\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex" /f`, { timeout: 3000 }) } catch { /* optional */ }
-            }
-
-            send(70, 'Removing files…')
-
-            // Move the running uninstaller exe out of installDir first so
-            // the entire folder can be deleted while the process is alive.
-            const uninstExePath = path.join(installDir, 'Uninstall Gorex.exe')
-            let tempExe = null
-            try {
-                tempExe = path.join(os.tmpdir(), `GorexUninstall_${Date.now()}.exe`)
-                fs.renameSync(uninstExePath, tempExe)
-            } catch { tempExe = null }
-
-            // PowerShell with a hidden window: wait 5 s (enough for the
-            // Electron process to exit), then delete the install folder and
-            // the temp exe copy.
-            const escDir = installDir.replace(/'/g, "''")
-            const psLines = [
-                'Start-Sleep -Seconds 5',
-                `Remove-Item -LiteralPath '${escDir}' -Recurse -Force -ErrorAction SilentlyContinue`,
-            ]
-            if (tempExe) {
-                psLines.push(`Remove-Item -LiteralPath '${tempExe.replace(/'/g, "''")}' -Force -ErrorAction SilentlyContinue`)
-            }
-            spawn(
-                'powershell.exe',
-                ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', psLines.join('; ')],
-                { detached: true, stdio: 'ignore', windowsHide: true },
-            ).unref()
-
-            send(100, 'Done!')
-            // Auto-quit after a short delay so all file handles are released
-            // before PowerShell's cleanup runs.
-            setTimeout(() => app.quit(), 3500)
-        } catch (err) {
-            event.sender.send('uninstall-progress', { progress: -1, status: 'Error: ' + err.message })
-        }
-    })()
-})
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function isAdmin() {
     try {
         execSync('net session', { stdio: 'ignore' })
+        return true
+    } catch {
+        return false
+    }
+}
+
+function canWriteDir(dirPath) {
+    try {
+        fs.accessSync(dirPath, fs.constants.W_OK)
         return true
     } catch {
         return false
@@ -250,27 +189,6 @@ function collectFiles(dir) {
         fs.statSync(full).isDirectory() ? out.push(...collectFiles(full)) : out.push(full)
     }
     return out
-}
-
-function getInstalledInfo() {
-    for (const root of ['HKCU', 'HKLM']) {
-        try {
-            const key = `${root}\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex`
-            const out = execSync(`reg query "${key}" /v InstallLocation`, { timeout: 3000 }).toString()
-            const match = out.match(/InstallLocation\s+REG_SZ\s+(.+)/)
-            if (match) {
-                const installDir = match[1].trim()
-                let version = '1.0.0'
-                try {
-                    const verOut = execSync(`reg query "${key}" /v DisplayVersion`, { timeout: 3000 }).toString()
-                    const verMatch = verOut.match(/DisplayVersion\s+REG_SZ\s+(.+)/)
-                    if (verMatch) version = verMatch[1].trim()
-                } catch { /* optional */ }
-                return { installed: true, installDir, version }
-            }
-        } catch { /* not installed */ }
-    }
-    return { installed: false, installDir: null, version: null }
 }
 
 function getDesktopPath() {
@@ -333,26 +251,100 @@ function createShortcuts(destDir, { desktop = true, startMenu = true, icoPath = 
     try { execSync('ie4uinit.exe -show', { timeout: 4000, stdio: 'ignore' }) } catch { /* optional */ }
 }
 
-function writeUninstallKey(destDir) {
-    const isSystem = destDir.toLowerCase().includes('program files') || isAdmin()
-    const root = isSystem ? 'HKLM' : 'HKCU'
-    const key = `${root}\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex`
-    const uninstExe = path.join(destDir, 'Uninstall Gorex.exe')
-    const icoPath = path.join(destDir, 'Gorex.ico')
-    const displayIcon = fs.existsSync(icoPath) ? icoPath : `${path.join(destDir, 'Gorex.exe')},0`
-    // Use execFileSync so arguments are passed directly to reg.exe,
-    // bypassing shell quoting entirely.  Values can contain double-quotes
-    // (e.g. the UninstallString) without breaking the command.
-    const add = (name, type, value) => {
-        try { execFileSync('reg', ['add', key, '/v', name, '/t', type, '/d', value, '/f'], { timeout: 3000, stdio: 'ignore' }) } catch { /* optional */ }
-    }
-    add('DisplayName', 'REG_SZ', 'Gorex')
-    add('DisplayVersion', 'REG_SZ', '1.0.0')
-    add('Publisher', 'REG_SZ', 'Akhmatyarov')
-    add('DisplayIcon', 'REG_SZ', displayIcon)
-    add('InstallLocation', 'REG_SZ', destDir)
-    add('UninstallString', 'REG_SZ', `"${uninstExe}" --uninstall`)
-    add('QuietUninstallString', 'REG_SZ', `"${uninstExe}" --uninstall --quiet`)
-    add('NoModify', 'REG_DWORD', '1')
-    add('NoRepair', 'REG_DWORD', '1')
+// ── Write VBScript uninstaller ─────────────────────────────────────────────────
+function writeUninstaller(destDir) {
+    const vbs = [
+        "' Gorex Uninstaller",
+        "Option Explicit",
+        "",
+        "Dim fso, ws",
+        'Set fso = CreateObject("Scripting.FileSystemObject")',
+        'Set ws  = CreateObject("WScript.Shell")',
+        "",
+        'If ws.Popup("Are you sure you want to uninstall Gorex?", 0, "Uninstall Gorex", 4 + 32) <> 6 Then',
+        "    WScript.Quit",
+        "End If",
+        "",
+        "Dim installDir",
+        "installDir = fso.GetParentFolderName(WScript.ScriptFullName)",
+        "",
+        "' -- Remove shortcuts --",
+        "Dim paths(3)",
+        'paths(0) = ws.SpecialFolders("Desktop") & "\\Gorex.lnk"',
+        'paths(1) = ws.ExpandEnvironmentStrings("%PUBLIC%") & "\\Desktop\\Gorex.lnk"',
+        'paths(2) = ws.SpecialFolders("Programs") & "\\Gorex"',
+        'paths(3) = ws.ExpandEnvironmentStrings("%ProgramData%") & "\\Microsoft\\Windows\\Start Menu\\Programs\\Gorex"',
+        "",
+        "Dim p",
+        "For Each p In paths",
+        "    On Error Resume Next",
+        "    If fso.FileExists(p)   Then fso.DeleteFile   p, True",
+        "    If fso.FolderExists(p) Then fso.DeleteFolder p, True",
+        "    On Error GoTo 0",
+        "Next",
+        "",
+        "' -- Remove registry entries --",
+        'ws.Run "cmd /c reg delete ""HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex"" /f", 0, True',
+        'ws.Run "cmd /c reg delete ""HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex"" /f", 0, True',
+        "",
+        "' -- Done --",
+        'ws.Popup "Gorex has been uninstalled successfully.", 0, "Uninstall Gorex", 64',
+        "",
+        "' -- Delete install directory (deferred via PowerShell) --",
+        "Dim esc",
+        'esc = Replace(installDir, Chr(39), Chr(39) & Chr(39))',
+        'ws.Run "powershell -NoProfile -WindowStyle Hidden -Command ""Start-Sleep 2; Remove-Item -Path \'" & esc & "\' -Recurse -Force -ErrorAction SilentlyContinue""", 0, False',
+    ].join('\r\n')
+
+    fs.writeFileSync(path.join(destDir, 'Uninstall Gorex.vbs'), vbs, 'utf8')
 }
+
+// ── Register in Windows "Programs and Features" ────────────────────────────────
+function registerUninstaller(destDir, { isAdminUser = false, version = '1.0.0' } = {}) {
+    // Try to get the version from the main app's package.json
+    try {
+        const pkgPath = [
+            path.join(destDir, 'resources', 'app', 'package.json'),
+            path.join(destDir, 'resources', 'app.asar.unpacked', 'package.json'),
+        ].find(p => fs.existsSync(p))
+        if (pkgPath) version = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version || version
+    } catch { /* use default */ }
+
+    const hive    = isAdminUser ? 'HKLM' : 'HKCU'
+    const regKey  = `${hive}\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex`
+    const vbsPath = path.join(destDir, 'Uninstall Gorex.vbs')
+    const icoPath = path.join(destDir, 'Gorex.ico')
+
+    // Use PowerShell to safely set registry values (handles paths with spaces/special chars)
+    const esc = s => s.replace(/'/g, "''")  // escape for PS single-quoted strings
+    const ps = [
+        `$k = 'Registry::${esc(regKey)}'`,
+        `if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }`,
+        `$props = [ordered]@{`,
+        `    DisplayName          = 'Gorex'`,
+        `    Publisher            = 'Akhmatyarov'`,
+        `    DisplayVersion       = '${esc(version)}'`,
+        `    InstallLocation      = '${esc(destDir)}'`,
+        `    DisplayIcon          = '${esc(icoPath)},0'`,
+        `    UninstallString      = 'wscript.exe "${esc(vbsPath)}"'`,
+        `    QuietUninstallString = 'wscript.exe "${esc(vbsPath)}"'`,
+        `    NoModify             = [int32]1`,
+        `    NoRepair             = [int32]1`,
+        `}`,
+        `foreach ($name in $props.Keys) {`,
+        `    $val  = $props[$name]`,
+        `    $type = if ($val -is [int32]) { 'DWord' } else { 'String' }`,
+        `    Set-ItemProperty -Path $k -Name $name -Value $val -Type $type`,
+        `}`,
+    ].join('\n')
+
+    const tmp = path.join(os.tmpdir(), `gorex_unreg_${Date.now()}.ps1`)
+    try {
+        fs.writeFileSync(tmp, ps, 'utf8')
+        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tmp}"`, { timeout: 10000 })
+    } finally {
+        try { fs.unlinkSync(tmp) } catch { /* ignore */ }
+    }
+}
+
+
