@@ -3,12 +3,12 @@ import { join, dirname } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { spawn, exec } from 'child_process'
 
-// ─── CLI path resolution (always next to the executable, not configurable) ─────────────
+// ─── CLI path resolution ────────────────────────────────────────────────────────────────
 function getCLIPath() {
     if (is.dev) {
-        return join(app.getAppPath(), '..', 'build', 'HandBrakeCLI.exe')
+        return join(app.getAppPath(), 'resources', 'HandBrakeCLI.exe')
     }
-    return join(dirname(process.execPath), 'HandBrakeCLI.exe')
+    return join(dirname(process.execPath), 'resources', 'HandBrakeCLI.exe')
 }
 
 // ─── Persistent app settings (stored in userData) ───────────────────────────────────────

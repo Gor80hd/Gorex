@@ -1,3 +1,0 @@
-#include "base/arch.native.xcconfig"
-EXTERNAL_XCCONFIG = native
-#include "supplemental.xcconfig"

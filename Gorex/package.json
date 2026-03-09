@@ -50,8 +50,8 @@
       "target": "nsis",
       "extraFiles": [
         {
-          "from": "../build/HandBrakeCLI.exe",
-          "to": "HandBrakeCLI.exe"
+          "from": "resources/HandBrakeCLI.exe",
+          "to": "resources/HandBrakeCLI.exe"
         },
         {
           "from": "resources/ytdl",

@@ -60,7 +60,7 @@ SourcePage → filePaths[] → App.jsx (getVideoData via IPC)
 
 ## 2. Полный список параметров HandBrake CLI
 
-Путь к бинарнику: `e:\Sites\HandBrake\build\HandBrakeCLI.exe`
+Путь к бинарнику: `Gorex/resources/HandBrakeCLI.exe`
 
 ### 2.1 Общие параметры
 
@@ -542,7 +542,7 @@ child.stdout.on('data', (data) => {
 
 1. **Пресет vs. ручные параметры**: При использовании `--preset` HandBrake берёт все настройки из пресета. Явно переданные флаги CLI **перекрывают** значения из пресета. Порядок не важен, приоритет у явных флагов.
 
-2. **Путь к HandBrakeCLI.exe**: Сейчас hardcoded `e:\Sites\HandBrake\build\HandBrakeCLI.exe`. Нужно сделать настройкой или искать через `app.getAppPath()`.
+2. **Путь к HandBrakeCLI.exe**: Бинарник лежит в `resources/HandBrakeCLI.exe` и подхватывается автоматически через `getCLIPath()` как в dev, так и в prod режиме.
 
 3. **Папка output**: Сейчас `userData/output` без возможности изменить. Нужна кнопка выбора папки вывода.
 
