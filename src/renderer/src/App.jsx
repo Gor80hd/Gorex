@@ -66,6 +66,12 @@ function App() {
         if (saved === 'dark' || saved === 'light') return saved
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     })
+    const [accentTheme, setAccentTheme] = useState(() => {
+        const saved = localStorage.getItem('gorex-accent-theme')
+        // migrate old 'black' value to 'white'
+        if (saved === 'black') return 'white'
+        return saved || 'purple'
+    })
     const [isLoading, setIsLoading] = useState(false)
     const [loadingMessage, setLoadingMessage] = useState(null)
     const [outputMode, setOutputMode] = useState('default')
@@ -231,6 +237,11 @@ function App() {
         }
     }
 
+    const handleSetAccentTheme = (accent) => {
+        setAccentTheme(accent)
+        localStorage.setItem('gorex-accent-theme', accent)
+    }
+
     useEffect(() => {
         if (themeMode !== 'auto') return
         const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -393,7 +404,8 @@ function App() {
 
     useEffect(() => {
         document.body.className = theme
-    }, [theme])
+        document.body.setAttribute('data-accent', accentTheme)
+    }, [theme, accentTheme])
 
     useEffect(() => {
         window.api.onCliProgress(({ id, progress }) => {
@@ -485,6 +497,8 @@ function App() {
                         theme={theme}
                         themeMode={themeMode}
                         onThemeModeChange={handleSetThemeMode}
+                        accentTheme={accentTheme}
+                        onAccentThemeChange={handleSetAccentTheme}
                         onBack={() => setView(videos.length > 0 ? 'list' : 'source')}
                         appSettings={appSettings}
                         onSave={handleSaveSettings}

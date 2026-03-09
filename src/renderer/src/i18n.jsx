@@ -56,6 +56,10 @@ const TRANSLATIONS = {
         themeDark: 'Тёмная',
         themeLight: 'Светлая',
         themeAuto: 'Авто',
+        rowAccentTheme: 'Цветовая схема',
+        hintAccentTheme: 'Акцентный цвет интерфейса',
+        accentThemePurple: 'Фиолетовая',
+        accentThemeWhite: 'Белая',
 
         // Settings — Language
         sectionLanguage: 'Язык интерфейса',
@@ -455,6 +459,10 @@ const TRANSLATIONS = {
         themeDark: 'Dark',
         themeLight: 'Light',
         themeAuto: 'Auto',
+        rowAccentTheme: 'Color scheme',
+        hintAccentTheme: 'Interface accent color',
+        accentThemePurple: 'Purple',
+        accentThemeWhite: 'White',
 
         // Settings — Language
         sectionLanguage: 'Interface Language',
