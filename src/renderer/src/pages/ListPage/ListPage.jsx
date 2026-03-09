@@ -286,7 +286,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
         setCurrentTime(embedSec)
 
         const onMessage = (e) => {
-            if (e.origin !== 'https://www.youtube.com') return
+            if (e.origin !== 'https://www.youtube.com' && e.origin !== 'https://www.youtube-nocookie.com') return
             let data
             try { data = JSON.parse(e.data) } catch { return }
             if (data.event === 'onStateChange') {
@@ -421,7 +421,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
                             <iframe
                                 ref={iframeRef}
                                 className="trs-embed"
-                                src={`https://www.youtube-nocookie.com/embed/${ytId}?start=${Math.floor(embedSec)}&autoplay=1&enablejsapi=1&controls=1&rel=0&origin=https://www.youtube-nocookie.com`}
+                                src={`https://www.youtube-nocookie.com/embed/${ytId}?start=${Math.floor(embedSec)}&autoplay=1&enablejsapi=1&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
                                 allow="autoplay; encrypted-media; picture-in-picture"
                                 allowFullScreen
                                 title="Preview"

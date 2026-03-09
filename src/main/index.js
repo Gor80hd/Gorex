@@ -1,7 +1,76 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron'
-import { join, dirname } from 'path'
+import { join, dirname, extname, normalize } from 'path'
+import { createServer } from 'http'
+import { readFileSync, existsSync, statSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { spawn, exec } from 'child_process'
+
+// ─── Local HTTP server for production renderer ──────────────────────────────────────────
+// Serves the built renderer from http://127.0.0.1:{port}/ so the page has a real HTTP
+// origin instead of null (file://). This is required for YouTube iframe embeds: the
+// YouTube embed player checks window.location.ancestorOrigins and blocks playback when
+// the embedding frame has a null/file:// origin (error 152). Binding to 127.0.0.1 means
+// only the local machine can reach it.
+const RENDERER_MIME = {
+    '.html':  'text/html; charset=utf-8',
+    '.js':    'application/javascript',
+    '.css':   'text/css',
+    '.svg':   'image/svg+xml',
+    '.png':   'image/png',
+    '.jpg':   'image/jpeg',
+    '.jpeg':  'image/jpeg',
+    '.ico':   'image/x-icon',
+    '.woff':  'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf':   'font/ttf',
+    '.map':   'application/json',
+}
+
+function startRendererServer() {
+    const rendererDir = join(__dirname, '../renderer')
+    const requestHandler = (req, res) => {
+        const urlPath = (req.url || '/').split('?')[0]
+        const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '')
+        // Guard against path traversal
+        const safe = normalize(join(rendererDir, rel))
+        if (!safe.startsWith(rendererDir + '\\') && !safe.startsWith(rendererDir + '/') && safe !== rendererDir) {
+            res.writeHead(403); res.end(); return
+        }
+        const filePath = (existsSync(safe) && !statSync(safe).isDirectory()) ? safe : join(rendererDir, 'index.html')
+        try {
+            const data = readFileSync(filePath)
+            res.writeHead(200, {
+                'Content-Type': RENDERER_MIME[extname(filePath)] || 'application/octet-stream',
+                'Cache-Control': 'no-store',
+            })
+            res.end(data)
+        } catch {
+            res.writeHead(404); res.end()
+        }
+    }
+    // Use a fixed preferred port so localStorage persists across launches.
+    // localStorage is keyed by origin (protocol + host + port), so a random port
+    // on every launch means a fresh empty storage every time — breaking all
+    // persisted settings and the onboarding-done flag.
+    // Try preferred ports in order; fall back to OS-assigned port only if all are taken.
+    const PORTS = [19857, 19858, 19859, 19860, 19861, 0]
+    return new Promise((resolve, reject) => {
+        const tryNext = (i) => {
+            const server = createServer(requestHandler)
+            server.listen(PORTS[i], '127.0.0.1', () => resolve(server.address().port))
+            server.on('error', (err) => {
+                if (err.code === 'EADDRINUSE' && i < PORTS.length - 1) {
+                    tryNext(i + 1)
+                } else {
+                    reject(err)
+                }
+            })
+        }
+        tryNext(0)
+    })
+}
+
+let rendererPort = 0
 
 // ─── CLI path resolution ────────────────────────────────────────────────────────────────
 function getCLIPath() {
@@ -97,12 +166,18 @@ function createWindow() {
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
         mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
     } else {
-        mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+        mainWindow.loadURL(`http://127.0.0.1:${rendererPort}/index.html`)
     }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.akhmatyarov.gorex')
+
+    // Start the local HTTP server so the renderer has a real http://127.0.0.1 origin,
+    // which is required for YouTube iframes to play back without error 152.
+    if (!is.dev) {
+        rendererPort = await startRendererServer()
+    }
 
     // Configure fluent-ffmpeg to use the bundled ffmpeg/ffprobe binaries.
     // Primary: ytdl-bundled binaries (same dir as yt-dlp).
