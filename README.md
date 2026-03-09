@@ -63,7 +63,7 @@ Gorex is a modern Electron interface for the legendary HandBrake transcoder and 
 
 ```bash
 # 1. Clone the repository
-git clone <repo-url>
+git clone https://github.com/Gor80hd/Gorex.git
 cd Gorex
 
 # 2. Install dependencies
