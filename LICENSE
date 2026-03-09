@@ -1,26 +1,44 @@
-HandBrake License
+Gorex License
 
-Most files in HandBrake are under the GNU General Public License Version 2
-(GPLv2) license; read the file COPYING for details.
+Copyright (C) 2026 Egor Akhmatyarov
 
-Some files are under the GNU General Public License Version 2 or any later
-version (GPLv2+), the GNU Lesser General Public License Version 2.1 or any later
-version (LGPLv2.1+), or BSD/MIT/X11-style licenses. 
+Gorex (the Electron/React application source code) is licensed under the
+GNU General Public License Version 2 (GPLv2). See the file COPYING for
+the full license text.
 
-In any case, a compiled HandBrake build is licensed under GPLv2 
-and the terms of that license take effect. 
+This license applies to all original source code in this repository
+(src/, build/, installer/ directories and related configuration files).
 
-The Fraunhofer AAC library (fdk-aac) is under a license incompatible with the
-GPLv2 license. Since both licenses cannot be satisfied simultaneously, binaries
-resulting from the combination of HandBrake and fdk-aac are neither free nor
-redistributable. As a result, fdk-aac is by default not included in HandBrake.
-If you wish to include fdk-aac in your personal build of HandBrake, you may do
-so by passing --enable-fdk-aac to configure and making sure not to distribute
-any resulting binaries. Please read the fdk-aac license for details.
+-------------------------------------------------------------------------------
 
-HandBrake makes use of 3rd party libraries which will be licensed under a GPL-compatible license.
-These are listed in the THANKS file.
+Bundled third-party components
+--------------------------------
 
-Graphic assets are covered by the license(s) specified in graphics/LICENSE.
+Gorex distributes the following pre-built binaries as part of its release
+packages. Each component retains its own license:
 
+  HandBrake CLI (HandBrakeCLI.exe / HandBrakeCLI)
+    License: GNU General Public License Version 2
+    Source:  https://github.com/HandBrake/HandBrake
+
+  yt-dlp (yt-dlp.exe / yt-dlp_macos)
+    License: The Unlicense (public domain)
+    Source:  https://github.com/yt-dlp/yt-dlp
+
+  ffmpeg / ffprobe
+    License: GNU Lesser General Public License Version 2.1 (or later)
+    Source:  https://ffmpeg.org
+
+Because Gorex bundles and distributes HandBrake CLI (GPLv2), the combined
+distribution as a whole is subject to the terms of the GNU General Public
+License Version 2. Gorex does not incorporate HandBrake source code; it
+invokes the HandBrake CLI binary as an external process.
+
+-------------------------------------------------------------------------------
+
+Graphic assets
+--------------
+
+Original graphic assets created for Gorex (logos, icons) are covered by
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
 
