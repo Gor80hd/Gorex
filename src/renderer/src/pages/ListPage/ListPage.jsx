@@ -1521,17 +1521,13 @@ function ListPage({
         <div className="video-list-container">
             <div className="video-list-header">
                 <div className="video-list-topbar">
-                    <div className={`list-url-bar${addUrlService ? ' list-url-bar--ok' : addUrlValid ? ' list-url-bar--favicon' : ''}`}>
+                    <div className={`list-url-bar${addUrlValid ? ' list-url-bar--favicon' : ''}`}>
                         <span className="list-url-icon">
                             {isAddingUrl
                                 ? <span className="list-url-spinner" />
-                                : addUrlService
-                                    ? (addUrlService.svgPath
-                                        ? <svg viewBox="0 0 24 24" fill="currentColor" className="svc-svg-icon" style={{ color: addUrlService.color }}><path d={addUrlService.svgPath} /></svg>
-                                        : <i className={`bi ${addUrlService.icon}`} style={{ color: addUrlService.color }} />)
-                                    : addUrlValid
-                                        ? <FaviconImg url={addUrlTrimmed} />
-                                        : <i className="bi bi-link-45deg" style={{ opacity: 0.35 }} />
+                                : addUrlValid
+                                    ? <FaviconImg url={addUrlTrimmed} />
+                                    : <i className="bi bi-link-45deg" style={{ opacity: 0.35 }} />
                             }
                         </span>
                         <input
@@ -1612,16 +1608,8 @@ function ListPage({
                             </div>
                             <div className="video-info">
                                 <div className="video-title-row">
-                                    {v.downloadService && (
-                                        <span className="svc-icon-tag" style={{ color: v.downloadService.color }} title={v.downloadService.name}>
-                                            {v.downloadService.svgPath
-                                                ? <svg viewBox="0 0 24 24" fill="currentColor" className="svc-svg-icon"><path d={v.downloadService.svgPath} /></svg>
-                                                : <i className={`bi ${v.downloadService.icon}`}></i>
-                                            }
-                                        </span>
-                                    )}
-                                    {unknownHost && (
-                                        <span className="svc-icon-tag svc-icon-tag--favicon" title={unknownHost}>
+                                    {v.isYtdlItem && v.ytdlUrl && (
+                                        <span className="svc-icon-tag svc-icon-tag--favicon" title={v.downloadService?.name ?? unknownHost}>
                                             <FaviconImg url={v.ytdlUrl} className="dl-favicon-img" />
                                         </span>
                                     )}
