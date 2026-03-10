@@ -140,7 +140,7 @@ const TRANSLATIONS = {
         qualityHigh: 'Высокое',
         qualityMedium: 'Среднее',
         qualityLow: 'Низкое',
-        qualityPotato: 'Максимальное сжатие',
+        qualityPotato: 'Шакал',
         qualityCustomLabel: 'Своё',
         qualityCustomEmpty: 'Своё значение...',
         rfRange: 'Диапазон:',
@@ -494,7 +494,7 @@ const TRANSLATIONS = {
         helpQualHigh:   'Высокое качество — визуально близко к оригиналу. Рекомендуется для архива и дальнейшего редактирования.',
         helpQualMedium: 'Баланс качества и размера — минимально заметная потеря детализации при значительном уменьшении файла.',
         helpQualLow:    'Низкое качество — заметные артефакты компрессии. Маленький файл для быстрой передачи.',
-        helpQualPotato: 'Максимальное сжатие — качество уровня VHS. Артефакты гарантированы. Только если файл нужен очень маленьким.',
+        helpQualPotato: 'Шакал — качество уровня VHS. Артефакты гарантированы. Только если файл нужен очень маленьким.',
         helpQualCustom: 'RF (Rate Factor): чем ниже значение — тем лучше качество и больше размер файла. RF 0 ≈ lossless.',
 
         // GlobalSettings — Encoder help
@@ -660,7 +660,7 @@ const TRANSLATIONS = {
         qualityHigh: 'High',
         qualityMedium: 'Medium',
         qualityLow: 'Low',
-        qualityPotato: 'Maximum compression',
+        qualityPotato: 'Potato',
         qualityCustomLabel: 'Custom',
         qualityCustomEmpty: 'Custom value...',
         rfRange: 'Range:',
@@ -1014,7 +1014,7 @@ const TRANSLATIONS = {
         helpQualHigh:   'High quality — visually close to the original. Recommended for archiving and further editing.',
         helpQualMedium: 'Quality/size balance — minimal visible loss of detail with significant file size reduction.',
         helpQualLow:    'Low quality — noticeable compression artifacts. Small file for quick transfers.',
-        helpQualPotato: 'Maximum compression — VHS-level quality. Artifacts guaranteed. Only if you need the file very small.',
+        helpQualPotato: 'Potato — VHS-level quality. Artifacts guaranteed. Only if you need the file very small.',
         helpQualCustom: 'RF (Rate Factor): the lower the value, the better the quality and the larger the file. RF 0 ≈ lossless.',
 
         // GlobalSettings — Encoder help

@@ -15,6 +15,9 @@ import AboutPage from './pages/AboutPage/AboutPage'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import OnboardingScreen from './components/OnboardingScreen/OnboardingScreen'
 import { DEFAULT_SETTINGS, initDefaultSettings, saveGpuVendor, getDefaultSettingsForGpu } from './components/GlobalSettings/GlobalSettings'
+import gradientPPL from './assets/images/Gradient_PPL.webm'
+import gradientBlack from './assets/images/Gradient_Black.webm'
+import gradientWhite from './assets/images/Gradient_White.webm'
 
 function getEncoderErrorHint(stderr, t) {
     if (/No capable devices found/i.test(stderr)) {
@@ -235,6 +238,7 @@ function App() {
 
     const handleDownloadCancel = () => {
         ytdlFetchCancelledRef.current = true
+        window.api.ytdlCancelFetch()
         setIsLoading(false)
         setLoadingMessage(null)
     }
@@ -618,6 +622,18 @@ function App() {
 
     return (
         <div className={`app-wrapper ${theme}`}>
+            {(isEncoding || isLoading) && (
+                <div className="bg-video-wrap">
+                    <video
+                        key={accentTheme + theme}
+                        src={accentTheme === 'white' ? (theme === 'dark' ? gradientWhite : gradientBlack) : gradientPPL}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                    />
+                </div>
+            )}
             <TitleBar
                 onOpen={handleSelectFiles}
                 theme={theme}
