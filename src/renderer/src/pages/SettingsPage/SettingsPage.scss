@@ -112,6 +112,54 @@
     }
 }
 
+// ─── yt-dlp cookies guide ────────────────────────────────────────────────────
+.sp-ytdl-guide {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid;
+    margin: 4px 0 10px;
+
+    .dark & { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); }
+    .light & { background: rgba(0,0,0,0.025); border-color: rgba(0,0,0,0.08); }
+
+    &__intro {
+        margin: 0 0 10px;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        .dark & { color: #94a3b8; }
+        .light & { color: #475569; }
+    }
+
+    &__steps {
+        margin: 0;
+        padding-left: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        li {
+            font-size: 0.78rem;
+            line-height: 1.5;
+            .dark & { color: #cbd5e1; }
+            .light & { color: #1e293b; }
+
+            strong {
+                font-weight: 600;
+                .dark & { color: #e2e8f0; }
+                .light & { color: #0f172a; }
+            }
+        }
+    }
+}
+
+.sp-ytdl-file {
+    margin-bottom: 4px;
+
+    .sp-folder-widget {
+        margin: 0;
+    }
+}
+
 // ─── Other section rows ───────────────────────────────────────────────────────
 .sp-other-row {
     display: flex;

@@ -26,6 +26,7 @@ const api = {
     ytdlGetFormats: (url) => ipcRenderer.invoke('ytdl-get-formats', url),
     onYtdlFetchProgress: (callback) => { ipcRenderer.removeAllListeners('ytdl-fetch-progress'); ipcRenderer.on('ytdl-fetch-progress', (_, data) => callback(data)) },
     selectSubtitleFile: () => ipcRenderer.invoke('select-subtitle-file'),
+    selectCookiesFile: () => ipcRenderer.invoke('select-cookies-file'),
     ytdlRun: (args) => ipcRenderer.send('ytdl-run', args),
     onYtdlProgress: (callback) => { ipcRenderer.removeAllListeners('ytdl-progress'); ipcRenderer.on('ytdl-progress', (_, data) => callback(data)) },
     onYtdlExit: (callback) => { ipcRenderer.removeAllListeners('ytdl-exit'); ipcRenderer.on('ytdl-exit', (_, data) => callback(data)) },
