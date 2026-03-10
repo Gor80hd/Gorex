@@ -514,7 +514,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
 
                     </div>
 
-                    {/* ══ VIDEO ══ */}}
+                    {/* ══ VIDEO ══ */}
                     <div className="sp-section" data-section="video" ref={sectionRef('video')}>
                         <p className="sp-tab-description">{t('videoTabDesc')}</p>
                         <SectionHeader icon="bi-file-earmark-play" title={t('sectionContainer')} />

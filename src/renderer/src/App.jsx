@@ -102,6 +102,8 @@ function App() {
                 progress: 0,
                 status: 'ready',
                 customSettings: null,
+                clipStart: null,
+                clipEnd: null,
                 downloadService: downloadService && typeof downloadService === 'object' ? downloadService : null
             }))
             setVideos(prev => {
@@ -250,6 +252,10 @@ function App() {
     }
 
     const handleYtdlClipChange = (id, clipStart, clipEnd) => {
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, clipStart, clipEnd } : v))
+    }
+
+    const handleLocalClipChange = (id, clipStart, clipEnd) => {
         setVideos(prev => prev.map(v => v.id === id ? { ...v, clipStart, clipEnd } : v))
     }
 
@@ -434,7 +440,9 @@ function App() {
                     outputMode,
                     customOutputDir: resolvedOutputDir,
                     outputName: v.outputName,
-                    videoResolution: v.resolution
+                    videoResolution: v.resolution,
+                    clipStart: v.clipStart ?? null,
+                    clipEnd: v.clipEnd ?? null,
                 })
             }
         })
@@ -584,6 +592,7 @@ function App() {
                         onYtdlConvertToggle={handleYtdlConvertToggle}
                         onYtdlConversionSettings={handleYtdlConversionSettings}
                         onYtdlClipChange={handleYtdlClipChange}
+                        onLocalClipChange={handleLocalClipChange}
                         onYtdlOptionsChange={handleYtdlOptionsChange}
                         isDraggingOnList={isDraggingOnList}
                         onListDragEnter={handleListDragEnter}

@@ -1823,6 +1823,11 @@ $dur: 0.5s;
     display: block;
 }
 
+.trs-local-video {
+    object-fit: contain;
+    background: #000;
+}
+
 .trs-embed-close {
     position: absolute;
     top: 6px;
