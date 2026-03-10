@@ -1,7 +1,8 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, session, protocol, net } from 'electron'
 import { join, dirname, extname, normalize } from 'path'
 import { createServer } from 'http'
-import { readFileSync, existsSync, statSync } from 'fs'
+import { readFileSync, existsSync, statSync, createReadStream } from 'fs'
+import { Readable } from 'stream'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { spawn, exec } from 'child_process'
 
@@ -69,6 +70,13 @@ function startRendererServer() {
         tryNext(0)
     })
 }
+
+// Register custom scheme for local media preview before app is ready.
+// The renderer runs on http://127.0.0.1 so file:// URLs are blocked by Chromium;
+// gorex-media:// tunnels requests through the main process instead.
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'gorex-media', privileges: { secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
+])
 
 let rendererPort = 0
 
@@ -219,6 +227,61 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.akhmatyarov.gorex')
+
+    // Handle gorex-media:// requests – serves local video files with Range support
+    // so the renderer <video> element can seek through files.
+    protocol.handle('gorex-media', async (request) => {
+        try {
+            const urlPath = decodeURIComponent(new URL(request.url).pathname)
+            // On Windows /E:/path → E:/path
+            const filePath = urlPath.replace(/^\//, '')
+
+            if (!existsSync(filePath)) return new Response('Not found', { status: 404 })
+
+            const stat = statSync(filePath)
+            const fileSize = stat.size
+
+            const ext = filePath.split('.').pop().toLowerCase()
+            const MIME = {
+                mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime',
+                mkv: 'video/x-matroska', webm: 'video/webm',
+                avi: 'video/x-msvideo', ts: 'video/mp2t', flv: 'video/x-flv',
+                wmv: 'video/x-ms-wmv', ogv: 'video/ogg',
+            }
+            const contentType = MIME[ext] || 'video/mp4'
+
+            const rangeHeader = request.headers.get('range')
+
+            if (rangeHeader) {
+                const match = rangeHeader.match(/bytes=(\d+)-(\d*)/)
+                const start = parseInt(match[1], 10)
+                const end = match[2] ? parseInt(match[2], 10) : fileSize - 1
+                const chunkSize = end - start + 1
+                const nodeStream = createReadStream(filePath, { start, end })
+                return new Response(Readable.toWeb(nodeStream), {
+                    status: 206,
+                    headers: {
+                        'Content-Type': contentType,
+                        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                        'Content-Length': String(chunkSize),
+                        'Accept-Ranges': 'bytes',
+                    },
+                })
+            } else {
+                const nodeStream = createReadStream(filePath)
+                return new Response(Readable.toWeb(nodeStream), {
+                    status: 200,
+                    headers: {
+                        'Content-Type': contentType,
+                        'Content-Length': String(fileSize),
+                        'Accept-Ranges': 'bytes',
+                    },
+                })
+            }
+        } catch {
+            return new Response('Error', { status: 500 })
+        }
+    })
 
     // Start the local HTTP server so the renderer has a real http://127.0.0.1 origin,
     // which is required for YouTube iframes to play back without error 152.
@@ -1118,6 +1181,7 @@ app.whenReady().then(async () => {
                     container: ext || null,
                     path: filePath,
                     duration: formatDuration(duration),
+                    durationSecs: duration || 0,
                     resolution: videoStream ? `${videoStream.width}x${videoStream.height}` : null,
                     videoCodec: videoStream?.codec_name?.toUpperCase() || null,
                     fps: getFps(videoStream),
@@ -1249,17 +1313,21 @@ app.whenReady().then(async () => {
         }
 
         // Audio
-        let audioCodec = settings.audioCodec || 'av_aac'
-        if (settings.format === 'av_webm' && !WEBM_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
-            audioCodec = 'opus'
-        }
-        args.push('-a', '1', '-E', audioCodec)
-        if (!audioCodec.startsWith('copy')) {
-            args.push('-B', String(settings.audioBitrate || '160'))
-            args.push('-6', settings.audioMixdown || 'stereo')
-        }
-        if (settings.audioSampleRate && settings.audioSampleRate !== 'auto') {
-            args.push('-R', settings.audioSampleRate)
+        if (settings.noAudio) {
+            args.push('-a', 'none')
+        } else {
+            let audioCodec = settings.audioCodec || 'av_aac'
+            if (settings.format === 'av_webm' && !WEBM_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                audioCodec = 'opus'
+            }
+            args.push('-a', '1', '-E', audioCodec)
+            if (!audioCodec.startsWith('copy')) {
+                args.push('-B', String(settings.audioBitrate || '160'))
+                args.push('-6', settings.audioMixdown || 'stereo')
+            }
+            if (settings.audioSampleRate && settings.audioSampleRate !== 'auto') {
+                args.push('-R', settings.audioSampleRate)
+            }
         }
 
         // Chapter markers (default on)
@@ -1368,7 +1436,7 @@ app.whenReady().then(async () => {
     }
 
     // IPC handlers for HandBrake CLI
-    ipcMain.on('run-cli', (event, { filePath, settings, id, outputMode, customOutputDir, outputName, videoResolution }) => {
+    ipcMain.on('run-cli', (event, { filePath, settings, id, outputMode, customOutputDir, outputName, videoResolution, clipStart, clipEnd }) => {
         const cliPath = getCLIPath()
         const fs = require('fs')
         const rawBase = outputName || filePath.split('\\').pop().split('.').slice(0, -1).join('.')
@@ -1415,6 +1483,15 @@ app.whenReady().then(async () => {
         }
 
         const args = buildCliArgs(hbInputPath, outputPath, fallbackSettings, videoResolution)
+
+        // Time-based trim (HandBrakeCLI --start-at / --stop-at)
+        if (clipStart != null && clipStart > 0) {
+            args.push('--start-at', `duration:${Math.round(clipStart)}`)
+        }
+        if (clipEnd != null && clipEnd > 0) {
+            const clipDur = Math.max(1, clipEnd - (clipStart ?? 0))
+            args.push('--stop-at', `duration:${Math.round(clipDur)}`)
+        }
 
         console.log(`Running CLI: ${cliPath} ${args.join(' ')}`)
 

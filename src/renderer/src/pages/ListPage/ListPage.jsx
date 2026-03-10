@@ -309,11 +309,12 @@ function getYouTubeId(url) {
     return null
 }
 
-function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, videoUrl, onChange }) {
+function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, videoUrl, localPath, onChange }) {
     const { t } = useLanguage()
     const trackRef = useRef(null)
     const draggingRef = useRef(null) // 'start' | 'end'
     const iframeRef = useRef(null)
+    const localVideoRef = useRef(null)
     const timeRef = useRef(0)       // local time counter for playhead
     const pollRef = useRef(null)
 
@@ -328,7 +329,10 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
     const [hoverTime, setHoverTime] = useState(null)
     const [hoverPct, setHoverPct] = useState(0)
     const [embedSec, setEmbedSec] = useState(null) // null = player hidden
+    const [localPlayerSec, setLocalPlayerSec] = useState(null) // null = local player hidden
     const [currentTime, setCurrentTime] = useState(null) // playhead position
+
+    const localFileUrl = localPath ? 'gorex-media:///' + localPath.replace(/\\/g, '/') : null
 
     // Sync inputs when external values change
     useEffect(() => { setStartInput(timeToInput(clipStart ?? 0)) }, [clipStart])
@@ -371,10 +375,28 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
     // Cleanup on unmount
     useEffect(() => () => { clearInterval(pollRef.current) }, [])
 
+    // Seek local video when player is opened or localPlayerSec changes
+    useEffect(() => {
+        if (!localVideoRef.current || localPlayerSec === null) return
+        const video = localVideoRef.current
+        const doSeek = () => {
+            video.currentTime = localPlayerSec
+            video.play().catch(() => {})
+        }
+        if (video.readyState >= 1) {
+            doSeek()
+        } else {
+            video.addEventListener('loadedmetadata', doSeek, { once: true })
+        }
+    }, [localPlayerSec])
+
     const seekPlayer = (sec) => {
         ytSeek(iframeRef.current, sec)
         timeRef.current = sec
         setCurrentTime(sec)
+        if (localVideoRef.current) {
+            localVideoRef.current.currentTime = sec
+        }
     }
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
@@ -473,7 +495,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
     return (
         <div className="trs-root">
             {/* ─ Preview / embed ─ */}
-            {(thumbnail || ytId) && (
+            {(thumbnail || ytId || localFileUrl) && (
                 <div className="trs-preview-area">
                     {/* YouTube iframe embed – shown when a preview button is clicked */}
                     {ytId && embedSec !== null ? (
@@ -489,6 +511,25 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
                             <button
                                 className="trs-embed-close"
                                 onClick={() => setEmbedSec(null)}
+                                title={t('trsClosePlayer')}
+                                type="button"
+                            >
+                                <i className="bi bi-x-lg" />
+                            </button>
+                        </div>
+                    ) : localFileUrl && localPlayerSec !== null ? (
+                        /* Local file video player */
+                        <div className="trs-embed-wrap">
+                            <video
+                                ref={localVideoRef}
+                                className="trs-embed trs-local-video"
+                                src={localFileUrl}
+                                preload="auto"
+                                controls
+                            />
+                            <button
+                                className="trs-embed-close"
+                                onClick={() => setLocalPlayerSec(null)}
                                 title={t('trsClosePlayer')}
                                 type="button"
                             >
@@ -529,6 +570,26 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
                                     </button>
                                 </div>
                             )}
+                            {localFileUrl && !ytId && (
+                                <div className="trs-thumb-btns">
+                                    <button
+                                        className="trs-thumb-play-btn trs-thumb-play-btn--start"
+                                        onClick={() => setLocalPlayerSec(effectiveStart)}
+                                        type="button"
+                                    >
+                                        <i className="bi bi-play-fill" />
+                                        {t('trsFrom')} {timeToInput(effectiveStart)}
+                                    </button>
+                                    <button
+                                        className="trs-thumb-play-btn trs-thumb-play-btn--end"
+                                        onClick={() => setLocalPlayerSec(Math.max(0, effectiveEnd - 3))}
+                                        type="button"
+                                    >
+                                        <i className="bi bi-play-fill" />
+                                        {t('trsTo')} {timeToInput(effectiveEnd)}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -542,7 +603,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
                     onMouseMove={handleTrackMouseMove}
                     onMouseLeave={() => setHoverTime(null)}
                     onClick={(e) => {
-                        if (embedSec === null) return
+                        if (embedSec === null && localPlayerSec === null) return
                         seekPlayer(Math.round(posFromEvent(e) * dur))
                     }}
                 >
@@ -689,7 +750,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
 const PanelSelect = (props) => <GsSelect direction="down" {...props} />
 
 // ─── Video Settings Panel ──────────────────────────────────────────────────────
-function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange }) {
+function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange, onLocalClipChange }) {
     const { t } = useLanguage()
     const VSP_TABS = [
         { id: 'video',     label: t('tabVideo'),     icon: 'bi-camera-video' },
@@ -710,6 +771,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     const tabs = isYtdl ? VSP_TABS_YTDL : VSP_TABS
     const [draft, setDraft] = useState(() => ({
         ...(video.customSettings || video.conversionSettings || { ...globalSettings }),
+        noAudio: (video.customSettings || video.conversionSettings || {}).noAudio ?? false,
         _ytdlNoAudio:       video.ytdlNoAudio       ?? false,
         _ytdlDownloadSubs:  video.ytdlDownloadSubs  ?? false,
         // Encode source (manual vs auto) into the lang value with "auto:" prefix.
@@ -1125,12 +1187,43 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                 <VspRow label={t('rowMultiPass')} hint={t('hintMultiPass')}>
                                     <VspToggle value={!!draft.multiPass} onChange={v => update('multiPass', v)} />
                                 </VspRow>
+
+                                {/* ── Time trim for local file conversion ── */}
+                                {!isYtdl && (video.durationSecs || 0) > 0 && (
+                                    <>
+                                        <VspSectionHeader icon="bi-scissors" title={t('vspTimeClip')} />
+                                        <div className="vsp-clip-wrap">
+                                            <TimeRangeSelector
+                                                duration={video.durationSecs}
+                                                chapters={[]}
+                                                clipStart={video.clipStart ?? null}
+                                                clipEnd={video.clipEnd ?? null}
+                                                thumbnail={video.thumbnail}
+                                                videoUrl={null}
+                                                localPath={video.path}
+                                                onChange={(s, e) => onLocalClipChange && onLocalClipChange(video.id, s, e)}
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
                         {/* ═══ AUDIO ═══ */}
                         {activeTab === 'audio' && (
                             <div className="vsp-section">
+                                {/* No audio option for local file conversion */}
+                                {!isYtdl && (
+                                    <>
+                                        <VspSectionHeader icon="bi-volume-mute" title={t('vspAudioOptions')} />
+                                        <VspRow label={t('vspNoAudio')} hint={t('vspHintNoAudioConv')}>
+                                            <VspToggle
+                                                value={!!draft.noAudio}
+                                                onChange={v => update('noAudio', v)}
+                                            />
+                                        </VspRow>
+                                    </>
+                                )}
                                 <VspSectionHeader icon="bi-music-note-beamed" title={t('sectionAudioCodec')} />
                                 <VspRow label={t('rowAudioCodec')} hint={t('hintAudioCodec')}>
                                     <PanelSelect
@@ -1449,6 +1542,7 @@ function ListPage({
     outputMode, customOutputDir, defaultOutputDir, onOutputModeChange,
     onAddFiles, onDownload, onRemoveVideo, onClearQueue, onRenameOutput, onVideoSettingsChange,
     onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings, onYtdlClipChange, onYtdlOptionsChange,
+    onLocalClipChange,
     isDraggingOnList, onListDragEnter, onListDragLeave, onListDragOver, onListDrop,
     gpuVendor, encodingStartTime
 }) {
@@ -1943,6 +2037,7 @@ function ListPage({
                     onYtdlConvertToggle={onYtdlConvertToggle}
                     onYtdlClipChange={onYtdlClipChange}
                     onYtdlOptionsChange={onYtdlOptionsChange}
+                    onLocalClipChange={onLocalClipChange}
                 />
             )}
         </div>
