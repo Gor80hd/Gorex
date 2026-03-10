@@ -105,6 +105,12 @@ const TRANSLATIONS = {
         folderResetTitle: 'Сбросить к папке Видео',
         folderDesc: 'Папка, куда по умолчанию сохраняются все выходные файлы. Можно переопределить для каждого задания отдельно в списке.',
 
+        // Settings — yt-dlp
+        sectionYtdlp: 'Загрузка видео (yt-dlp)',
+        rowYtdlCookies: 'Cookies браузера',
+        hintYtdlCookies: 'Передавать куки браузера в yt-dlp. Помогает обойти блокировку YouTube («подтвердите, что вы не бот»). Выберите браузер, в котором вы авторизованы в нужных сервисах.',
+        ytdlCookiesNone: 'Не использовать',
+
         // Settings — Video tab description
         videoTabDesc: 'Параметры кодирования по умолчанию. Применяются к каждому новому файлу — можно изменить для конкретной задачи в списке.',
 
@@ -611,6 +617,12 @@ const TRANSLATIONS = {
         folderChange: 'Change',
         folderResetTitle: 'Reset to Videos folder',
         folderDesc: 'Default folder for all output files. Can be overridden per task in the list.',
+
+        // Settings — yt-dlp
+        sectionYtdlp: 'Video download (yt-dlp)',
+        rowYtdlCookies: 'Browser cookies',
+        hintYtdlCookies: 'Pass browser cookies to yt-dlp. Helps bypass YouTube bot-detection ("Sign in to confirm you\'re not a bot"). Choose the browser where you are logged in to the services you want to download from.',
+        ytdlCookiesNone: 'Do not use',
 
         // Settings — Video tab description
         videoTabDesc: 'Default encoding parameters. Applied to each new file — can be changed per task in the list.',

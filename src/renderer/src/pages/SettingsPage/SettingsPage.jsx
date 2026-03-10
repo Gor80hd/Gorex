@@ -180,6 +180,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     // App-level config (output folder)
     const [appConfig, setAppConfig] = useState({
         defaultOutputDir: '',
+        ytdlCookiesBrowser: '',
     })
 
     // Default encoding settings
@@ -503,6 +504,26 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 </button>
                             </div>
                         </div>
+
+                        <SectionHeader icon="bi-cloud-arrow-down" title={t('sectionYtdlp')} />
+                        <Row label={t('rowYtdlCookies')} hint={t('hintYtdlCookies')}>
+                            <GsSelect
+                                value={appConfig.ytdlCookiesBrowser || ''}
+                                options={[
+                                    { value: '',          label: t('ytdlCookiesNone') },
+                                    { value: 'chrome',    label: 'Chrome' },
+                                    { value: 'firefox',   label: 'Firefox' },
+                                    { value: 'edge',      label: 'Edge' },
+                                    { value: 'opera',     label: 'Opera' },
+                                    { value: 'brave',     label: 'Brave' },
+                                    { value: 'chromium',  label: 'Chromium' },
+                                    { value: 'vivaldi',   label: 'Vivaldi' },
+                                    { value: 'safari',    label: 'Safari' },
+                                ]}
+                                onChange={v => setAppConfig(prev => ({ ...prev, ytdlCookiesBrowser: v }))}
+                                direction="down"
+                            />
+                        </Row>
                     </div>
 
                     {/* ══ VIDEO ══ */}
