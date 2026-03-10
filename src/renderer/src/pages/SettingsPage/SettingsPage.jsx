@@ -180,7 +180,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     // App-level config (output folder)
     const [appConfig, setAppConfig] = useState({
         defaultOutputDir: '',
-        ytdlCookiesBrowser: '',
+        ytdlCookiesFile: '',
     })
 
     // Default encoding settings
@@ -296,6 +296,13 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
         updateApp('defaultOutputDir', '')
         window.api.getDefaultOutputDir().then(dir => setResolvedOutputDir(dir))
     }
+
+    const handleBrowseCookiesFile = async () => {
+        const file = await window.api.selectCookiesFile()
+        if (file) updateApp('ytdlCookiesFile', file)
+    }
+
+    const handleClearCookiesFile = () => updateApp('ytdlCookiesFile', '')
 
     const handleOpenTemp = () => {
         window.api.openTempFolder()
@@ -505,28 +512,9 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                             </div>
                         </div>
 
-                        <SectionHeader icon="bi-cloud-arrow-down" title={t('sectionYtdlp')} />
-                        <Row label={t('rowYtdlCookies')} hint={t('hintYtdlCookies')}>
-                            <GsSelect
-                                value={appConfig.ytdlCookiesBrowser || ''}
-                                options={[
-                                    { value: '',          label: t('ytdlCookiesNone') },
-                                    { value: 'chrome',    label: 'Chrome' },
-                                    { value: 'firefox',   label: 'Firefox' },
-                                    { value: 'edge',      label: 'Edge' },
-                                    { value: 'opera',     label: 'Opera' },
-                                    { value: 'brave',     label: 'Brave' },
-                                    { value: 'chromium',  label: 'Chromium' },
-                                    { value: 'vivaldi',   label: 'Vivaldi' },
-                                    { value: 'safari',    label: 'Safari' },
-                                ]}
-                                onChange={v => setAppConfig(prev => ({ ...prev, ytdlCookiesBrowser: v }))}
-                                direction="down"
-                            />
-                        </Row>
                     </div>
 
-                    {/* ══ VIDEO ══ */}
+                    {/* ══ VIDEO ══ */}}
                     <div className="sp-section" data-section="video" ref={sectionRef('video')}>
                         <p className="sp-tab-description">{t('videoTabDesc')}</p>
                         <SectionHeader icon="bi-file-earmark-play" title={t('sectionContainer')} />
@@ -946,6 +934,40 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 <i className="bi bi-trash3"></i>
                                 {t('clearCacheLabel')}
                             </button>
+                        </div>
+
+                        <SectionHeader icon="bi-cookie" title={t('sectionYtdlCookies')} />
+                        <div className="sp-ytdl-guide">
+                            <p className="sp-ytdl-guide__intro">{t('ytdlGuideIntro')}</p>
+                            <ol className="sp-ytdl-guide__steps">
+                                <li>{t('ytdlGuideStep1')}</li>
+                                <li>{t('ytdlGuideStep2')}</li>
+                                <li>{t('ytdlGuideStep3')}</li>
+                            </ol>
+                        </div>
+                        <div className="sp-ytdl-file">
+                            <div className="sp-folder-widget">
+                                <div className="sp-folder-widget__info">
+                                    <span className="sp-folder-widget__path">
+                                        {appConfig.ytdlCookiesFile
+                                            ? appConfig.ytdlCookiesFile.split(/[\\/]/).pop()
+                                            : t('ytdlCookiesFileNone')}
+                                    </span>
+                                    {!appConfig.ytdlCookiesFile && (
+                                        <span className="sp-folder-widget__tag">{t('ytdlCookiesFileNoneTag')}</span>
+                                    )}
+                                </div>
+                                <div className="sp-folder-widget__actions">
+                                    {appConfig.ytdlCookiesFile && (
+                                        <button className="sp-folder-widget__reset" onClick={handleClearCookiesFile} title={t('cancel')}>
+                                            <i className="bi bi-x-lg"></i>
+                                        </button>
+                                    )}
+                                    <button className="sp-folder-widget__browse" onClick={handleBrowseCookiesFile}>
+                                        <i className="bi bi-file-earmark-text"></i> {t('ytdlCookiesFileBrowse')}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

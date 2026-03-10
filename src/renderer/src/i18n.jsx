@@ -106,10 +106,16 @@ const TRANSLATIONS = {
         folderDesc: 'Папка, куда по умолчанию сохраняются все выходные файлы. Можно переопределить для каждого задания отдельно в списке.',
 
         // Settings — yt-dlp
-        sectionYtdlp: 'Загрузка видео (yt-dlp)',
-        rowYtdlCookies: 'Cookies браузера',
-        hintYtdlCookies: 'Передавать куки браузера в yt-dlp. Помогает обойти блокировку YouTube («подтвердите, что вы не бот»). Выберите браузер, в котором вы авторизованы в нужных сервисах.',
-        ytdlCookiesNone: 'Не использовать',
+        sectionYtdlCookies: 'Cookies для YouTube',
+        ytdlGuideIntro: 'Cookies позволяют yt-dlp скачивать видео 18+ и обходить блокировку «подтвердите, что вы не бот» на YouTube.',
+        ytdlGuideStep1: 'Установите расширение «Get cookies.txt LOCALLY» для Chrome или Firefox',
+        ytdlGuideStep2: 'Войдите в аккаунт YouTube в этом браузере',
+        ytdlGuideStep3: 'Откройте любую страницу YouTube, нажмите на расширение и сохраните файл, затем выберите его ниже',
+        rowYtdlCookiesFile: 'Файл cookies.txt',
+        hintYtdlCookiesFile: 'Файл с cookies, экспортированный из браузера',
+        ytdlCookiesFileBrowse: 'Выбрать файл',
+        ytdlCookiesFileNone: 'файл не выбран',
+        ytdlCookiesFileNoneTag: 'не используется',
 
         // Settings — Video tab description
         videoTabDesc: 'Параметры кодирования по умолчанию. Применяются к каждому новому файлу — можно изменить для конкретной задачи в списке.',
@@ -619,10 +625,16 @@ const TRANSLATIONS = {
         folderDesc: 'Default folder for all output files. Can be overridden per task in the list.',
 
         // Settings — yt-dlp
-        sectionYtdlp: 'Video download (yt-dlp)',
-        rowYtdlCookies: 'Browser cookies',
-        hintYtdlCookies: 'Pass browser cookies to yt-dlp. Helps bypass YouTube bot-detection ("Sign in to confirm you\'re not a bot"). Choose the browser where you are logged in to the services you want to download from.',
-        ytdlCookiesNone: 'Do not use',
+        sectionYtdlCookies: 'Cookies for YouTube',
+        ytdlGuideIntro: 'Cookies allow yt-dlp to download age-restricted videos and bypass the "Sign in to confirm you\'re not a bot" error on YouTube.',
+        ytdlGuideStep1: 'Install the «Get cookies.txt LOCALLY» extension for Chrome or Firefox',
+        ytdlGuideStep2: 'Sign in to your YouTube account in that browser',
+        ytdlGuideStep3: 'Open any YouTube page, click the extension, save the file — then select it below',
+        rowYtdlCookiesFile: 'Cookies file (cookies.txt)',
+        hintYtdlCookiesFile: 'Cookies file exported from your browser',
+        ytdlCookiesFileBrowse: 'Browse file',
+        ytdlCookiesFileNone: 'no file selected',
+        ytdlCookiesFileNoneTag: 'not in use',
 
         // Settings — Video tab description
         videoTabDesc: 'Default encoding parameters. Applied to each new file — can be changed per task in the list.',

@@ -101,6 +101,22 @@ function writeAppSettings(settings) {
     require('fs').writeFileSync(getSettingsFilePath(), JSON.stringify(settings, null, 2), 'utf8')
 }
 
+// ─── yt-dlp error message helpers ───────────────────────────────────────────────────────
+function ytdlFriendlyErr(raw) {
+    if (raw.includes('Failed to decrypt with DPAPI')) {
+        return (
+            'Ошибка расшифровки cookies браузера (DPAPI).\n' +
+            'Chrome/Edge/Brave шифруют cookies с привязкой к приложению — yt-dlp не может их прочитать напрямую.\n\n' +
+            'Решения:\n' +
+            '• Используйте Firefox в качестве источника cookies (не имеет этой проблемы)\n' +
+            '• Экспортируйте cookies в файл через расширение браузера "Get cookies.txt LOCALLY"\n' +
+            '  и укажите этот файл в Настройках → Cookies браузера → Файл cookies.txt\n\n' +
+            'Исходная ошибка:\n' + raw
+        )
+    }
+    return raw
+}
+
 const activeJobs = new Map() // id -> child process
 
 // ─── yt-dlp binary resolver ─────────────────────────────────────────────────────────────
@@ -292,6 +308,16 @@ app.whenReady().then(async () => {
             properties: ['openFile'],
             filters: [
                 { name: 'Subtitle Files', extensions: ['srt', 'ass', 'ssa', 'sub', 'vtt'] }
+            ]
+        })
+        return canceled ? null : filePaths[0]
+    })
+
+    ipcMain.handle('select-cookies-file', async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [
+                { name: 'Cookies File', extensions: ['txt'] }
             ]
         })
         return canceled ? null : filePaths[0]
@@ -510,7 +536,7 @@ app.whenReady().then(async () => {
         }
 
         const appCfg = readAppSettings()
-        const cookiesBrowser = appCfg.ytdlCookiesBrowser || ''
+        const cookiesFile = appCfg.ytdlCookiesFile || ''
         const nodePath = await findNodeJsPath()
 
         // Run yt-dlp --dump-json and return { out, err, code }
@@ -520,7 +546,7 @@ app.whenReady().then(async () => {
                 '--no-playlist',
                 '--extractor-args', 'generic:impersonate',
                 ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
-                ...(cookiesBrowser ? ['--cookies-from-browser', cookiesBrowser] : []),
+                ...(cookiesFile ? ['--cookies', cookiesFile] : []),
                 ...extraArgs,
                 url
             ], { windowsHide: true })
@@ -616,9 +642,9 @@ app.whenReady().then(async () => {
 
         // Only attempt fallback for explicitly unsupported URLs
         if (!firstResult.err.includes('Unsupported URL')) {
-            const msg = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
-            console.error('[ytdl-get-formats] FAILED:', msg)
-            throw new Error(msg)
+            const raw = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
+            console.error('[ytdl-get-formats] FAILED:', raw)
+            throw new Error(ytdlFriendlyErr(raw))
         }
 
         // 1st attempt: scrape the page HTML for embedded player iframes / og:video
@@ -634,9 +660,9 @@ app.whenReady().then(async () => {
         }
 
         if (resolvedUrls.length === 0) {
-            const msg = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
-            console.error('[ytdl-get-formats] FAILED:', msg)
-            throw new Error(msg)
+            const raw = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
+            console.error('[ytdl-get-formats] FAILED:', raw)
+            throw new Error(ytdlFriendlyErr(raw))
         }
 
         console.log(`[ytdl-get-formats] found ${resolvedUrls.length} candidate URL(s) — retrying with referer`)
@@ -648,9 +674,9 @@ app.whenReady().then(async () => {
 
         const successful = retryResults.filter(r => r.code === 0)
         if (successful.length === 0) {
-            const msg = retryResults[0].err.trim() || `yt-dlp завершился с кодом ${retryResults[0].code}`
-            console.error('[ytdl-get-formats] all retries FAILED:', msg)
-            throw new Error(msg)
+            const raw = retryResults[0].err.trim() || `yt-dlp завершился с кодом ${retryResults[0].code}`
+            console.error('[ytdl-get-formats] all retries FAILED:', raw)
+            throw new Error(ytdlFriendlyErr(raw))
         }
 
         try {
@@ -717,7 +743,7 @@ app.whenReady().then(async () => {
 
         const ffmpegPath = getFfmpegPath()
         const appCfg = readAppSettings()
-        const cookiesBrowser = appCfg.ytdlCookiesBrowser || ''
+        const cookiesFile = appCfg.ytdlCookiesFile || ''
         const nodePath = await findNodeJsPath()
         const ytdlArgs = [
             '-f', fmtArg,
@@ -727,7 +753,7 @@ app.whenReady().then(async () => {
             '--newline',
             '--extractor-args', 'generic:impersonate',
             ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
-            ...(cookiesBrowser ? ['--cookies-from-browser', cookiesBrowser] : []),
+            ...(cookiesFile ? ['--cookies', cookiesFile] : []),
             ...(require('fs').existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
         ]
 
@@ -884,7 +910,7 @@ app.whenReady().then(async () => {
                     '--newline',
                     '--extractor-args', 'generic:impersonate',
                     ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
-                    ...(cookiesBrowser ? ['--cookies-from-browser', cookiesBrowser] : []),
+                    ...(cookiesFile ? ['--cookies', cookiesFile] : []),
                     ...(fs.existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
                 ]
                 if (downloadSubs) subArgs.push('--write-subs')
