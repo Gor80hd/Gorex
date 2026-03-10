@@ -122,6 +122,32 @@ function getFfmpegPath() {
     return join(dirname(process.execPath), 'resources', 'ytdl', bin)
 }
 
+// ─── Node.js path for yt-dlp --js-runtimes on YouTube ───────────────────────────────────
+// Newer yt-dlp versions require a JS runtime to solve YouTube's n-signature challenge.
+// Priority: 1) bundled node.exe in resources/ytdl/  2) system Node.js from PATH
+let _nodeJsPathPromise = null
+function findNodeJsPath() {
+    if (_nodeJsPathPromise) return _nodeJsPathPromise
+    _nodeJsPathPromise = (async () => {
+        // 1. Bundled node binary (ships with the installer, always preferred)
+        const bin = process.platform === 'win32' ? 'node.exe' : 'node'
+        const bundled = is.dev
+            ? join(app.getAppPath(), 'resources', 'ytdl', bin)
+            : join(dirname(process.execPath), 'resources', 'ytdl', bin)
+        if (require('fs').existsSync(bundled)) return bundled
+
+        // 2. Fallback: system Node.js (useful for developers running from source)
+        return new Promise((resolve) => {
+            const cmd = process.platform === 'win32' ? 'where node' : 'which node'
+            exec(cmd, { timeout: 3000 }, (err, stdout) => {
+                const first = (!err && stdout) ? stdout.trim().split(/\r?\n/)[0].trim() : null
+                resolve(first || null)
+            })
+        })
+    })()
+    return _nodeJsPathPromise
+}
+
 // ─── Temp directory for intermediate files (download + convert) ──────────────────────
 function getTempDownloadDir() {
     return join(app.getPath('userData'), 'Downloads_Temp')
@@ -483,12 +509,18 @@ app.whenReady().then(async () => {
             try { event.sender.send('ytdl-fetch-progress', { stage, ...extra }) } catch {}
         }
 
+        const appCfg = readAppSettings()
+        const cookiesBrowser = appCfg.ytdlCookiesBrowser || ''
+        const nodePath = await findNodeJsPath()
+
         // Run yt-dlp --dump-json and return { out, err, code }
         const runDumpJson = (url, extraArgs = []) => new Promise((res) => {
             const child = spawn(ytdlPath, [
                 '--dump-json',
                 '--no-playlist',
                 '--extractor-args', 'generic:impersonate',
+                ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
+                ...(cookiesBrowser ? ['--cookies-from-browser', cookiesBrowser] : []),
                 ...extraArgs,
                 url
             ], { windowsHide: true })
@@ -630,7 +662,7 @@ app.whenReady().then(async () => {
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
-    ipcMain.on('ytdl-run', (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat }) => {
+    ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat }) => {
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
         const cliPath = getCLIPath()
@@ -684,6 +716,9 @@ app.whenReady().then(async () => {
         }
 
         const ffmpegPath = getFfmpegPath()
+        const appCfg = readAppSettings()
+        const cookiesBrowser = appCfg.ytdlCookiesBrowser || ''
+        const nodePath = await findNodeJsPath()
         const ytdlArgs = [
             '-f', fmtArg,
             '-o', outputTemplate,
@@ -691,6 +726,8 @@ app.whenReady().then(async () => {
             '--merge-output-format', 'mp4',
             '--newline',
             '--extractor-args', 'generic:impersonate',
+            ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
+            ...(cookiesBrowser ? ['--cookies-from-browser', cookiesBrowser] : []),
             ...(require('fs').existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
         ]
 
@@ -846,6 +883,8 @@ app.whenReady().then(async () => {
                     '--no-playlist',
                     '--newline',
                     '--extractor-args', 'generic:impersonate',
+                    ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
+                    ...(cookiesBrowser ? ['--cookies-from-browser', cookiesBrowser] : []),
                     ...(fs.existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
                 ]
                 if (downloadSubs) subArgs.push('--write-subs')
