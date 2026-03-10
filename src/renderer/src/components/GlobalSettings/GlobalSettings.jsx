@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useLanguage } from '../../i18n'
 import './GlobalSettings.scss'
 
 // ─── RF quality tables per encoder ────────────────────────────────────────────
@@ -29,63 +30,63 @@ export const CODEC_RF = {
 
 // ─── Encoder speed presets ─────────────────────────────────────────────────────
 const X264_X265_SPEEDS = [
-    { value: 'ultrafast', label: 'ultrafast', desc: 'Кодирует в 10–15× быстрее slow. Файл в 2–3× больше при том же качестве. Только для тестов.' },
-    { value: 'superfast', label: 'superfast', desc: 'В 7–10× быстрее slow. Файл значительно больше — сжатие слабое.' },
-    { value: 'veryfast',  label: 'veryfast',  desc: 'В 4–5× быстрее slow. Заметный проигрыш в размере файла.' },
-    { value: 'faster',    label: 'faster',    desc: 'В 2–3× быстрее slow. Файл немного крупнее при том же качестве.' },
-    { value: 'fast',      label: 'fast',      desc: 'В 1.5× быстрее slow. Небольшая потеря сжатия по сравнению с medium.' },
-    { value: 'medium',    label: 'medium',    desc: 'Дефолтный пресет. Разумный баланс скорости и размера файла.' },
-    { value: 'slow',      label: 'slow',      desc: 'Лучше сжатие, чем medium: файл на 5–10% меньше при том же качестве. Рекомендован для архива.', recommended: true },
-    { value: 'slower',    label: 'slower',    desc: 'Файл ещё на 3–5% меньше, чем slow. Заметно дольше кодирование.' },
-    { value: 'veryslow',  label: 'veryslow',  desc: 'Максимальное сжатие. Файл на ~10% меньше, чем slow, но кодирует в 3–4× дольше.' },
+    { value: 'ultrafast', label: 'ultrafast', desc: { ru: 'Кодирует в 10–15× быстрее slow. Файл в 2–3× больше при том же качестве. Только для тестов.', en: 'Encodes 10–15× faster than slow. File is 2–3× larger at the same quality. For tests only.' } },
+    { value: 'superfast', label: 'superfast', desc: { ru: 'В 7–10× быстрее slow. Файл значительно больше — сжатие слабое.', en: '7–10× faster than slow. File significantly larger — weak compression.' } },
+    { value: 'veryfast',  label: 'veryfast',  desc: { ru: 'В 4–5× быстрее slow. Заметный проигрыш в размере файла.', en: '4–5× faster than slow. Noticeable file size penalty.' } },
+    { value: 'faster',    label: 'faster',    desc: { ru: 'В 2–3× быстрее slow. Файл немного крупнее при том же качестве.', en: '2–3× faster than slow. File slightly larger at the same quality.' } },
+    { value: 'fast',      label: 'fast',      desc: { ru: 'В 1.5× быстрее slow. Небольшая потеря сжатия по сравнению с medium.', en: '1.5× faster than slow. Small compression loss compared to medium.' } },
+    { value: 'medium',    label: 'medium',    desc: { ru: 'Дефолтный пресет. Разумный баланс скорости и размера файла.', en: 'Default preset. Reasonable speed and file size balance.' } },
+    { value: 'slow',      label: 'slow',      desc: { ru: 'Лучше сжатие, чем medium: файл на 5–10% меньше при том же качестве. Рекомендован для архива.', en: 'Better compression than medium: file 5–10% smaller at same quality. Recommended for archiving.' }, recommended: true },
+    { value: 'slower',    label: 'slower',    desc: { ru: 'Файл ещё на 3–5% меньше, чем slow. Заметно дольше кодирование.', en: 'Another 3–5% smaller than slow. Noticeably longer encoding.' } },
+    { value: 'veryslow',  label: 'veryslow',  desc: { ru: 'Максимальное сжатие. Файл на ~10% меньше, чем slow, но кодирует в 3–4× дольше.', en: 'Maximum compression. File ~10% smaller than slow, but encodes 3–4× longer.' } },
 ]
 
 const SVT_AV1_SPEEDS = [
-    { value: '12', label: '12 — Fastest',  desc: 'Максимальная скорость. Файл значительно больше, чем при preset 6.' },
-    { value: '11', label: '11',             desc: 'Очень быстро, слабое сжатие.' },
-    { value: '10', label: '10',             desc: 'Быстро, но файл заметно крупнее среднего.' },
-    { value: '9',  label: '9',              desc: 'Чуть медленнее 10, ощутимо лучше сжатие.' },
-    { value: '8',  label: '8',              desc: 'Хорошая скорость, приемлемый размер файла.' },
-    { value: '7',  label: '7',              desc: 'Немного медленнее 8, немного меньше файл.' },
-    { value: '6',  label: '6 — Balanced',  desc: 'Оптимальный баланс скорости и размера файла. Рекомендован.', recommended: true },
-    { value: '5',  label: '5',              desc: 'Файл на ~3% меньше, чем при 6, но кодирует заметно дольше.' },
-    { value: '4',  label: '4',              desc: 'Хорошее сжатие, кодирование в 2× медленнее, чем при 6.' },
-    { value: '3',  label: '3',              desc: 'Отличное сжатие. Заметный прирост времени.' },
-    { value: '2',  label: '2',              desc: 'Очень медленно. Минимальный прирост качества по сравнению с 3.' },
-    { value: '1',  label: '1',              desc: 'Почти максимальное качество. Очень медленно.' },
-    { value: '0',  label: '0 — Slowest',   desc: 'Наилучшее сжатие. Кодирует в 5–8× дольше, чем preset 6.' },
+    { value: '12', label: '12 — Fastest',  desc: { ru: 'Максимальная скорость. Файл значительно больше, чем при preset 6.', en: 'Maximum speed. File significantly larger than preset 6.' } },
+    { value: '11', label: '11',             desc: { ru: 'Очень быстро, слабое сжатие.', en: 'Very fast, weak compression.' } },
+    { value: '10', label: '10',             desc: { ru: 'Быстро, но файл заметно крупнее среднего.', en: 'Fast but file noticeably larger than average.' } },
+    { value: '9',  label: '9',              desc: { ru: 'Чуть медленнее 10, ощутимо лучше сжатие.', en: 'Slightly slower than 10, noticeably better compression.' } },
+    { value: '8',  label: '8',              desc: { ru: 'Хорошая скорость, приемлемый размер файла.', en: 'Good speed, acceptable file size.' } },
+    { value: '7',  label: '7',              desc: { ru: 'Немного медленнее 8, немного меньше файл.', en: 'Slightly slower than 8, slightly smaller file.' } },
+    { value: '6',  label: '6 — Balanced',  desc: { ru: 'Оптимальный баланс скорости и размера файла. Рекомендован.', en: 'Optimal speed/file size balance. Recommended.' }, recommended: true },
+    { value: '5',  label: '5',              desc: { ru: 'Файл на ~3% меньше, чем при 6, но кодирует заметно дольше.', en: 'File ~3% smaller than 6, but encodes noticeably longer.' } },
+    { value: '4',  label: '4',              desc: { ru: 'Хорошее сжатие, кодирование в 2× медленнее, чем при 6.', en: 'Good compression, encoding 2× slower than 6.' } },
+    { value: '3',  label: '3',              desc: { ru: 'Отличное сжатие. Заметный прирост времени.', en: 'Excellent compression. Noticeably more time.' } },
+    { value: '2',  label: '2',              desc: { ru: 'Очень медленно. Минимальный прирост качества по сравнению с 3.', en: 'Very slow. Minimal quality improvement over 3.' } },
+    { value: '1',  label: '1',              desc: { ru: 'Почти максимальное качество. Очень медленно.', en: 'Near-maximum quality. Very slow.' } },
+    { value: '0',  label: '0 — Slowest',   desc: { ru: 'Наилучшее сжатие. Кодирует в 5–8× дольше, чем preset 6.', en: 'Best compression. Encodes 5–8× longer than preset 6.' } },
 ]
 
 const NVENC_SPEEDS = [
-    { value: 'default', label: 'default', desc: 'Стандартный пресет NVENC — аналог balanced.' },
-    { value: 'hp',      label: 'hp (High Perf)',  desc: 'Максимальная скорость GPU. Файл чуть больше, чем hq.' },
-    { value: 'hq',      label: 'hq (High Quality)', desc: 'Лучшее качество при аппаратном кодировании. Файл немного меньше, скорость чуть ниже hp.', recommended: true },
-    { value: 'bd',      label: 'bd (Blu-ray)',    desc: 'Настройки для Blu-ray совместимости. Для обычных файлов отличий от default нет.' },
-    { value: 'll',      label: 'll (Low Latency)',    desc: 'Сниженная задержка за счёт ухудшения сжатия. Файл крупнее.' },
-    { value: 'llhq',    label: 'llhq (LL + HQ)', desc: 'Сниженная задержка с сохранением качества. Компромисс между ll и hq.' },
-    { value: 'llhp',    label: 'llhp (LL + HP)', desc: 'Максимальная скорость с низкой задержкой. Файл самый крупный.' },
+    { value: 'default', label: 'default',            desc: { ru: 'Стандартный пресет NVENC — аналог balanced.', en: 'Standard NVENC preset — equivalent to balanced.' } },
+    { value: 'hp',      label: 'hp (High Perf)',     desc: { ru: 'Максимальная скорость GPU. Файл чуть больше, чем hq.', en: 'Maximum GPU speed. File slightly larger than hq.' } },
+    { value: 'hq',      label: 'hq (High Quality)',  desc: { ru: 'Лучшее качество при аппаратном кодировании. Файл немного меньше, скорость чуть ниже hp.', en: 'Best quality for hardware encoding. File slightly smaller, speed slightly lower than hp.' }, recommended: true },
+    { value: 'bd',      label: 'bd (Blu-ray)',        desc: { ru: 'Настройки для Blu-ray совместимости. Для обычных файлов отличий от default нет.', en: 'Blu-ray compatibility settings. No difference from default for regular files.' } },
+    { value: 'll',      label: 'll (Low Latency)',    desc: { ru: 'Сниженная задержка за счёт ухудшения сжатия. Файл крупнее.', en: 'Reduced latency at the cost of worse compression. Larger file.' } },
+    { value: 'llhq',    label: 'llhq (LL + HQ)',     desc: { ru: 'Сниженная задержка с сохранением качества. Компромисс между ll и hq.', en: 'Reduced latency while retaining quality. Compromise between ll and hq.' } },
+    { value: 'llhp',    label: 'llhp (LL + HP)',     desc: { ru: 'Максимальная скорость с низкой задержкой. Файл самый крупный.', en: 'Maximum speed with low latency. Largest file.' } },
 ]
 
 const QSV_SPEEDS = [
-    { value: 'veryfast', label: 'veryfast', desc: 'Максимальная скорость QSV. Файл заметно крупнее, чем balanced.' },
-    { value: 'faster',   label: 'faster',   desc: 'Быстро, сжатие хуже среднего.' },
-    { value: 'fast',     label: 'fast',     desc: 'Немного быстрее balanced, файл чуть больше.' },
-    { value: 'balanced', label: 'balanced', desc: 'Оптимальный баланс скорости и размера файла для QSV. Рекомендован.', recommended: true },
-    { value: 'slow',     label: 'slow',     desc: 'Лучше сжатие, чем balanced. Файл немного меньше.' },
-    { value: 'slower',   label: 'slower',   desc: 'Ещё лучше сжатие, но кодирует заметно дольше.' },
-    { value: 'veryslow', label: 'veryslow', desc: 'Максимальное качество QSV. Медленнее, но разница с slower невелика.' },
+    { value: 'veryfast', label: 'veryfast', desc: { ru: 'Максимальная скорость QSV. Файл заметно крупнее, чем balanced.', en: 'Maximum QSV speed. File noticeably larger than balanced.' } },
+    { value: 'faster',   label: 'faster',   desc: { ru: 'Быстро, сжатие хуже среднего.', en: 'Fast, compression below average.' } },
+    { value: 'fast',     label: 'fast',     desc: { ru: 'Немного быстрее balanced, файл чуть больше.', en: 'Slightly faster than balanced, file slightly larger.' } },
+    { value: 'balanced', label: 'balanced', desc: { ru: 'Оптимальный баланс скорости и размера файла для QSV. Рекомендован.', en: 'Optimal speed/file size balance for QSV. Recommended.' }, recommended: true },
+    { value: 'slow',     label: 'slow',     desc: { ru: 'Лучше сжатие, чем balanced. Файл немного меньше.', en: 'Better compression than balanced. File slightly smaller.' } },
+    { value: 'slower',   label: 'slower',   desc: { ru: 'Ещё лучше сжатие, но кодирует заметно дольше.', en: 'Even better compression, but encodes noticeably longer.' } },
+    { value: 'veryslow', label: 'veryslow', desc: { ru: 'Максимальное качество QSV. Медленнее, но разница с slower невелика.', en: 'Maximum QSV quality. Slower, but difference from slower is minimal.' } },
 ]
 
 const VCE_SPEEDS = [
-    { value: 'speed',    label: 'speed',    desc: 'Максимальная скорость AMD VCE. Файл крупнее, чем quality.' },
-    { value: 'balanced', label: 'balanced', desc: 'Баланс скорости и размера файла.' },
-    { value: 'quality',  label: 'quality',  desc: 'Лучшее сжатие AMD VCE. Файл на ~10% меньше speed при том же качестве. Рекомендован.', recommended: true },
+    { value: 'speed',    label: 'speed',    desc: { ru: 'Максимальная скорость AMD VCE. Файл крупнее, чем quality.', en: 'Maximum AMD VCE speed. File larger than quality.' } },
+    { value: 'balanced', label: 'balanced', desc: { ru: 'Баланс скорости и размера файла.', en: 'Speed/file size balance.' } },
+    { value: 'quality',  label: 'quality',  desc: { ru: 'Лучшее сжатие AMD VCE. Файл на ~10% меньше speed при том же качестве. Рекомендован.', en: 'Best AMD VCE compression. File ~10% smaller than speed at same quality. Recommended.' }, recommended: true },
 ]
 
 const VP_SPEEDS = [
-    { value: 'best',     label: 'best',     desc: 'Лучшее сжатие VP8/VP9. Файл меньше, кодирование значительно дольше.', recommended: true },
-    { value: 'good',     label: 'good',     desc: 'Разумный баланс скорости и размера файла.' },
-    { value: 'realtime', label: 'realtime', desc: 'Очень быстро, но слабое сжатие. Файл значительно крупнее.' },
+    { value: 'best',     label: 'best',     desc: { ru: 'Лучшее сжатие VP8/VP9. Файл меньше, кодирование значительно дольше.', en: 'Best VP8/VP9 compression. File smaller, encoding significantly longer.' }, recommended: true },
+    { value: 'good',     label: 'good',     desc: { ru: 'Разумный баланс скорости и размера файла.', en: 'Reasonable speed/file size balance.' } },
+    { value: 'realtime', label: 'realtime', desc: { ru: 'Очень быстро, но слабое сжатие. Файл значительно крупнее.', en: 'Very fast, but weak compression. File significantly larger.' } },
 ]
 
 export const ENCODER_PRESETS = {
@@ -105,8 +106,8 @@ export const ENCODER_PRESETS = {
     vce_h264:      VCE_SPEEDS,
     vce_h265:      VCE_SPEEDS,
     vce_av1:       VCE_SPEEDS,
-    mf_h264:       [{ value: 'default', label: 'default', desc: 'Единственный пресет. Параметры задаются драйвером.' }],
-    mf_h265:       [{ value: 'default', label: 'default', desc: 'Единственный пресет. Параметры задаются драйвером.' }],
+    mf_h264:       [{ value: 'default', label: 'default', desc: { ru: 'Единственный пресет. Параметры задаются драйвером.', en: 'Single preset. Parameters are set by the driver.' } }],
+    mf_h265:       [{ value: 'default', label: 'default', desc: { ru: 'Единственный пресет. Параметры задаются драйвером.', en: 'Single preset. Parameters are set by the driver.' } }],
     vp8:           VP_SPEEDS,
     vp9:           VP_SPEEDS,
     vp9_10bit:     VP_SPEEDS,
@@ -186,80 +187,82 @@ export function initDefaultSettings() {
 // ─── Encoder groups ────────────────────────────────────────────────────────────
 export const ENCODER_GROUPS = [
     {
-        label: 'Программные',
+        id: 'software', label: 'Программные', labelKey: 'softwareEncoders',
         encoders: [
-            { value: 'x265',          label: 'H.265 / HEVC (x265)',   desc: 'Вдвое эффективнее H.264. Лучший выбор для архива и 4K. Медленнее.' },
-            { value: 'x265_10bit',    label: 'H.265 10-bit (x265)',   desc: 'H.265 с расширенным цветом. Лучше для HDR и плавных градиентов.' },
-            { value: 'x265_12bit',    label: 'H.265 12-bit (x265)',   desc: 'H.265 профессионального уровня. Избыточен для большинства задач.' },
-            { value: 'x264',          label: 'H.264 (x264)',          desc: 'Максимальная совместимость. Воспроизводится на любом устройстве.' },
-            { value: 'x264_10bit',    label: 'H.264 10-bit (x264)',   desc: 'H.264 с улучшенным цветом. Чуть хуже совместимость со старыми ТВ.' },
-            { value: 'svt_av1',       label: 'AV1 (SVT-AV1)',        desc: 'Современный открытый кодек. Эффективнее H.265, но значительно медленнее.' },
-            { value: 'svt_av1_10bit', label: 'AV1 10-bit (SVT-AV1)', desc: 'AV1 с поддержкой широкого цвета и HDR.' },
-            { value: 'vp9',           label: 'VP9 (libvpx)',          desc: 'Открытый кодек Google. Хорош для YouTube и HTML5 видео.' },
-            { value: 'vp9_10bit',     label: 'VP9 10-bit (libvpx)',   desc: 'VP9 с расширенным диапазоном цвета.' },
-            { value: 'vp8',           label: 'VP8 (libvpx)',          desc: 'Устаревший. Рекомендуется только для контейнера WebM.' },
-            { value: 'theora',        label: 'Theora',                desc: 'Открытый кодек для OGG. Устарел, не рекомендуется.' },
+            { value: 'x265',          label: 'H.265 / HEVC (x265)',   desc: { ru: 'Вдвое эффективнее H.264. Лучший выбор для архива и 4K. Медленнее.', en: 'Twice as efficient as H.264. Best choice for archives and 4K. Slower.' } },
+            { value: 'x265_10bit',    label: 'H.265 10-bit (x265)',   desc: { ru: 'H.265 с расширенным цветом. Лучше для HDR и плавных градиентов.', en: 'H.265 with extended color. Better for HDR and smooth gradients.' } },
+            { value: 'x265_12bit',    label: 'H.265 12-bit (x265)',   desc: { ru: 'H.265 профессионального уровня. Избыточен для большинства задач.', en: 'Professional-grade H.265. Overkill for most tasks.' } },
+            { value: 'x264',          label: 'H.264 (x264)',          desc: { ru: 'Максимальная совместимость. Воспроизводится на любом устройстве.', en: 'Maximum compatibility. Plays on any device.' } },
+            { value: 'x264_10bit',    label: 'H.264 10-bit (x264)',   desc: { ru: 'H.264 с улучшенным цветом. Чуть хуже совместимость со старыми ТВ.', en: 'H.264 with improved color. Slightly lower compatibility with older TVs.' } },
+            { value: 'svt_av1',       label: 'AV1 (SVT-AV1)',        desc: { ru: 'Современный открытый кодек. Эффективнее H.265, но значительно медленнее.', en: 'Modern open codec. More efficient than H.265, but significantly slower.' } },
+            { value: 'svt_av1_10bit', label: 'AV1 10-bit (SVT-AV1)', desc: { ru: 'AV1 с поддержкой широкого цвета и HDR.', en: 'AV1 with wide color gamut and HDR support.' } },
+            { value: 'vp9',           label: 'VP9 (libvpx)',          desc: { ru: 'Открытый кодек Google. Хорош для YouTube и HTML5 видео.', en: "Google's open codec. Great for YouTube and HTML5 video." } },
+            { value: 'vp9_10bit',     label: 'VP9 10-bit (libvpx)',   desc: { ru: 'VP9 с расширенным диапазоном цвета.', en: 'VP9 with extended color range.' } },
+            { value: 'vp8',           label: 'VP8 (libvpx)',          desc: { ru: 'Устаревший. Рекомендуется только для контейнера WebM.', en: 'Deprecated. Recommended only for WebM container.' } },
+            { value: 'theora',        label: 'Theora',                desc: { ru: 'Открытый кодек для OGG. Устарел, не рекомендуется.', en: 'Open codec for OGG container. Deprecated, not recommended.' } },
         ],
     },
     {
-        label: 'NVIDIA (NVENC)',
+        id: 'nvenc', label: 'NVIDIA (NVENC)',
         encoders: [
-            { value: 'nvenc_h264', label: 'H.264 NVENC', desc: 'Аппаратный H.264 на GPU NVIDIA. В 10–20× быстрее x264, качество чуть ниже.' },
-            { value: 'nvenc_h265', label: 'H.265 NVENC', desc: 'Быстрый H.265 через NVENC. Карты Pascal и новее.' },
-            { value: 'nvenc_av1',  label: 'AV1 NVENC',  desc: 'Аппаратный AV1. Только RTX 40xx и новее.' },
+            { value: 'nvenc_h264', label: 'H.264 NVENC', desc: { ru: 'Аппаратный H.264 на GPU NVIDIA. В 10–20× быстрее x264, качество чуть ниже.', en: 'Hardware H.264 on NVIDIA GPU. 10–20× faster than x264, quality slightly lower.' } },
+            { value: 'nvenc_h265', label: 'H.265 NVENC', desc: { ru: 'Быстрый H.265 через NVENC. Карты Pascal и новее.', en: 'Fast H.265 via NVENC. Pascal cards and newer.' } },
+            { value: 'nvenc_av1',  label: 'AV1 NVENC',  desc: { ru: 'Аппаратный AV1. Только RTX 40xx и новее.', en: 'Hardware AV1. RTX 40xx and newer only.' } },
         ],
     },
     {
-        label: 'Intel (QSV)',
+        id: 'qsv', label: 'Intel (QSV)',
         encoders: [
-            { value: 'qsv_h264', label: 'H.264 QSV', desc: 'Аппаратный H.264 через Intel Quick Sync. Быстро, умеренное качество.' },
-            { value: 'qsv_h265', label: 'H.265 QSV', desc: 'Быстрый H.265 через QSV. Skylake и новее.' },
-            { value: 'qsv_av1',  label: 'AV1 QSV',  desc: 'Аппаратный AV1 через QSV. Только Intel Arc.' },
+            { value: 'qsv_h264', label: 'H.264 QSV', desc: { ru: 'Аппаратный H.264 через Intel Quick Sync. Быстро, умеренное качество.', en: 'Hardware H.264 via Intel Quick Sync. Fast, moderate quality.' } },
+            { value: 'qsv_h265', label: 'H.265 QSV', desc: { ru: 'Быстрый H.265 через QSV. Skylake и новее.', en: 'Fast H.265 via QSV. Skylake and newer.' } },
+            { value: 'qsv_av1',  label: 'AV1 QSV',  desc: { ru: 'Аппаратный AV1 через QSV. Только Intel Arc.', en: 'Hardware AV1 via QSV. Intel Arc only.' } },
         ],
     },
     {
-        label: 'AMD (VCE)',
+        id: 'vce', label: 'AMD (VCE)',
         encoders: [
-            { value: 'vce_h264', label: 'H.264 VCE', desc: 'Аппаратный H.264 на видеокартах AMD. Быстро, совместимость везде.' },
-            { value: 'vce_h265', label: 'H.265 VCE', desc: 'Быстрый H.265 на AMD. Карты RX 5xxx и новее.' },
-            { value: 'vce_av1',  label: 'AV1 VCE',  desc: 'Аппаратный AV1 на AMD. Только RX 7xxx и новее.' },
+            { value: 'vce_h264', label: 'H.264 VCE', desc: { ru: 'Аппаратный H.264 на видеокартах AMD. Быстро, совместимость везде.', en: 'Hardware H.264 on AMD GPUs. Fast, compatible everywhere.' } },
+            { value: 'vce_h265', label: 'H.265 VCE', desc: { ru: 'Быстрый H.265 на AMD. Карты RX 5xxx и новее.', en: 'Fast H.265 on AMD. RX 5xxx cards and newer.' } },
+            { value: 'vce_av1',  label: 'AV1 VCE',  desc: { ru: 'Аппаратный AV1 на AMD. Только RX 7xxx и новее.', en: 'Hardware AV1 on AMD. RX 7xxx and newer only.' } },
         ],
     },
     {
-        label: 'Windows (MediaFoundation)',
+        id: 'mf', label: 'Windows (MediaFoundation)',
         encoders: [
-            { value: 'mf_h264', label: 'H.264 MF', desc: 'H.264 через Windows Media API. Резервный вариант при отсутствии NVENC/QSV/VCE.' },
-            { value: 'mf_h265', label: 'H.265 MF', desc: 'H.265 через Windows Media API. Совместимость зависит от драйверов.' },
+            { value: 'mf_h264', label: 'H.264 MF', desc: { ru: 'H.264 через Windows Media API. Резервный вариант при отсутствии NVENC/QSV/VCE.', en: 'H.264 via Windows Media API. Fallback when NVENC/QSV/VCE is unavailable.' } },
+            { value: 'mf_h265', label: 'H.265 MF', desc: { ru: 'H.265 через Windows Media API. Совместимость зависит от драйверов.', en: 'H.265 via Windows Media API. Compatibility depends on drivers.' } },
         ],
     },
 ]
 
 // ─── Encoder groups for conversion page (GPU-aware) ───────────────────────────
-export function getConversionEncoderGroups(vendor, showAll) {
-    const software   = ENCODER_GROUPS.find(g => g.label === 'Программные')
-    const nvenc      = ENCODER_GROUPS.find(g => g.label === 'NVIDIA (NVENC)')
-    const qsv        = ENCODER_GROUPS.find(g => g.label === 'Intel (QSV)')
-    const vce        = ENCODER_GROUPS.find(g => g.label === 'AMD (VCE)')
-    const mf         = ENCODER_GROUPS.find(g => g.label === 'Windows (MediaFoundation)')
+export function getConversionEncoderGroups(vendor, showAll, t) {
+    const software   = ENCODER_GROUPS.find(g => g.id === 'software')
+    const nvenc      = ENCODER_GROUPS.find(g => g.id === 'nvenc')
+    const qsv        = ENCODER_GROUPS.find(g => g.id === 'qsv')
+    const vce        = ENCODER_GROUPS.find(g => g.id === 'vce')
 
     const gpuGroupMap = { nvidia: nvenc, intel: qsv, amd: vce }
     const gpuGroup = gpuGroupMap[vendor]
 
+    const rec = t ? t('recommended') : 'рекомендован'
+    const swLabel = t ? t('softwareEncoders') : (software?.label || 'Программные')
+
     const softwarePrimary = {
-        label: 'Программные',
+        label: swLabel,
         encoders: [
-            { value: 'x265',    label: 'H.265 / HEVC (x265)', desc: 'Вдвое эффективнее H.264. Лучший выбор для архива и 4K. Медленнее.' },
-            { value: 'x264',    label: 'H.264 (x264)',         desc: 'Максимальная совместимость. Воспроизводится на любом устройстве.' },
-            { value: 'svt_av1', label: 'AV1 (SVT-AV1)',       desc: 'Современный открытый кодек. Эффективнее H.265, но значительно медленнее.' },
+            { value: 'x265',    label: 'H.265 / HEVC (x265)', desc: { ru: 'Вдвое эффективнее H.264. Лучший выбор для архива и 4K. Медленнее.', en: 'Twice as efficient as H.264. Best choice for archives and 4K. Slower.' } },
+            { value: 'x264',    label: 'H.264 (x264)',         desc: { ru: 'Максимальная совместимость. Воспроизводится на любом устройстве.', en: 'Maximum compatibility. Plays on any device.' } },
+            { value: 'svt_av1', label: 'AV1 (SVT-AV1)',       desc: { ru: 'Современный открытый кодек. Эффективнее H.265, но значительно медленнее.', en: 'Modern open codec. More efficient than H.265, but significantly slower.' } },
         ],
     }
 
     if (!showAll) {
         if (gpuGroup) {
             const gpuLabel = {
-                nvidia: 'NVIDIA NVENC (рекомендован)',
-                intel:  'Intel QSV (рекомендован)',
-                amd:    'AMD VCE (рекомендован)',
+                nvidia: `NVIDIA NVENC (${rec})`,
+                intel:  `Intel QSV (${rec})`,
+                amd:    `AMD VCE (${rec})`,
             }[vendor]
             return [
                 { label: gpuLabel, encoders: gpuGroup.encoders },
@@ -269,12 +272,13 @@ export function getConversionEncoderGroups(vendor, showAll) {
         return [softwarePrimary]
     }
 
-    // showAll = true: GPU group first, then the rest
+    // showAll = true: GPU group first (with translated label), then the rest
     if (gpuGroup) {
         const others = ENCODER_GROUPS.filter(g => g !== gpuGroup)
-        return [gpuGroup, ...others]
+        const translateLabel = (g) => g.labelKey && t ? t(g.labelKey) : g.label
+        return [gpuGroup, ...others].map(g => ({ ...g, label: translateLabel(g) }))
     }
-    return ENCODER_GROUPS
+    return ENCODER_GROUPS.map(g => g.labelKey && t ? { ...g, label: t(g.labelKey) } : g)
 }
 
 // ─── WebM codec compatibility ─────────────────────────────────────────────────
@@ -291,69 +295,41 @@ export const ENCODER_DISABLED_FORMATS = {
     theora:     new Set(['av_mp4', 'av_mov', 'av_webm']),
 }
 
-// ─── Help texts ────────────────────────────────────────────────────────────────
-const FORMAT_HELP = {
-    av_mp4:  'MP4 — универсальный контейнер. Совместим с любыми устройствами, ТВ, смартфонами и браузерами. Лучший выбор для публикации.',
-    av_mkv:  'MKV — гибкий контейнер без ограничений на количество дорожек. Идеален для архивирования, поддерживает любые кодеки.',
-    av_webm: 'WebM — контейнер для веба. Поддерживает только VP8/VP9/AV1 и аудио Vorbis/Opus. При выборе WebM кодек автоматически скорректируется.',
-    av_mov:  'MOV — контейнер Apple QuickTime. Хорошо совместим с macOS / iOS, поддерживает H.264, H.265 и большинство кодеков.',
+// ─── Help texts (i18n-based lookups) ──────────────────────────────────────────
+function getFormatHelp(format, t) {
+    const key = { av_mp4: 'helpFmtMp4', av_mkv: 'helpFmtMkv', av_webm: 'helpFmtWebm', av_mov: 'helpFmtMov' }[format]
+    return key ? t(key) : t('hintFormat')
 }
-
-const RESOLUTION_HELP = {
-    source:  'Разрешение исходного видео сохраняется без изменений. Никакого масштабирования.',
-    '4k':    '4K (2160p) — Ultra HD. Используется для архива и больших экранов. Сохраняет пропорции источника.',
-    '1440p': '2K (1440p) — Quad HD. Оптимально для мониторов 2K и архива высокого качества.',
-    '1080p': '1080p (Full HD) — стандарт для большинства экранов и видеоплатформ. Хороший баланс качества и размера.',
-    '720p':  '720p (HD) — меньший файл при приемлемом качестве. Хорошо для мобильных устройств.',
-    '480p':  '480p (SD) — минимальное разрешение. Самые маленькие файлы, заметная потеря деталей.',
+function getResolutionHelp(res, t) {
+    const key = { source: 'helpResSource', '4k': 'helpRes4k', '1440p': 'helpRes1440p', '1080p': 'helpRes1080p', '720p': 'helpRes720p', '480p': 'helpRes480p' }[res]
+    return key ? t(key) : t('hintResolution')
 }
-
-const FPS_HELP = {
-    source:   'Частота кадров сохраняется как в источнике. Рекомендуется для большинства случаев.',
-    '60':     '60 fps — максимальная плавность для геймплея, экшна и спорта. Файл будет значительно крупнее.',
-    '30':     '30 fps — стандарт для ТВ, YouTube и соцсетей. Хороший баланс плавности и размера.',
-    '25':     '25 fps — европейский ТВ-стандарт (PAL). Для совместимости с PAL-устройствами.',
-    '24':     '24 fps — кинематографический стандарт. Создаёт "киношный" облик видео.',
-    '23.976': '23.976 fps — NTSC-кинематографический стандарт. Совместим с большинством медиаплееров.',
+function getFpsHelp(fps, t) {
+    const key = { source: 'helpFpsSource', '60': 'helpFps60', '30': 'helpFps30', '25': 'helpFps25', '24': 'helpFps24', '23.976': 'helpFps23976' }[fps]
+    return key ? t(key) : t('hintFps')
 }
-
-const QUALITY_HELP = {
-    lossless: 'Lossless — RF 0, кодирование без потерь. Файл будет значительно больше исходника, так как хранит декодированный YUV без сжатия.',
-    high:   'Высокое качество — визуально близко к оригиналу. Рекомендуется для архива и дальнейшего редактирования.',
-    medium: 'Баланс качества и размера — минимально заметная потеря детализации при значительном уменьшении файла.',
-    low:    'Низкое качество — заметные артефакты компрессии. Маленький файл для быстрой передачи.',
-    potato: 'Максимальное сжатие — качество уровня VHS. Артефакты гарантированы. Только если файл нужен очень маленьким.',
-    custom: 'RF (Rate Factor): чем ниже значение — тем лучше качество и больше размер файла. RF 0 ≈ lossless.',
+function getQualityHelp(quality, t) {
+    const key = { lossless: 'helpQualLossless', high: 'helpQualHigh', medium: 'helpQualMedium', low: 'helpQualLow', potato: 'helpQualPotato', custom: 'helpQualCustom' }[quality]
+    return key ? t(key) : t('hintQualityMode')
 }
-
-const ENCODER_HELP = {
-    x265:          'H.265/HEVC (libx265) — в 2× эффективнее H.264 при том же качестве. Рекомендован для 4K и архива.',
-    x265_10bit:    'H.265 10-bit — лучше сохраняет HDR, плавные градиенты и контент с широким цветом.',
-    x265_12bit:    'H.265 12-bit — для профессионального мастеринга. Избыточен для большинства задач.',
-    x264:          'H.264 (libx264) — самый совместимый кодек. Воспроизводится на любом устройстве.',
-    x264_10bit:    'H.264 10-bit — лучшее сохранение цвета при чуть меньшей совместимости.',
-    svt_av1:       'AV1 (SVT-AV1) — современный открытый кодек. Эффективнее H.265, но медленнее в кодировании.',
-    svt_av1_10bit: 'AV1 10-bit — AV1 с поддержкой широкого цвета и HDR.',
-    vp9:           'VP9 (libvpx) — открытый кодек Google. Хорош для YouTube и HTML5 видео.',
-    vp9_10bit:     'VP9 10-bit — VP9 с расширенным диапазоном цвета.',
-    vp8:           'VP8 (libvpx) — устаревший кодек. Рекомендуется только в контейнере WebM.',
-    theora:        'Theora — открытый кодек для контейнера OGG. Устарел, использовать не рекомендуется.',
-    nvenc_h264:    'NVIDIA NVENC H.264 — аппаратное кодирование на GPU NVIDIA. Очень быстро, качество чуть ниже x264.',
-    nvenc_h265:    'NVIDIA NVENC H.265 — быстрый аппаратный H.265 на картах NVIDIA Pascal и новее.',
-    nvenc_av1:     'NVIDIA NVENC AV1 — аппаратный AV1 на картах RTX 40xx+.',
-    qsv_h264:      'Intel QSV H.264 — аппаратное ускорение через Intel Graphics или Arc.',
-    qsv_h265:      'Intel QSV H.265 — быстрый H.265 через Intel Quick Sync (Skylake+).',
-    qsv_av1:       'Intel QSV AV1 — аппаратный AV1 на Intel Arc.',
-    vce_h264:      'AMD VCE H.264 — аппаратное кодирование на видеокартах AMD.',
-    vce_h265:      'AMD VCE H.265 — аппаратный H.265 на AMD RX 5xxx+.',
-    vce_av1:       'AMD VCE AV1 — аппаратный AV1 на AMD RX 7xxx+.',
-    mf_h264:       'MediaFoundation H.264 — аппаратное кодирование через Windows Media API.',
-    mf_h265:       'MediaFoundation H.265 — H.265 через Windows Media API.',
+function getEncoderHelpText(encoder, t) {
+    const key = {
+        x265: 'helpEncX265', x265_10bit: 'helpEncX265_10bit', x265_12bit: 'helpEncX265_12bit',
+        x264: 'helpEncX264', x264_10bit: 'helpEncX264_10bit',
+        svt_av1: 'helpEncSvtAv1', svt_av1_10bit: 'helpEncSvtAv1_10bit',
+        vp9: 'helpEncVp9', vp9_10bit: 'helpEncVp9_10bit', vp8: 'helpEncVp8', theora: 'helpEncTheora',
+        nvenc_h264: 'helpEncNvencH264', nvenc_h265: 'helpEncNvencH265', nvenc_av1: 'helpEncNvencAv1',
+        qsv_h264: 'helpEncQsvH264', qsv_h265: 'helpEncQsvH265', qsv_av1: 'helpEncQsvAv1',
+        vce_h264: 'helpEncVceH264', vce_h265: 'helpEncVceH265', vce_av1: 'helpEncVceAv1',
+        mf_h264: 'helpEncMfH264', mf_h265: 'helpEncMfH265',
+    }[encoder]
+    return key ? t(key) : t('hintVideoCodec')
 }
 
 // ─── Helper: resolution options ────────────────────────────────────────────────
-function getResolutionOptions(videos) {
-    const opts = [{ value: 'source', label: 'По исходному' }]
+function getResolutionOptions(videos, t) {
+    const srcLabel = t ? t('resSource') : 'По исходному'
+    const opts = [{ value: 'source', label: srcLabel }]
 
     let isPortrait = false
     let maxDim = 0
@@ -373,12 +349,13 @@ function getResolutionOptions(videos) {
         })
     }
 
+    const p = t ? t('resPortrait') : 'вертикально'
     const standard = [
-        { value: '4k',    label: isPortrait ? '4K вертикально (2160p)' : '4K (2160p)',  short: 2160 },
-        { value: '1440p', label: isPortrait ? '2K вертикально (1440p)' : '2K (1440p)',  short: 1440 },
-        { value: '1080p', label: isPortrait ? '1080p вертикально'      : '1080p',       short: 1080 },
-        { value: '720p',  label: isPortrait ? '720p вертикально'       : '720p',        short: 720  },
-        { value: '480p',  label: isPortrait ? '480p вертикально'       : '480p',        short: 480  },
+        { value: '4k',    label: isPortrait ? `4K ${p} (2160p)` : '4K (2160p)',  short: 2160 },
+        { value: '1440p', label: isPortrait ? `2K ${p} (1440p)` : '2K (1440p)',  short: 1440 },
+        { value: '1080p', label: isPortrait ? `1080p ${p}`       : '1080p',       short: 1080 },
+        { value: '720p',  label: isPortrait ? `720p ${p}`        : '720p',        short: 720  },
+        { value: '480p',  label: isPortrait ? `480p ${p}`        : '480p',        short: 480  },
     ]
 
     standard.forEach(r => {
@@ -402,6 +379,13 @@ function getEncoderLabel(encoder) {
 export function GsSelect({ value, onChange, options, groups, disabled, className, onSpecial, direction = 'up' }) {
     const [open, setOpen] = useState(false)
     const ref = useRef(null)
+    const { t, lang } = useLanguage()
+
+    const resolveDesc = (desc) => {
+        if (!desc) return null
+        if (typeof desc === 'object') return desc[lang] || desc.en || desc.ru || null
+        return desc
+    }
 
     useEffect(() => {
         if (!open) return
@@ -455,18 +439,18 @@ export function GsSelect({ value, onChange, options, groups, disabled, className
                         >
                             <span className="gs-dropdown-item-main">
                                 {o.label}
-                                {o.recommended && <span className="gs-dropdown-item-badge">рекомендован</span>}
+                            {o.recommended && <span className="gs-dropdown-item-badge">{t('recommended')}</span>}
                             </span>
                             {o.tags && o.tags.length > 0 && (
                                 <span className="gs-dropdown-item-tags">
-                                    {o.tags.map(t => (
-                                        <span key={t.key} className={`gs-item-tag ${t.cls}`}>
-                                            <i className={`bi ${t.icon}`}></i>{t.label}
+                                    {o.tags.map(tag => (
+                                        <span key={tag.key} className={`gs-item-tag ${tag.cls}`}>
+                                            <i className={`bi ${tag.icon}`}></i>{tag.label}
                                         </span>
                                     ))}
                                 </span>
                             )}
-                            {o.desc && <span className="gs-dropdown-item-desc">{o.desc}</span>}
+                            {o.desc && <span className="gs-dropdown-item-desc">{resolveDesc(o.desc)}</span>}
                         </button>
                     ))}
                     {groups && groups.map((g, gi) => (
@@ -490,7 +474,7 @@ export function GsSelect({ value, onChange, options, groups, disabled, className
                                             ))}
                                         </span>
                                     )}
-                                    {o.desc && <span className="gs-dropdown-item-desc">{o.desc}</span>}
+                                    {o.desc && <span className="gs-dropdown-item-desc">{resolveDesc(o.desc)}</span>}
                                 </button>
                             ))}
                         </div>
@@ -525,13 +509,14 @@ function Tooltip({ text }) {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
+    const { t } = useLanguage()
     const [showCustomQuality, setShowCustomQuality] = useState(false)
     const [draftRF, setDraftRF] = useState(settings.customQuality)
 
     const rfTable = CODEC_RF[settings.encoder] || CODEC_RF.x265
     const speedPresets = ENCODER_PRESETS[settings.encoder] ?? []
-    const resOptions = getResolutionOptions(videos)
-    const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', !!settings.showAllCodecs)
+    const resOptions = getResolutionOptions(videos, t)
+    const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', !!settings.showAllCodecs, t)
 
     const update = (key, value) => onChange({ ...settings, [key]: value })
 
@@ -582,21 +567,21 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
     }
 
     const qualityPresets = [
-        { key: 'high',   label: 'Высокое', rf: rfTable.high },
-        { key: 'medium', label: 'Среднее', rf: rfTable.medium },
-        { key: 'low',    label: 'Низкое',  rf: rfTable.low },
-        { key: 'potato', label: 'Шакал',   rf: rfTable.potato },
+        { key: 'high',   label: t('qualityHigh'),   rf: rfTable.high },
+        { key: 'medium', label: t('qualityMedium'),  rf: rfTable.medium },
+        { key: 'low',    label: t('qualityLow'),     rf: rfTable.low },
+        { key: 'potato', label: t('qualityPotato'),  rf: rfTable.potato },
     ]
 
     const currentQualityRF = settings.quality === 'custom'
         ? settings.customQuality
         : rfTable[settings.quality]
 
-    const currentFormatHelp  = FORMAT_HELP[settings.format] || 'Контейнер для выходного файла.'
-    const currentResHelp     = RESOLUTION_HELP[settings.resolution] || 'Целевое разрешение выходного видео.'
-    const currentFpsHelp     = FPS_HELP[settings.fps] || 'Частота кадров выходного видео.'
-    const currentQualityHelp = settings.quality === 'custom' ? QUALITY_HELP.custom : (QUALITY_HELP[settings.quality] || QUALITY_HELP.custom)
-    const currentEncHelp     = ENCODER_HELP[settings.encoder] || 'Видеокодек для кодирования.'
+    const currentFormatHelp  = getFormatHelp(settings.format, t)
+    const currentResHelp     = getResolutionHelp(settings.resolution, t)
+    const currentFpsHelp     = getFpsHelp(settings.fps, t)
+    const currentQualityHelp = getQualityHelp(settings.quality === 'custom' ? 'custom' : settings.quality, t)
+    const currentEncHelp     = getEncoderHelpText(settings.encoder, t)
 
     return (
         <>
@@ -606,7 +591,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                 <div className="gs-card gs-card--format">
                     <div className="gs-card-header">
                         <i className="bi bi-file-earmark-play gs-icon"></i>
-                        <span className="gs-card-label">Формат</span>
+                        <span className="gs-card-label">{t('rowFormat')}</span>
                         <Tooltip text={currentFormatHelp} />
                     </div>
                     {/* Format dropdown */}
@@ -628,7 +613,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                 <div className="gs-card gs-card--resolution">
                     <div className="gs-card-header">
                         <i className="bi bi-aspect-ratio gs-icon"></i>
-                        <span className="gs-card-label">Разрешение</span>
+                        <span className="gs-card-label">{t('rowResolution')}</span>
                         <Tooltip text={currentResHelp} />
                     </div>
                     <GsSelect
@@ -649,7 +634,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                     <GsSelect
                         value={settings.fps}
                         options={[
-                            { value: 'source', label: 'По исходному' },
+                            { value: 'source', label: t('fpsSource') },
                             { value: '60',     label: '60 fps' },
                             { value: '30',     label: '30 fps' },
                             { value: '25',     label: '25 fps' },
@@ -665,7 +650,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                 <div className="gs-card gs-card--quality">
                     <div className="gs-card-header">
                         <i className="bi bi-sliders2 gs-icon"></i>
-                        <span className="gs-card-label">Качество</span>
+                        <span className="gs-card-label">{t('sectionQuality')}</span>
                         <Tooltip text={currentQualityHelp} />
                     </div>
                     <GsSelect
@@ -673,7 +658,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                         options={[
                             { value: 'lossless', label: `Lossless (RF ${rfTable.min})` },
                             ...qualityPresets.map(p => ({ value: p.key, label: `${p.label} (RF ${p.rf})` })),
-                            { value: 'custom', label: settings.quality === 'custom' ? `Своё (RF ${settings.customQuality})` : 'Своё...', special: true },
+                            { value: 'custom', label: settings.quality === 'custom' ? `${t('qualityCustomLabel')} (RF ${settings.customQuality})` : t('qualityCustomEmpty'), special: true },
                         ]}
                         onChange={v => update('quality', v)}
                         onSpecial={() => openCustomQuality()}
@@ -685,7 +670,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                 <div className="gs-card gs-card--codec">
                     <div className="gs-card-header">
                         <i className="bi bi-cpu gs-icon"></i>
-                        <span className="gs-card-label">Кодек / Кодировщик</span>
+                        <span className="gs-card-label">{t('gsCodecCard')}</span>
                         <Tooltip text={currentEncHelp} />
                     </div>
                     <div className="gs-codec-row">
@@ -722,10 +707,10 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                     <div className="gs-quality-popup" onClick={e => e.stopPropagation()}>
                         <div className="gs-qpopup-title">
                             <i className="bi bi-sliders2"></i>
-                            Пользовательское качество
+                            {t('gsCustomQualityTitle')}
                         </div>
                         <p className="gs-qpopup-subtitle">
-                            RF {rfTable.min} = максимальное качество &nbsp;·&nbsp; RF {rfTable.max} = минимальное качество
+                            RF {rfTable.min} = {t('gsQualityBest')} &nbsp;·&nbsp; RF {rfTable.max} = {t('gsQualityWorst')}
                         </p>
                         <div className="gs-qpopup-value">RF {draftRF}</div>
                         <input
@@ -738,18 +723,18 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                             onChange={e => setDraftRF(Number(e.target.value))}
                         />
                         <div className="gs-qpopup-labels">
-                            <span>Лучше</span>
-                            <span>Хуже</span>
+                            <span>{t('rfBetter')}</span>
+                            <span>{t('rfWorse')}</span>
                         </div>
                         <div className="gs-qpopup-hint">
-                            {QUALITY_HELP.custom}
+                            {t('helpQualCustom')}
                         </div>
                         <div className="gs-qpopup-actions">
                             <button className="gs-qpopup-cancel" onClick={() => setShowCustomQuality(false)}>
-                                Отмена
+                                {t('cancel')}
                             </button>
                             <button className="gs-qpopup-confirm" onClick={confirmCustomQuality}>
-                                Применить
+                                {t('apply')}
                             </button>
                         </div>
                     </div>

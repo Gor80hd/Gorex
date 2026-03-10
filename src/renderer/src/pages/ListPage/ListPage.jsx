@@ -770,7 +770,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     const isPassthru = (draft.audioCodec || 'av_aac').startsWith('copy')
     const isHWEncoder = ['nvenc_', 'qsv_', 'vce_', 'mf_'].some(p => (draft.encoder || '').startsWith(p))
     const encoderGroups = ENCODER_GROUPS.map(g => ({
-        label: g.label,
+        label: g.labelKey ? t(g.labelKey) : g.label,
         options: g.encoders.map(e => ({ value: e.value, label: e.label, desc: e.desc }))
     }))
 
