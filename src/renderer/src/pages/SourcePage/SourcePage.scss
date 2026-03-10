@@ -237,8 +237,8 @@
     padding: 0 12px;
     border-radius: 7px;
     border: none;
-    background: rgba(var(--accent-rgb),0.75);
-    color: #fff;
+    background: var(--accent-color);
+    color: var(--accent-text);
     font-size: 0.82rem;
     font-weight: 600;
     letter-spacing: 0.2px;
@@ -248,9 +248,9 @@
     justify-content: center;
     gap: 6px;
     white-space: nowrap;
-    transition: background 0.2s, opacity 0.2s, transform 0.15s;
+    transition: background 0.2s, opacity 0.2s, transform 0.15s, box-shadow 0.2s;
 
-    &:hover:not(:disabled) { background: rgba(var(--accent-rgb),0.92); transform: translateY(-1px); }
+    &:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); box-shadow: var(--glow-accent); }
     &:active:not(:disabled) { transform: translateY(0); }
     &:disabled { opacity: 0.35; cursor: not-allowed; }
 }

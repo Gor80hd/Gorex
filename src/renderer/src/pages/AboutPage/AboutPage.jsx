@@ -197,24 +197,6 @@ distribute copies of the software, or if you modify it.
 
                 {activeTab === 'libraries' && (
                     <div className="about-section">
-                        <div className="lib-featured-grid">
-                            <a className="lib-featured-item" href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noreferrer">
-                                <div className="lib-featured-icon">
-                                    <i className="bi bi-cloud-arrow-down-fill"></i>
-                                </div>
-                                <div className="lib-featured-body">
-                                    <span className="lib-featured-name">yt-dlp</span>
-                                    <span className="lib-featured-devs">yt-dlp contributors</span>
-                                    <span className="lib-featured-license">Unlicense</span>
-                                </div>
-                                <span className="lib-featured-gh">
-                                    <i className="bi bi-github"></i> yt-dlp/yt-dlp
-                                </span>
-                            </a>
-                        </div>
-                        <p className="libraries-intro">
-                            Дополнительные библиотеки с открытым исходным кодом, используемые в приложении.
-                        </p>
                         <div className="libraries-grid">
                             {LIBRARIES.map(lib => (
                                 <a

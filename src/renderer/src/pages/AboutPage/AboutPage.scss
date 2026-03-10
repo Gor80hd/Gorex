@@ -64,11 +64,11 @@
     white-space: nowrap;
     flex-shrink: 0;
 
-    .dark & { background: rgba(255,255,255,0.06); color: #94a3b8; }
+    .dark & { background: transparent; color: #94a3b8; }
     .light & { background: rgba(0,0,0,0.06); color: #475569; }
 
     &:hover {
-        .dark & { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+        .dark & { background: rgba(255,255,255,0.08); color: #e2e8f0; }
         .light & { background: rgba(0,0,0,0.1); color: #1e293b; }
     }
 }

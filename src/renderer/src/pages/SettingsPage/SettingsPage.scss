@@ -33,11 +33,11 @@
     transition: all 0.15s ease;
     white-space: nowrap;
 
-    .dark & { background: rgba(255,255,255,0.06); color: #94a3b8; }
+    .dark & { background: transparent; color: #94a3b8; }
     .light & { background: rgba(0,0,0,0.06); color: #475569; }
 
     &:hover {
-        .dark & { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+        .dark & { background: rgba(255,255,255,0.08); color: #e2e8f0; }
         .light & { background: rgba(0,0,0,0.1); color: #1e293b; }
     }
 }
@@ -77,11 +77,11 @@
     transition: all 0.15s ease;
     letter-spacing: 0.3px;
 
-    .dark & { background: rgba(255,255,255,0.05); color: #64748b; }
+    .dark & { background: transparent; color: #64748b; }
     .light & { background: rgba(0,0,0,0.05); color: #64748b; }
 
     &:hover {
-        .dark & { background: rgba(255,255,255,0.1); color: #94a3b8; }
+        .dark & { background: rgba(255,255,255,0.08); color: #94a3b8; }
         .light & { background: rgba(0,0,0,0.1); color: #334155; }
     }
 }
@@ -355,11 +355,11 @@
     transition: all 0.15s ease;
 
     .dark & {
-        background: rgba(255,255,255,0.05);
-        border-color: rgba(255,255,255,0.08);
+        background: transparent;
+        border-color: rgba(255,255,255,0.12);
         color: #94a3b8;
 
-        &:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+        &:hover { background: rgba(255,255,255,0.08); color: #e2e8f0; }
     }
     .light & {
         background: rgba(0,0,0,0.04);
@@ -540,6 +540,8 @@
 
     .sp-toggle.on  & { left: 23px; }
     .sp-toggle.off & { left: 3px; }
+
+    .dark .sp-toggle.off & { background: #ffffff; }
 }
 
 // ─── Slider ───────────────────────────────────────────────────────────────────
