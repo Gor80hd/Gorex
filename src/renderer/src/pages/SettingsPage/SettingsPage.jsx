@@ -544,7 +544,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                             <GsSelect
                                 value={enc.encoder}
                                 groups={ENCODER_GROUPS.map(g => ({
-                                    label: g.label,
+                                    label: g.labelKey ? t(g.labelKey) : g.label,
                                     options: g.encoders.map(e => ({
                                         value: e.value,
                                         label: e.label,

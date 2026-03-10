@@ -446,6 +446,67 @@ const TRANSLATIONS = {
         thanksName3: 'Павел Яшкин',
         thanksName4: 'Барвашов Егор',
         donate: 'Поддержать',
+
+        // GlobalSettings card/popup
+        gsCodecCard: 'Кодек / Кодировщик',
+        gsCustomQualityTitle: 'Пользовательское качество',
+        gsQualityBest: 'максимальное качество',
+        gsQualityWorst: 'минимальное качество',
+        resPortrait: 'вертикально',
+
+        // GlobalSettings — Format help
+        helpFmtMp4:  'MP4 — универсальный контейнер. Совместим с любыми устройствами, ТВ, смартфонами и браузерами. Лучший выбор для публикации.',
+        helpFmtMkv:  'MKV — гибкий контейнер без ограничений на количество дорожек. Идеален для архивирования, поддерживает любые кодеки.',
+        helpFmtWebm: 'WebM — контейнер для веба. Поддерживает только VP8/VP9/AV1 и аудио Vorbis/Opus. При выборе WebM кодек автоматически скорректируется.',
+        helpFmtMov:  'MOV — контейнер Apple QuickTime. Хорошо совместим с macOS / iOS, поддерживает H.264, H.265 и большинство кодеков.',
+
+        // GlobalSettings — Resolution help
+        helpResSource: 'Разрешение исходного видео сохраняется без изменений. Никакого масштабирования.',
+        helpRes4k:    '4K (2160p) — Ultra HD. Используется для архива и больших экранов. Сохраняет пропорции источника.',
+        helpRes1440p: '2K (1440p) — Quad HD. Оптимально для мониторов 2K и архива высокого качества.',
+        helpRes1080p: '1080p (Full HD) — стандарт для большинства экранов и видеоплатформ. Хороший баланс качества и размера.',
+        helpRes720p:  '720p (HD) — меньший файл при приемлемом качестве. Хорошо для мобильных устройств.',
+        helpRes480p:  '480p (SD) — минимальное разрешение. Самые маленькие файлы, заметная потеря деталей.',
+
+        // GlobalSettings — FPS help
+        helpFpsSource: 'Частота кадров сохраняется как в источнике. Рекомендуется для большинства случаев.',
+        helpFps60:    '60 fps — максимальная плавность для геймплея, экшна и спорта. Файл будет значительно крупнее.',
+        helpFps30:    '30 fps — стандарт для ТВ, YouTube и соцсетей. Хороший баланс плавности и размера.',
+        helpFps25:    '25 fps — европейский ТВ-стандарт (PAL). Для совместимости с PAL-устройствами.',
+        helpFps24:    '24 fps — кинематографический стандарт. Создаёт «киношный» облик видео.',
+        helpFps23976: '23.976 fps — NTSC-кинематографический стандарт. Совместим с большинством медиаплееров.',
+
+        // GlobalSettings — Quality help
+        helpQualLossless: 'Lossless — RF 0, кодирование без потерь. Файл будет значительно больше исходника, так как хранит декодированный YUV без сжатия.',
+        helpQualHigh:   'Высокое качество — визуально близко к оригиналу. Рекомендуется для архива и дальнейшего редактирования.',
+        helpQualMedium: 'Баланс качества и размера — минимально заметная потеря детализации при значительном уменьшении файла.',
+        helpQualLow:    'Низкое качество — заметные артефакты компрессии. Маленький файл для быстрой передачи.',
+        helpQualPotato: 'Максимальное сжатие — качество уровня VHS. Артефакты гарантированы. Только если файл нужен очень маленьким.',
+        helpQualCustom: 'RF (Rate Factor): чем ниже значение — тем лучше качество и больше размер файла. RF 0 ≈ lossless.',
+
+        // GlobalSettings — Encoder help
+        helpEncX265:          'H.265/HEVC (libx265) — в 2× эффективнее H.264 при том же качестве. Рекомендован для 4K и архива.',
+        helpEncX265_10bit:    'H.265 10-bit — лучше сохраняет HDR, плавные градиенты и контент с широким цветом.',
+        helpEncX265_12bit:    'H.265 12-bit — для профессионального мастеринга. Избыточен для большинства задач.',
+        helpEncX264:          'H.264 (libx264) — самый совместимый кодек. Воспроизводится на любом устройстве.',
+        helpEncX264_10bit:    'H.264 10-bit — лучшее сохранение цвета при чуть меньшей совместимости.',
+        helpEncSvtAv1:        'AV1 (SVT-AV1) — современный открытый кодек. Эффективнее H.265, но медленнее в кодировании.',
+        helpEncSvtAv1_10bit:  'AV1 10-bit — AV1 с поддержкой широкого цвета и HDR.',
+        helpEncVp9:           'VP9 (libvpx) — открытый кодек Google. Хорош для YouTube и HTML5 видео.',
+        helpEncVp9_10bit:     'VP9 10-bit — VP9 с расширенным диапазоном цвета.',
+        helpEncVp8:           'VP8 (libvpx) — устаревший кодек. Рекомендуется только в контейнере WebM.',
+        helpEncTheora:        'Theora — открытый кодек для контейнера OGG. Устарел, использовать не рекомендуется.',
+        helpEncNvencH264:     'NVIDIA NVENC H.264 — аппаратное кодирование на GPU NVIDIA. Очень быстро, качество чуть ниже x264.',
+        helpEncNvencH265:     'NVIDIA NVENC H.265 — быстрый аппаратный H.265 на картах NVIDIA Pascal и новее.',
+        helpEncNvencAv1:      'NVIDIA NVENC AV1 — аппаратный AV1 на картах RTX 40xx+.',
+        helpEncQsvH264:       'Intel QSV H.264 — аппаратное ускорение через Intel Graphics или Arc.',
+        helpEncQsvH265:       'Intel QSV H.265 — быстрый H.265 через Intel Quick Sync (Skylake+).',
+        helpEncQsvAv1:        'Intel QSV AV1 — аппаратный AV1 на Intel Arc.',
+        helpEncVceH264:       'AMD VCE H.264 — аппаратное кодирование на видеокартах AMD.',
+        helpEncVceH265:       'AMD VCE H.265 — аппаратный H.265 на AMD RX 5xxx+.',
+        helpEncVceAv1:        'AMD VCE AV1 — аппаратный AV1 на AMD RX 7xxx+.',
+        helpEncMfH264:        'MediaFoundation H.264 — аппаратное кодирование через Windows Media API.',
+        helpEncMfH265:        'MediaFoundation H.265 — H.265 через Windows Media API. Совместимость зависит от драйверов.',
     },
 
     en: {
@@ -892,6 +953,67 @@ const TRANSLATIONS = {
         thanksName3: 'Pavel Yashkin',
         thanksName4: 'Egor Barvashov',
         donate: 'Donate',
+
+        // GlobalSettings card/popup
+        gsCodecCard: 'Codec / Encoder',
+        gsCustomQualityTitle: 'Custom quality',
+        gsQualityBest: 'best quality',
+        gsQualityWorst: 'worst quality',
+        resPortrait: 'portrait',
+
+        // GlobalSettings — Format help
+        helpFmtMp4:  'MP4 — universal container. Compatible with any device, TV, smartphone, and browser. Best choice for sharing.',
+        helpFmtMkv:  'MKV — flexible container with no track limit. Ideal for archiving, supports any codec.',
+        helpFmtWebm: 'WebM — web container. Supports only VP8/VP9/AV1 and Vorbis/Opus audio. Selecting WebM auto-adjusts the codec.',
+        helpFmtMov:  'MOV — Apple QuickTime container. Well compatible with macOS / iOS, supports H.264, H.265 and most codecs.',
+
+        // GlobalSettings — Resolution help
+        helpResSource: 'Source video resolution is preserved unchanged. No scaling.',
+        helpRes4k:    '4K (2160p) — Ultra HD. For high-resolution archiving and large screens. Preserves source aspect ratio.',
+        helpRes1440p: '2K (1440p) — Quad HD. Optimal for 2K monitors and high-quality archiving.',
+        helpRes1080p: '1080p (Full HD) — standard for most screens and video platforms. Good balance of quality and size.',
+        helpRes720p:  '720p (HD) — smaller file at acceptable quality. Good for mobile devices.',
+        helpRes480p:  '480p (SD) — minimum resolution. Smallest files, noticeable loss of detail.',
+
+        // GlobalSettings — FPS help
+        helpFpsSource: 'Frame rate is preserved as in the source. Recommended for most use cases.',
+        helpFps60:    '60 fps — maximum smoothness for gameplay, action, and sports. File will be significantly larger.',
+        helpFps30:    '30 fps — standard for TV, YouTube, and social media. Good balance of smoothness and size.',
+        helpFps25:    '25 fps — European TV standard (PAL). For compatibility with PAL devices.',
+        helpFps24:    '24 fps — cinematic standard. Gives video a film look.',
+        helpFps23976: '23.976 fps — NTSC cinematic standard. Compatible with most media players.',
+
+        // GlobalSettings — Quality help
+        helpQualLossless: 'Lossless — RF 0, lossless encoding. File will be significantly larger than source, as it stores decoded YUV without compression.',
+        helpQualHigh:   'High quality — visually close to the original. Recommended for archiving and further editing.',
+        helpQualMedium: 'Quality/size balance — minimal visible loss of detail with significant file size reduction.',
+        helpQualLow:    'Low quality — noticeable compression artifacts. Small file for quick transfers.',
+        helpQualPotato: 'Maximum compression — VHS-level quality. Artifacts guaranteed. Only if you need the file very small.',
+        helpQualCustom: 'RF (Rate Factor): the lower the value, the better the quality and the larger the file. RF 0 ≈ lossless.',
+
+        // GlobalSettings — Encoder help
+        helpEncX265:          'H.265/HEVC (libx265) — 2× more efficient than H.264 at the same quality. Recommended for 4K and archiving.',
+        helpEncX265_10bit:    'H.265 10-bit — better preserves HDR, smooth gradients, and wide-color content.',
+        helpEncX265_12bit:    'H.265 12-bit — for professional mastering. Overkill for most tasks.',
+        helpEncX264:          'H.264 (libx264) — most compatible codec. Plays on any device.',
+        helpEncX264_10bit:    'H.264 10-bit — better color preservation with slightly lower compatibility.',
+        helpEncSvtAv1:        'AV1 (SVT-AV1) — modern open codec. More efficient than H.265, but slower to encode.',
+        helpEncSvtAv1_10bit:  'AV1 10-bit — AV1 with wide color gamut and HDR support.',
+        helpEncVp9:           'VP9 (libvpx) — open Google codec. Great for YouTube and HTML5 video.',
+        helpEncVp9_10bit:     'VP9 10-bit — VP9 with extended color range.',
+        helpEncVp8:           'VP8 (libvpx) — deprecated codec. Recommended only in WebM container.',
+        helpEncTheora:        'Theora — open codec for the OGG container. Deprecated, not recommended.',
+        helpEncNvencH264:     'NVIDIA NVENC H.264 — hardware encoding on NVIDIA GPU. Very fast, quality slightly below x264.',
+        helpEncNvencH265:     'NVIDIA NVENC H.265 — fast hardware H.265 on NVIDIA Pascal cards and newer.',
+        helpEncNvencAv1:      'NVIDIA NVENC AV1 — hardware AV1 on RTX 40xx+ cards.',
+        helpEncQsvH264:       'Intel QSV H.264 — hardware acceleration via Intel Graphics or Arc.',
+        helpEncQsvH265:       'Intel QSV H.265 — fast H.265 via Intel Quick Sync (Skylake+).',
+        helpEncQsvAv1:        'Intel QSV AV1 — hardware AV1 on Intel Arc.',
+        helpEncVceH264:       'AMD VCE H.264 — hardware encoding on AMD GPUs.',
+        helpEncVceH265:       'AMD VCE H.265 — hardware H.265 on AMD RX 5xxx+.',
+        helpEncVceAv1:        'AMD VCE AV1 — hardware AV1 on AMD RX 7xxx+.',
+        helpEncMfH264:        'MediaFoundation H.264 — hardware encoding via Windows Media API.',
+        helpEncMfH265:        'MediaFoundation H.265 — H.265 via Windows Media API. Compatibility depends on drivers.',
     },
 }
 
