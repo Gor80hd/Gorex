@@ -357,15 +357,25 @@ app.whenReady().then(async () => {
             const child = spawn(ytdlPath, [
                 '--dump-json',
                 '--no-playlist',
+                '--extractor-args', 'generic:impersonate',
                 videoUrl
             ], { windowsHide: true })
 
             let out = ''
             let err = ''
             child.stdout.on('data', d => { out += d.toString() })
-            child.stderr.on('data', d => { err += d.toString() })
+            child.stderr.on('data', d => {
+                const chunk = d.toString()
+                err += chunk
+                console.error('[ytdl-get-formats stderr]', chunk.trimEnd())
+            })
             child.on('close', async (code) => {
-                if (code !== 0) return reject(new Error(err.trim() || `yt-dlp завершился с кодом ${code}`))
+                console.log('[ytdl-get-formats] exit code:', code)
+                if (code !== 0) {
+                    const msg = err.trim() || `yt-dlp завершился с кодом ${code}`
+                    console.error('[ytdl-get-formats] FAILED:', msg)
+                    return reject(new Error(msg))
+                }
                 try {
                     const info = JSON.parse(out.trim())
                     const rawFormats = info.formats || []
@@ -439,10 +449,15 @@ app.whenReady().then(async () => {
                         availableAutoSubs,
                     })
                 } catch (e) {
+                    console.error('[ytdl-get-formats] JSON parse error:', e.message)
+                    console.error('[ytdl-get-formats] raw stdout (first 500):', out.slice(0, 500))
                     reject(new Error('Не удалось разобрать ответ yt-dlp: ' + e.message))
                 }
             })
-            child.on('error', reject)
+            child.on('error', (e) => {
+                console.error('[ytdl-get-formats] spawn error:', e.message)
+                reject(e)
+            })
         })
     })
 
@@ -507,6 +522,7 @@ app.whenReady().then(async () => {
             '--no-playlist',
             '--merge-output-format', 'mp4',
             '--newline',
+            '--extractor-args', 'generic:impersonate',
             ...(require('fs').existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
         ]
 
@@ -661,6 +677,7 @@ app.whenReady().then(async () => {
                     '-o', subTemplate,
                     '--no-playlist',
                     '--newline',
+                    '--extractor-args', 'generic:impersonate',
                     ...(fs.existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
                 ]
                 if (downloadSubs) subArgs.push('--write-subs')

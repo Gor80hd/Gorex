@@ -47,6 +47,7 @@ function App() {
     const [copiedIdx, setCopiedIdx] = useState(null)
     const [cliLogs, setCliLogs] = useState([])
     const [showCliConsole, setShowCliConsole] = useState(false)
+    const [ytdlFetchError, setYtdlFetchError] = useState(null)
     const videosRef = useRef([])
 
     // Wire the module-level IPC emitter to the React state setter
@@ -196,6 +197,9 @@ function App() {
             setView('list')
         } catch (err) {
             console.error('Failed to fetch yt-dlp formats:', err)
+            const errText = `[yt-dlp] Ошибка получения метаданных:\n${err.message}\n`
+            _cliLogEmitter.callback?.({ type: 'err', text: errText })
+            setYtdlFetchError(err.message || t('dlErrorDefault'))
         } finally {
             setIsLoading(false)
             setLoadingMessage(null)
@@ -658,6 +662,32 @@ function App() {
                                 </button>
                             )}
                             <button className="cli-error-dismiss" onClick={() => setCliErrors([])}>
+                                {t('close')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {ytdlFetchError && (
+                <div className={`cli-error-overlay ${theme}`} onClick={() => setYtdlFetchError(null)}>
+                    <div className="cli-error-popup" onClick={e => e.stopPropagation()}>
+                        <div className="cli-error-header">
+                            <i className="bi bi-exclamation-triangle-fill cli-error-icon"></i>
+                            <span className="cli-error-title">{t('ytdlFetchErrorTitle')}</span>
+                            <button className="cli-error-close" onClick={() => setYtdlFetchError(null)}>
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div className="cli-error-body">
+                            <div className="cli-error-item">
+                                <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8 }}>{t('ytdlFetchErrorDesc')}</p>
+                            </div>
+                        </div>
+                        <div className="cli-error-footer">
+                            <button className="cli-error-dismiss" onClick={() => { setYtdlFetchError(null); setShowCliConsole(true) }}>
+                                <i className="bi bi-terminal"></i> {t('openConsole')}
+                            </button>
+                            <button className="cli-error-dismiss" onClick={() => setYtdlFetchError(null)}>
                                 {t('close')}
                             </button>
                         </div>
