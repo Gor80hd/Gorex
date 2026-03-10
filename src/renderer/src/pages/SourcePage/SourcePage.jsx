@@ -57,6 +57,21 @@ function isValidUrl(raw) {
     try { new URL(raw); return true } catch { return false }
 }
 
+function FaviconImg({ url, className }) {
+    const [failed, setFailed] = useState(false)
+    let hostname = ''
+    try { hostname = new URL(url).hostname } catch { return <i className="bi bi-link-45deg dl-icon--placeholder" /> }
+    if (failed) return <i className="bi bi-globe2 dl-icon--placeholder" />
+    return (
+        <img
+            src={`https://icons.duckduckgo.com/ip3/${hostname}.ico`}
+            onError={() => setFailed(true)}
+            className={className || 'dl-favicon-img'}
+            alt=""
+        />
+    )
+}
+
 function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave, onDrop, onDownload }) {
     const [url, setUrl] = useState('')
     const [isDownloading, setIsDownloading] = useState(false)
@@ -100,6 +115,8 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
         iconEl = service.svgPath
             ? <svg viewBox="0 0 24 24" fill="currentColor" className="svc-svg-icon" style={{ color: service.color }} title={service.name}><path d={service.svgPath} /></svg>
             : <i className={`bi ${service.icon}`} style={{ color: service.color }} title={service.name} />
+    } else if (isUrl) {
+        iconEl = <FaviconImg url={trimmed} />
     } else {
         iconEl = <i className="bi bi-link-45deg dl-icon--placeholder" />
     }

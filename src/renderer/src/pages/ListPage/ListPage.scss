@@ -34,8 +34,9 @@
         border-color: rgba(var(--accent-rgb),0.5);
         box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.1);
     }
-    &--ok  { border-color: rgba(var(--accent-rgb),0.28); }
-    &--error { border-color: rgba(239,68,68,0.45); }
+    &--ok      { border-color: rgba(var(--accent-rgb),0.28); }
+    &--error   { border-color: rgba(239,68,68,0.45); }
+    &--favicon { border-color: rgba(var(--accent-rgb),0.18); }
 
     .light & {
         border-color: rgba(0,0,0,0.1);
@@ -49,6 +50,14 @@
     align-items: center;
     font-size: 0.9rem;
     line-height: 1;
+}
+
+.dl-favicon-img {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .list-url-input {

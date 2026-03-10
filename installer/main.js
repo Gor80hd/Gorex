@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
-const { execSync, execFileSync } = require('child_process')
+const { execSync, execFileSync, exec } = require('child_process')
 
 let win
 
@@ -13,7 +13,7 @@ function createWindow() {
         width: 680,
         height: 440,
         frame: false,
-        transparent: true,
+        backgroundColor: '#121118', // solid bg — avoids layered-window GPU init delay
         resizable: false,
         center: true,
         show: false,
@@ -29,6 +29,8 @@ function createWindow() {
 
     win.loadFile(path.join(__dirname, 'renderer', 'index.html'))
 
+    // Show as soon as the first frame is painted — the backgroundColor above
+    // prevents any white flash while the page is still loading.
     win.once('ready-to-show', () => win.show())
 }
 
@@ -53,17 +55,19 @@ ipcMain.handle('browse-dir', async () => {
 })
 
 // ── Disk space ─────────────────────────────────────────────────────────────────
-ipcMain.handle('get-disk-space', (_event, dirPath) => {
+ipcMain.handle('get-disk-space', (_event, dirPath) => new Promise((resolve) => {
     try {
         const letter = path.parse(dirPath).root.toUpperCase().replace(/[\\:/]/g, '')
         const cmd = `powershell -NoProfile -Command "(Get-PSDrive ${letter} -ErrorAction SilentlyContinue).Free"`
-        const bytes = parseInt(execSync(cmd, { timeout: 4000 }).toString().trim(), 10)
-        if (isNaN(bytes)) return { free: null }
-        return { free: (bytes / 1073741824).toFixed(1) }
+        exec(cmd, { timeout: 4000 }, (err, stdout) => {
+            if (err) { resolve({ free: null }); return }
+            const bytes = parseInt(stdout.toString().trim(), 10)
+            resolve(isNaN(bytes) ? { free: null } : { free: (bytes / 1073741824).toFixed(1) })
+        })
     } catch {
-        return { free: null }
+        resolve({ free: null })
     }
-})
+}))
 
 // ── Install ────────────────────────────────────────────────────────────────────
 ipcMain.on('install', (event, { destDir, createDesktopShortcut = true, createStartMenuShortcut = true }) => {
@@ -300,7 +304,7 @@ function writeUninstaller(destDir) {
 }
 
 // ── Register in Windows "Programs and Features" ────────────────────────────────
-function registerUninstaller(destDir, { isAdminUser = false, version = '1.0.0' } = {}) {
+function registerUninstaller(destDir, { isAdminUser = false, version = '1.1.0' } = {}) {
     // Try to get the version from the main app's package.json
     try {
         const pkgPath = [

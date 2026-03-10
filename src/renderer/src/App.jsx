@@ -178,6 +178,8 @@ function App() {
                 ytdlSelectedFormat: bestFormatId,
                 ytdlChapters: info.chapters || [],
                 ytdlDuration: info.duration || 0,
+                ytdlAvailableSubs: info.availableSubs || [],
+                ytdlAvailableAutoSubs: info.availableAutoSubs || [],
                 clipStart: null,
                 clipEnd: null,
                 title: info.title,
@@ -214,6 +216,18 @@ function App() {
 
     const handleYtdlClipChange = (id, clipStart, clipEnd) => {
         setVideos(prev => prev.map(v => v.id === id ? { ...v, clipStart, clipEnd } : v))
+    }
+
+    const handleYtdlOptionsChange = (id, opts) => {
+        setVideos(prev => prev.map(v =>
+            v.id === id ? { ...v,
+                ytdlNoAudio:      opts.noAudio,
+                ytdlDownloadSubs: opts.downloadSubs,
+                ytdlAutoSubs:     opts.autoSubs,
+                ytdlSubLangs:     opts.subLangs,
+                ytdlSubFormat:    opts.subFormat,
+            } : v
+        ))
     }
 
     const toggleTheme = () => {
@@ -370,7 +384,12 @@ function App() {
                     videoResolution: v.resolution,
                     clipStart: v.clipStart ?? null,
                     clipEnd: v.clipEnd ?? null,
-                    ytdlDuration: v.ytdlDuration ?? null
+                    ytdlDuration: v.ytdlDuration ?? null,
+                    noAudio:      v.ytdlNoAudio      ?? false,
+                    downloadSubs: v.ytdlDownloadSubs ?? false,
+                    autoSubs:     v.ytdlAutoSubs     ?? false,
+                    subLangs:     v.ytdlSubLangs     ?? 'all',
+                    subFormat:    v.ytdlSubFormat    ?? 'srt',
                 })
             } else {
                 window.api.runCli({
@@ -422,10 +441,10 @@ function App() {
             ))
         })
 
-        window.api.onYtdlProgress(({ id, progress }) => {
+        window.api.onYtdlProgress(({ id, progress, subsPhase }) => {
             setVideos(prev => prev.map(v =>
                 v.id === id
-                    ? { ...v, progress, status: 'downloading', startTime: v.startTime ?? Date.now() }
+                    ? { ...v, progress, status: subsPhase ? 'downloading-subs' : 'downloading', startTime: v.startTime ?? Date.now() }
                     : v
             ))
         })
@@ -446,7 +465,7 @@ function App() {
                         ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
                         : v
                     )
-                    if (!updated.some(v => ['encoding', 'downloading', 'converting'].includes(v.status))) {
+                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status))) {
                         setIsEncoding(false)
                         setEncodingStartTime(null)
                     }
@@ -467,7 +486,7 @@ function App() {
                     ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
                     : v
                 )
-                if (!updated.some(v => ['encoding', 'downloading', 'converting'].includes(v.status))) {
+                if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status))) {
                     setIsEncoding(false)
                     setEncodingStartTime(null)
                 }
@@ -530,6 +549,7 @@ function App() {
                         onYtdlConvertToggle={handleYtdlConvertToggle}
                         onYtdlConversionSettings={handleYtdlConversionSettings}
                         onYtdlClipChange={handleYtdlClipChange}
+                        onYtdlOptionsChange={handleYtdlOptionsChange}
                         isDraggingOnList={isDraggingOnList}
                         onListDragEnter={handleListDragEnter}
                         onListDragLeave={handleListDragLeave}

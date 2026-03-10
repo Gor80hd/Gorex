@@ -383,13 +383,19 @@ app.whenReady().then(async () => {
                         end_time: ch.end_time ?? (info.duration || 0)
                     }))
 
+                    // Available subtitle language codes
+                    const availableSubs = Object.keys(info.subtitles || {})
+                    const availableAutoSubs = Object.keys(info.automatic_captions || {})
+
                     resolve({
                         title: info.title || info.id || 'Видео',
                         thumbnailUrl: thumbnailBase64,
                         formats,
                         duration: info.duration || null,
                         chapters,
-                        url: videoUrl
+                        url: videoUrl,
+                        availableSubs,
+                        availableAutoSubs,
                     })
                 } catch (e) {
                     reject(new Error('Не удалось разобрать ответ yt-dlp: ' + e.message))
@@ -400,7 +406,7 @@ app.whenReady().then(async () => {
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
-    ipcMain.on('ytdl-run', (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration }) => {
+    ipcMain.on('ytdl-run', (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat }) => {
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
         const cliPath = getCLIPath()
@@ -427,11 +433,19 @@ app.whenReady().then(async () => {
 
         // Format selector – prefer merging best audio when format is video-only
         // If formatId is a complex yt-dlp selector (contains / or [), use it as-is
-        const fmtArg = (!formatId || formatId === 'best')
-            ? 'bestvideo+bestaudio/best'
-            : (formatId.includes('/') || formatId.includes('['))
-                ? formatId
-                : `${formatId}+bestaudio/${formatId}`
+        const isAudioOnlyFmt = formatId === 'bestaudio'
+        let fmtArg
+        if (isAudioOnlyFmt) {
+            fmtArg = 'bestaudio/best'
+        } else if (!formatId || formatId === 'best') {
+            fmtArg = noAudio ? 'bestvideo/best' : 'bestvideo+bestaudio/best'
+        } else if (formatId.includes('/') || formatId.includes('[')) {
+            fmtArg = formatId
+        } else if (noAudio) {
+            fmtArg = `${formatId}/bestvideo/best`
+        } else {
+            fmtArg = `${formatId}+bestaudio/${formatId}/bestvideo+bestaudio/best`
+        }
 
         // When converting after download, use an ASCII-only temp filename.
         // HandBrakeCLI (MinGW build) cannot handle non-ASCII paths because its C
@@ -467,6 +481,12 @@ app.whenReady().then(async () => {
             // to probe keyframes before downloading begins, which blocks all progress output.
         }
 
+        if (downloadSubs || autoSubs) {
+            // Subtitles are downloaded in a SEPARATE second pass (--skip-download)
+            // after the video is fully saved. This prevents yt-dlp from aborting
+            // the video download when a subtitle request returns HTTP 429.
+        }
+
         ytdlArgs.push(url)
 
         console.log('[yt-dlp] spawn:', ytdlPath)
@@ -476,6 +496,7 @@ app.whenReady().then(async () => {
         activeJobs.set(id, { child, outputPath: null })
 
         let downloadedPath = null
+        let stderrAccum = ''
         // Tracks fragment download phases so progress doesn't reset between video/audio streams
         let fragPhase = 0
         let fragPhaseOffset = 0
@@ -548,6 +569,7 @@ app.whenReady().then(async () => {
             const str = data.toString()
             console.log('[yt-dlp stderr]', str.trimEnd())
             event.sender.send('ytdl-output', { id, data: str })
+            stderrAccum += str
             // Some yt-dlp builds send progress to stderr — parse it too
             parseProgress(str, true)
         })
@@ -582,6 +604,54 @@ app.whenReady().then(async () => {
             // Before passing to HandBrake, verify the file actually has a video stream.
             // yt-dlp may have left an audio-only temp file (e.g. .f251.webm) if the
             // merger message format wasn't recognised or the selected format is audio-only.
+
+            // ── Subtitle second pass ──────────────────────────────────────────────
+            // Run a separate yt-dlp invocation with --skip-download to fetch only
+            // subtitles AFTER the video is confirmed saved. Failure is non-fatal.
+            // onDone() is called once subs finish (or immediately if no subs requested).
+            const runSubtitlePass = (finalOutputPath, onDone) => {
+                if (!downloadSubs && !autoSubs) { onDone(); return }
+
+                // Signal renderer: subs phase starting (progress 95%)
+                event.sender.send('ytdl-progress', { id, progress: 95, subsPhase: true })
+
+                const finalDir  = require('path').dirname(finalOutputPath)
+                const finalBase = require('path').basename(finalOutputPath, require('path').extname(finalOutputPath))
+                const subTemplate = join(finalDir, finalBase + '.%(ext)s')
+
+                const subArgs = [
+                    '--skip-download',
+                    '-o', subTemplate,
+                    '--no-playlist',
+                    '--newline',
+                    ...(fs.existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
+                ]
+                if (downloadSubs) subArgs.push('--write-subs')
+                if (autoSubs)     subArgs.push('--write-auto-subs')
+                if (subLangs && subLangs !== 'all') subArgs.push('--sub-langs', subLangs)
+                if (subFormat && subFormat !== 'best') subArgs.push('--convert-subs', subFormat)
+                subArgs.push(url)
+
+                console.log('[yt-dlp subs] spawn:', ytdlPath)
+                console.log('[yt-dlp subs] args:', subArgs.join(' '))
+
+                const subChild = spawn(ytdlPath, subArgs, { windowsHide: true })
+                subChild.stdout.on('data', d => {
+                    const str = d.toString()
+                    console.log('[yt-dlp subs stdout]', str.trimEnd())
+                    event.sender.send('ytdl-output', { id, data: str })
+                })
+                subChild.stderr.on('data', d => {
+                    const str = d.toString()
+                    console.log('[yt-dlp subs stderr]', str.trimEnd())
+                    event.sender.send('ytdl-output', { id, data: str })
+                })
+                subChild.on('close', subCode => {
+                    console.log('[yt-dlp subs exit] code:', subCode)
+                    onDone()
+                })
+            }
+
             if (convertAfterDownload && downloadedPath && fs.existsSync(downloadedPath) && fs.existsSync(cliPath)) {
                 const ffmpeg = require('fluent-ffmpeg')
                 let hasVideo = false
@@ -607,7 +677,9 @@ app.whenReady().then(async () => {
                     try { fs.renameSync(downloadedPath, audioOut) } catch (_) {
                         try { fs.copyFileSync(downloadedPath, audioOut); fs.unlinkSync(downloadedPath) } catch (__) {}
                     }
-                    event.sender.send('ytdl-exit', { id, code: 0, outputPath: audioOut })
+                    runSubtitlePass(audioOut, () => {
+                        event.sender.send('ytdl-exit', { id, code: 0, outputPath: audioOut })
+                    })
                     return
                 }
 
@@ -652,10 +724,14 @@ app.whenReady().then(async () => {
                     if (downloadedPath && fs.existsSync(downloadedPath)) {
                         try { fs.unlinkSync(downloadedPath) } catch (_) {}
                     }
-                    event.sender.send('cli-exit', { id, code: hbCode, outputPath: convertedPath, stderr: stderrLines.join('') })
+                    runSubtitlePass(convertedPath, () => {
+                        event.sender.send('cli-exit', { id, code: hbCode, outputPath: convertedPath, stderr: stderrLines.join('') })
+                    })
                 })
             } else {
-                event.sender.send('ytdl-exit', { id, code: 0, outputPath: downloadedPath })
+                runSubtitlePass(downloadedPath, () => {
+                    event.sender.send('ytdl-exit', { id, code: 0, outputPath: downloadedPath })
+                })
             }
         })
     })

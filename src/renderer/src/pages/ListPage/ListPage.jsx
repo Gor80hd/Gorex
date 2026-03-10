@@ -47,6 +47,45 @@ function isValidUrl(raw) {
     try { new URL(raw); return true } catch { return false }
 }
 
+// ISO 639-1 / common BCP-47 code → human-readable name
+const SUB_LANG_LABELS = {
+    af: 'Afrikaans', am: 'Amharic', ar: 'Arabic', az: 'Azerbaijani',
+    be: 'Belarusian', bg: 'Bulgarian', bn: 'Bengali', bs: 'Bosnian',
+    ca: 'Catalan', cs: 'Czech', cy: 'Welsh', da: 'Danish',
+    de: 'Deutsch', el: 'Greek', en: 'English', es: 'Español',
+    et: 'Estonian', eu: 'Basque', fa: 'Persian', fi: 'Finnish',
+    fil: 'Filipino', fr: 'Français', gl: 'Galician', gu: 'Gujarati',
+    he: 'Hebrew', hi: 'Hindi', hr: 'Croatian', hu: 'Hungarian',
+    hy: 'Armenian', id: 'Indonesian', is: 'Icelandic', it: 'Italiano',
+    ja: '日本語', ka: 'Georgian', kk: 'Kazakh', km: 'Khmer',
+    kn: 'Kannada', ko: '한국어', lt: 'Lithuanian', lv: 'Latvian',
+    mk: 'Macedonian', ml: 'Malayalam', mn: 'Mongolian', mr: 'Marathi',
+    ms: 'Malay', my: 'Burmese', nb: 'Norwegian', nl: 'Dutch',
+    no: 'Norwegian', pa: 'Punjabi', pl: 'Polish', pt: 'Português',
+    'pt-BR': 'Português (Brasil)', ro: 'Romanian', ru: 'Русский',
+    si: 'Sinhala', sk: 'Slovak', sl: 'Slovenian', sq: 'Albanian',
+    sr: 'Serbian', sv: 'Swedish', sw: 'Swahili', ta: 'Tamil',
+    te: 'Telugu', th: 'Thai', tr: 'Turkish', uk: 'Ukrainian',
+    ur: 'Urdu', uz: 'Uzbek', vi: 'Vietnamese',
+    zh: '中文', 'zh-CN': '中文 (简)', 'zh-Hans': '中文 (简)',
+    'zh-TW': '中文 (繁)', 'zh-Hant': '中文 (繁)', zu: 'Zulu',
+}
+
+function FaviconImg({ url, className }) {
+    const [failed, setFailed] = useState(false)
+    let hostname = ''
+    try { hostname = new URL(url).hostname } catch { return <i className="bi bi-globe2" style={{ opacity: 0.5 }} /> }
+    if (failed) return <i className="bi bi-globe2" style={{ opacity: 0.5 }} />
+    return (
+        <img
+            src={`https://icons.duckduckgo.com/ip3/${hostname}.ico`}
+            onError={() => setFailed(true)}
+            className={className || 'dl-favicon-img'}
+            alt=""
+        />
+    )
+}
+
 // ─── yt-dlp format helpers ─────────────────────────────────────────────────────
 function formatFileSize(bytes) {
     if (!bytes) return null
@@ -92,7 +131,15 @@ function buildFormatTags(f, t) {
 }
 
 function buildYtdlFormatGroups(formats, t) {
-    if (!formats || !formats.length) return []
+    const groups = []
+
+    // Audio-only special option (always available)
+    groups.push({
+        label: t ? t('audioOnlyGroup') : 'Audio only',
+        options: [{ value: 'bestaudio', label: t ? t('bestAudioLabel') : 'Best audio (bestaudio)' }]
+    })
+
+    if (!formats || !formats.length) return groups
     // Dedup: keep best bitrate per resolution+codec combo
     const seen = new Map()
     for (const f of formats) {
@@ -102,7 +149,8 @@ function buildYtdlFormatGroups(formats, t) {
         if (!prev || (f.tbr || 0) > (prev.tbr || 0)) seen.set(key, f)
     }
     const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0))
-    return [{ label: t ? t('availableFormats') : 'Available formats', options: sorted.map(f => ({ value: f.format_id, label: formatFormatLabel(f, t), tags: buildFormatTags(f, t) })) }]
+    groups.push({ label: t ? t('availableFormats') : 'Available formats', options: sorted.map(f => ({ value: f.format_id, label: formatFormatLabel(f, t), tags: buildFormatTags(f, t) })) })
+    return groups
 }
 
 // ─── Transformation tags helper ────────────────────────────────────────────────
@@ -629,7 +677,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
 const PanelSelect = (props) => <GsSelect direction="down" {...props} />
 
 // ─── Video Settings Panel ──────────────────────────────────────────────────────
-function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange }) {
+function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange }) {
     const { t } = useLanguage()
     const VSP_TABS = [
         { id: 'video',     label: t('tabVideo'),     icon: 'bi-camera-video' },
@@ -648,7 +696,29 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     ]
     const isYtdl = !!video.isYtdlItem
     const tabs = isYtdl ? VSP_TABS_YTDL : VSP_TABS
-    const [draft, setDraft] = useState(video.customSettings || video.conversionSettings || { ...globalSettings })
+    const [draft, setDraft] = useState(() => ({
+        ...(video.customSettings || video.conversionSettings || { ...globalSettings }),
+        _ytdlNoAudio:       video.ytdlNoAudio       ?? false,
+        _ytdlDownloadSubs:  video.ytdlDownloadSubs  ?? false,
+        // Encode source (manual vs auto) into the lang value with "auto:" prefix.
+        // If the user already has a saved preference — use it.
+        // Otherwise auto-pick the first available language to avoid rate-limit
+        // errors caused by yt-dlp requesting all languages at once ("all").
+        _ytdlSubLangs: (() => {
+            if (video.ytdlSubLangs) {
+                return video.ytdlAutoSubs
+                    ? `auto:${video.ytdlSubLangs}`
+                    : video.ytdlSubLangs
+            }
+            const manuals = (video.ytdlAvailableSubs || []).filter(c => !c.endsWith('-orig'))
+            if (manuals.length > 0) return manuals[0]
+            const autos = (video.ytdlAvailableAutoSubs || [])
+                .filter(c => !c.endsWith('-orig') && !!SUB_LANG_LABELS[c])
+            if (autos.length > 0) return `auto:${autos[0]}`
+            return 'all'
+        })(),
+        _ytdlSubFormat:     video.ytdlSubFormat      ?? 'srt',
+    }))
     const [activeTab, setActiveTab] = useState(isYtdl ? 'download' : 'video')
 
     const update = (key, val) => setDraft(prev => ({ ...prev, [key]: val }))
@@ -695,8 +765,20 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     const handleSave = () => {
         if (isYtdl) {
             onYtdlConvertToggle(video.id, draft._convertAfterDownload ?? !!video.convertAfterDownload)
-            // Strip internal flag before persisting as conversionSettings
-            const { _convertAfterDownload: _, ...cleanDraft } = draft
+            if (onYtdlOptionsChange) {
+                const rawLang = draft._ytdlSubLangs || 'all'
+                const isAutoLang = rawLang.startsWith('auto:')
+                const langCode = isAutoLang ? rawLang.slice(5) : rawLang
+                onYtdlOptionsChange(video.id, {
+                    noAudio:      !!draft._ytdlNoAudio,
+                    downloadSubs: !!draft._ytdlDownloadSubs && !isAutoLang,
+                    autoSubs:     !!draft._ytdlDownloadSubs && isAutoLang,
+                    subLangs:     langCode,
+                    subFormat:    draft._ytdlSubFormat  || 'srt',
+                })
+            }
+            // Strip internal flags before persisting as conversionSettings
+            const { _convertAfterDownload: _, _ytdlNoAudio: __, _ytdlDownloadSubs: ___, _ytdlAutoSubs: ____, _ytdlSubLangs: _____, _ytdlSubFormat: ______, ...cleanDraft } = draft
             onSave(video.id, cleanDraft)
         } else {
             onSave(video.id, draft)
@@ -712,6 +794,61 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
 
     const ytdlFormatGroups = isYtdl ? buildYtdlFormatGroups(video.ytdlFormats) : []
     const selectedYtdlFmt = isYtdl ? (video.ytdlSelectedFormat || '') : ''
+
+    // Build grouped subtitle language options from what this video actually has.
+    // Manual subs: ytdlAvailableSubs (real subtitles added by humans).
+    // Auto subs: ytdlAvailableAutoSubs filtered to known language codes only
+    //   (avoids listing 100+ YouTube machine-translated languages like sm, sg, crs, etc.)
+    const manualSubLangs = (video.ytdlAvailableSubs || []).filter(c => !c.endsWith('-orig'))
+    const autoSubLangs   = (video.ytdlAvailableAutoSubs || [])
+        .filter(c => !c.endsWith('-orig') && !!SUB_LANG_LABELS[c])
+
+    const hasAnySubData = manualSubLangs.length > 0 || autoSubLangs.length > 0
+
+    const makeLangOption = (code, prefix = '') => ({
+        value: `${prefix}${code}`,
+        label: SUB_LANG_LABELS[code] ? `${SUB_LANG_LABELS[code]} (${code})` : code,
+    })
+
+    let subLangGroups = null
+    let subLangFlatOptions = null
+
+    if (hasAnySubData) {
+        const groups = []
+        // Only show manual group if there are actual manual subtitles
+        if (manualSubLangs.length > 0) {
+            groups.push({
+                label: t('vspSubsGroupManual'),
+                options: [
+                    ...manualSubLangs.map(c => makeLangOption(c)),
+                ],
+            })
+        }
+        if (autoSubLangs.length > 0) {
+            groups.push({
+                label: t('vspSubsGroupAuto'),
+                options: [
+                    ...autoSubLangs.map(c => makeLangOption(c, 'auto:')),
+                ],
+            })
+        }
+        subLangGroups = groups
+    } else {
+        // No subtitle data (non-YouTube or info not available) — flat fallback list
+        subLangFlatOptions = [
+            { value: 'en',  label: t('subLangEng') },
+            { value: 'ru',  label: t('subLangRus') },
+            { value: 'ja',  label: t('subLangJpn') },
+            { value: 'zh',  label: t('subLangChi') },
+            { value: 'ko',  label: t('subLangKor') },
+            { value: 'fr',  label: t('subLangFra') },
+            { value: 'de',  label: t('subLangDeu') },
+            { value: 'es',  label: t('subLangSpa') },
+            { value: 'pt',  label: t('subLangPor') },
+            { value: 'it',  label: t('subLangIta') },
+            { value: 'ar',  label: t('subLangAra') },
+        ]
+    }
 
     return (
         <div className="vsp-overlay" onClick={onClose}>
@@ -762,6 +899,16 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     />
                                 </VspRow>
 
+                                {/* ── Audio options ── */}
+                                <VspSectionHeader icon="bi-volume-mute" title={t('vspAudioOptions')} />
+                                <VspRow label={t('vspNoAudio')} hint={t('vspHintNoAudio')}>
+                                    <VspToggle
+                                        value={!!draft._ytdlNoAudio}
+                                        onChange={v => setDraft(prev => ({ ...prev, _ytdlNoAudio: v }))}
+                                        disabled={selectedYtdlFmt === 'bestaudio'}
+                                    />
+                                </VspRow>
+
                                 <VspSectionHeader icon="bi-arrow-repeat" title={t('vspConvertAfterDl')} />
                                 <VspRow label={t('vspConvertFile')} hint={t('vspHintConvertFile')}>
                                     <VspToggle
@@ -774,6 +921,39 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                         <i className="bi bi-info-circle"></i>
                                         {t('vspConvertNotice')}
                                     </div>
+                                )}
+
+                                {/* ── Subtitle download ── */}
+                                <VspSectionHeader icon="bi-badge-cc" title={t('vspSubDownloadSection')} />
+                                <VspRow label={t('vspDownloadSubtitles')} hint={t('vspHintDownloadSubtitles')}>
+                                    <VspToggle
+                                        value={!!draft._ytdlDownloadSubs}
+                                        onChange={v => setDraft(prev => ({ ...prev, _ytdlDownloadSubs: v }))}
+                                    />
+                                </VspRow>
+                                {draft._ytdlDownloadSubs && (
+                                    <>
+                                        <VspRow label={t('vspSubLangs')} hint={t('vspHintSubLangs')}>
+                                            <PanelSelect
+                                                value={draft._ytdlSubLangs || 'all'}
+                                                groups={subLangGroups || undefined}
+                                                options={subLangGroups ? undefined : subLangFlatOptions}
+                                                onChange={v => setDraft(prev => ({ ...prev, _ytdlSubLangs: v }))}
+                                            />
+                                        </VspRow>
+                                        <VspRow label={t('vspSubFormat')} hint={t('vspHintSubFormat')}>
+                                            <PanelSelect
+                                                value={draft._ytdlSubFormat || 'srt'}
+                                                options={[
+                                                    { value: 'srt',  label: t('subFormatSrt') },
+                                                    { value: 'vtt',  label: t('subFormatVtt') },
+                                                    { value: 'ass',  label: t('subFormatAss') },
+                                                    { value: 'best', label: t('subFormatBest') },
+                                                ]}
+                                                onChange={v => setDraft(prev => ({ ...prev, _ytdlSubFormat: v }))}
+                                            />
+                                        </VspRow>
+                                    </>
                                 )}
 
                                 {/* ── Time range clip ── */}
@@ -1256,7 +1436,7 @@ function ListPage({
     onSettingsChange, onStartEncoding, onStop,
     outputMode, customOutputDir, defaultOutputDir, onOutputModeChange,
     onAddFiles, onDownload, onRemoveVideo, onClearQueue, onRenameOutput, onVideoSettingsChange,
-    onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings, onYtdlClipChange,
+    onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings, onYtdlClipChange, onYtdlOptionsChange,
     isDraggingOnList, onListDragEnter, onListDragLeave, onListDragOver, onListDrop,
     gpuVendor, encodingStartTime
 }) {
@@ -1294,10 +1474,9 @@ function ListPage({
     const addUrlTrimmed = addUrl.trim()
     const addUrlService = detectService(addUrlTrimmed)
     const addUrlValid = isValidUrl(addUrlTrimmed)
-    const addUrlUnsupported = addUrlTrimmed && addUrlValid && !addUrlService
 
     const handleAddUrl = async () => {
-        if (!addUrlTrimmed || isAddingUrl || addUrlUnsupported || !onDownload) return
+        if (!addUrlTrimmed || isAddingUrl || !addUrlValid || !onDownload) return
         setAddUrlError('')
         setIsAddingUrl(true)
         try {
@@ -1330,14 +1509,16 @@ function ListPage({
         <div className="video-list-container">
             <div className="video-list-header">
                 <div className="video-list-topbar">
-                    <div className={`list-url-bar${addUrlUnsupported ? ' list-url-bar--error' : ''}${addUrlService ? ' list-url-bar--ok' : ''}`}>
+                    <div className={`list-url-bar${addUrlService ? ' list-url-bar--ok' : addUrlValid ? ' list-url-bar--favicon' : ''}`}>
                         <span className="list-url-icon">
                             {isAddingUrl
                                 ? <span className="list-url-spinner" />
                                 : addUrlService
-                                    ? <i className={`bi ${addUrlService.icon}`} style={{ color: addUrlService.color }} />
-                                    : addUrlUnsupported
-                                        ? <i className="bi bi-x-circle-fill" style={{ color: '#ef4444' }} />
+                                    ? (addUrlService.svgPath
+                                        ? <svg viewBox="0 0 24 24" fill="currentColor" className="svc-svg-icon" style={{ color: addUrlService.color }}><path d={addUrlService.svgPath} /></svg>
+                                        : <i className={`bi ${addUrlService.icon}`} style={{ color: addUrlService.color }} />)
+                                    : addUrlValid
+                                        ? <FaviconImg url={addUrlTrimmed} />
                                         : <i className="bi bi-link-45deg" style={{ opacity: 0.35 }} />
                             }
                         </span>
@@ -1355,7 +1536,7 @@ function ListPage({
                         <button
                             className="list-url-btn"
                             onClick={handleAddUrl}
-                            disabled={!addUrlTrimmed || isAddingUrl || addUrlUnsupported || isEncoding}
+                            disabled={!addUrlTrimmed || isAddingUrl || !addUrlValid || isEncoding}
                             title={t('addToQueueTitle')}
                         >
                             {isAddingUrl ? <span className="list-url-spinner" /> : <i className="bi bi-cloud-arrow-down-fill" />}
@@ -1390,7 +1571,7 @@ function ListPage({
             >
                 <div className={`video-list-scroll ${isDraggingOnList ? 'blurred' : ''}`}>
                     {videos.map(v => {
-                        const isActive = ['encoding', 'downloading', 'converting'].includes(v.status)
+                        const isActive = ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status)
                         return (
                         <div
                             key={v.id}
@@ -1525,17 +1706,18 @@ function ListPage({
                                 <div className="video-progress">
                                     <div className="progress-bar-bg">
                                         <div
-                                            className={`progress-bar-fill${v.status === 'downloading' ? ' progress-bar-fill--download' : v.status === 'converting' ? ' progress-bar-fill--convert' : ''}`}
+                                            className={`progress-bar-fill${v.status === 'downloading' || v.status === 'downloading-subs' ? ' progress-bar-fill--download' : v.status === 'converting' ? ' progress-bar-fill--convert' : ''}`}
                                             style={{ width: `${v.progress}%` }}
                                         ></div>
                                     </div>
                                     <span className="progress-text">
                                         {v.status === 'downloading' ? `↓ ${v.progress.toFixed(1)}%` :
+                                         v.status === 'downloading-subs' ? `↓ CC ${v.progress.toFixed(1)}%` :
                                          v.status === 'converting' ? `⚙ ${v.progress.toFixed(1)}%` :
                                          `${v.progress.toFixed(1)}%`}
                                     </span>
                                 </div>
-                                {(v.status === 'encoding' || v.status === 'downloading' || v.status === 'converting') && v.startTime && (
+                                {(v.status === 'encoding' || v.status === 'downloading' || v.status === 'downloading-subs' || v.status === 'converting') && v.startTime && (
                                     <div className="video-time-info">
                                         <span className="vtime elapsed">
                                             <i className="bi bi-clock-history"></i>
@@ -1589,7 +1771,7 @@ function ListPage({
                                         )
                                     })()
                                 }
-                                {v.status !== 'encoding' && v.status !== 'downloading' && v.status !== 'converting' && !isEncoding && (
+                                {v.status !== 'encoding' && v.status !== 'downloading' && v.status !== 'downloading-subs' && v.status !== 'converting' && !isEncoding && (
                                     <button
                                         className="delete-video-btn"
                                         onClick={e => { e.stopPropagation(); onRemoveVideo(v.id) }}
@@ -1750,6 +1932,7 @@ function ListPage({
                     onYtdlFormatChange={onYtdlFormatChange}
                     onYtdlConvertToggle={onYtdlConvertToggle}
                     onYtdlClipChange={onYtdlClipChange}
+                    onYtdlOptionsChange={onYtdlOptionsChange}
                 />
             )}
         </div>

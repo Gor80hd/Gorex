@@ -30,7 +30,7 @@ html, body {
     width: 680px;
     height: 440px;
     overflow: hidden;
-    background: transparent;
+    background: #121118;
     font-family: 'Segoe UI', system-ui, sans-serif;
     font-size: 14px;
     color: var(--text);
@@ -52,7 +52,6 @@ html, body {
         radial-gradient(ellipse at 78% 80%, rgba(109, 40, 217, 0.08) 0%, transparent 45%),
         var(--bg);
     border: 1px solid var(--border2);
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255,255,255,0.03);
 }
 
 /* ── Decorative orb ──────────────────────────────────────────────────────── */
@@ -604,7 +603,7 @@ h2 {
                 </div>
             </div>
             <h1>Gorex</h1>
-            <span class="badge">version 1.0.0</span>
+            <span class="badge">version 1.1.0</span>
             <p class="subtitle">GPU-accelerated video converter with a beautiful interface.<br>Convert files and download from YouTube, TikTok, Twitter and more.</p>
             <div class="dots">
                 <div class="dot active"  id="d1"></div>
@@ -707,7 +706,7 @@ let installPath = ''
 window.addEventListener('DOMContentLoaded', async () => {
     const def = await window.api.getDefaultInstallDir()
     document.getElementById('pathInput').value = def
-    updateDiskInfo(def)
+    // Disk space is loaded lazily when the user reaches step 2
     document.getElementById('pathInput').addEventListener('input', e => {
         updateDiskInfo(e.target.value)
     })
@@ -746,6 +745,8 @@ function navigate(n, backwards = false) {
         next.classList.add('active')
         if (backwards) next.classList.add('enter-bwd')
         currentStep = n
+        // Lazy-load disk info the first time the user reaches step 2
+        if (n === 2) updateDiskInfo(document.getElementById('pathInput').value)
         // clean up animation-direction helper class
         setTimeout(() => next.classList.remove('enter-bwd'), 400)
     }, 255)
