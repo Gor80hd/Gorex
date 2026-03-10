@@ -330,6 +330,14 @@
     display: inline-flex;
     align-items: center;
     opacity: 0.85;
+
+    &--favicon {
+        opacity: 1;
+        .dl-favicon-img {
+            width: 18px;
+            height: 18px;
+        }
+    }
 }
 
 .svc-svg-icon {
