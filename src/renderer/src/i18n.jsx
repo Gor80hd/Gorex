@@ -33,6 +33,9 @@ const TRANSLATIONS = {
         dlDownload: 'Скачать',
         dlUnsupported: 'Сервис не поддерживается',
         dlErrorDefault: 'Ошибка запроса форматов',
+        ytdlFetchErrorTitle: 'Не удалось получить данные видео',
+        ytdlFetchErrorDesc: 'Проверьте ссылку и поддерживаемость сервиса. Подробная ошибка записана в консоль.',
+        openConsole: 'Открыть консоль',
         dropZoneTitle: 'Добавить файл / файлы',
         dropZoneHint: 'Вы можете выбрать один или несколько файлов для конвертации, просто перенесите их в эту область',
 
@@ -470,6 +473,9 @@ const TRANSLATIONS = {
         dlDownload: 'Download',
         dlUnsupported: 'Service not supported',
         dlErrorDefault: 'Error fetching formats',
+        ytdlFetchErrorTitle: 'Failed to fetch video data',
+        ytdlFetchErrorDesc: 'Check the link and whether the service is supported. The detailed error has been written to the console.',
+        openConsole: 'Open Console',
         dropZoneTitle: 'Add file(s)',
         dropZoneHint: 'You can select one or multiple files for conversion — just drag and drop them here',
 
