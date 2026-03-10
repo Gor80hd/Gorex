@@ -304,7 +304,7 @@ function writeUninstaller(destDir) {
 }
 
 // ── Register in Windows "Programs and Features" ────────────────────────────────
-function registerUninstaller(destDir, { isAdminUser = false, version = '1.1.0' } = {}) {
+function registerUninstaller(destDir, { isAdminUser = false, version = '1.1.1' } = {}) {
     // Try to get the version from the main app's package.json
     try {
         const pkgPath = [
