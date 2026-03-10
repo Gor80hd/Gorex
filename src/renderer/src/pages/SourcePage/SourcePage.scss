@@ -198,6 +198,14 @@
     color: rgba(239,68,68,0.75);
 }
 
+.dl-favicon-img {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
 .dl-service-label {
     flex-shrink: 0;
     font-size: 0.72rem;
