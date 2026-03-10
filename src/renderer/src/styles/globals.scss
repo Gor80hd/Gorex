@@ -47,6 +47,37 @@ body.light[data-accent="white"] {
     padding: 0;
     box-sizing: border-box;
     font-family: 'IBM Plex Sans', sans-serif;
+
+    // ── Minimalist scrollbar ───────────────────────────────────────────────────
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: transparent;
+        border-radius: 4px;
+        transition: background 0.25s ease;
+    }
+
+    &:hover {
+        scrollbar-color: rgba(var(--accent-rgb), 0.35) transparent;
+
+        &::-webkit-scrollbar-thumb {
+            background: rgba(var(--accent-rgb), 0.35);
+
+            &:hover {
+                background: rgba(var(--accent-rgb), 0.6);
+            }
+        }
+    }
 }
 
 body {

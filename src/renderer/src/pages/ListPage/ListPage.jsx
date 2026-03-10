@@ -86,6 +86,18 @@ function FaviconImg({ url, className }) {
     )
 }
 
+// ─── Hostname → deterministic accent colour ──────────────────────────────────
+const BADGE_PALETTE = [
+    '#6366f1', '#8b5cf6', '#a855f7', '#ec4899',
+    '#ef4444', '#f97316', '#eab308', '#22c55e',
+    '#14b8a6', '#06b6d4', '#3b82f6', '#f43f5e',
+]
+function hostnameToColor(hostname) {
+    let h = 5381
+    for (let i = 0; i < hostname.length; i++) h = ((h << 5) + h) ^ hostname.charCodeAt(i)
+    return BADGE_PALETTE[Math.abs(h) % BADGE_PALETTE.length]
+}
+
 // ─── yt-dlp format helpers ─────────────────────────────────────────────────────
 function formatFileSize(bytes) {
     if (!bytes) return null
@@ -1572,14 +1584,19 @@ function ListPage({
                 <div className={`video-list-scroll ${isDraggingOnList ? 'blurred' : ''}`}>
                     {videos.map(v => {
                         const isActive = ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status)
+                        const unknownHost = (!v.downloadService && v.isYtdlItem && v.ytdlUrl)
+                            ? (() => { try { return new URL(v.ytdlUrl).hostname } catch { return null } })()
+                            : null
+                        const unknownColor = unknownHost ? hostnameToColor(unknownHost) : null
+                        const accentColor = v.downloadService?.color ?? unknownColor
                         return (
                         <div
                             key={v.id}
                             className={`video-item ${v.status} ${theme}${(v.customSettings || (v.isYtdlItem && v.conversionSettings)) ? ' has-custom-settings' : ''}`}
                             style={{
-                                ...(v.downloadService ? {
-                                    borderColor: `color-mix(in srgb, ${v.downloadService.color} 40%, transparent)`,
-                                    background: `color-mix(in srgb, ${v.downloadService.color} 8%, transparent)`
+                                ...(accentColor ? {
+                                    borderColor: `color-mix(in srgb, ${accentColor} 40%, transparent)`,
+                                    background: `color-mix(in srgb, ${accentColor} 8%, transparent)`
                                 } : {}),
                                 ...(!isEncoding && !isActive ? { cursor: 'pointer' } : {})
                             }}
@@ -1601,6 +1618,11 @@ function ListPage({
                                                 ? <svg viewBox="0 0 24 24" fill="currentColor" className="svc-svg-icon"><path d={v.downloadService.svgPath} /></svg>
                                                 : <i className={`bi ${v.downloadService.icon}`}></i>
                                             }
+                                        </span>
+                                    )}
+                                    {unknownHost && (
+                                        <span className="svc-icon-tag svc-icon-tag--favicon" title={unknownHost}>
+                                            <FaviconImg url={v.ytdlUrl} className="dl-favicon-img" />
                                         </span>
                                     )}
                                     <div className="video-title">{v.title}</div>
