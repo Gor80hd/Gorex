@@ -36,7 +36,7 @@ function AboutPage({ theme, onBack }) {
                 </div>
                 <div className="about-title-block">
                     <h1>Gorex</h1>
-                    <p className="version-info">Version 1.1.0 · Web Edition · GPLv2</p>
+                    <p className="version-info">Version 1.1.1 · Web Edition · GPLv2</p>
                 </div>
             </div>
 

@@ -1,6 +1,6 @@
 {
   "name": "gorex",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Gorex — HandBrake Web UI with Electron + Vite + React",
   "main": "./out/main/index.js",
   "author": "Akhmatyarov",
