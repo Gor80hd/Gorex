@@ -122,6 +122,11 @@ function getFfmpegPath() {
     return join(dirname(process.execPath), 'resources', 'ytdl', bin)
 }
 
+// ─── Temp directory for intermediate files (download + convert) ──────────────────────
+function getTempDownloadDir() {
+    return join(app.getPath('userData'), 'Downloads_Temp')
+}
+
 // ─── Download directory: next to exe in 'Downloaded', or user-configured path ──────────
 function getDownloadDir(customOutputDir) {
     if (customOutputDir) return customOutputDir
@@ -306,6 +311,42 @@ app.whenReady().then(async () => {
         return s.defaultOutputDir || app.getPath('videos')
     })
 
+    ipcMain.handle('open-temp-folder', async () => {
+        const fs = require('fs')
+        const tempDir = getTempDownloadDir()
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true })
+        await shell.openPath(tempDir)
+    })
+
+    ipcMain.handle('clear-temp-folder', () => {
+        const fs = require('fs')
+        const tempDir = getTempDownloadDir()
+        if (!fs.existsSync(tempDir)) return { cleared: 0 }
+        let count = 0
+        for (const f of fs.readdirSync(tempDir)) {
+            try { fs.unlinkSync(join(tempDir, f)); count++ } catch (_) {}
+        }
+        return { cleared: count }
+    })
+
+    ipcMain.handle('clear-all-settings', () => {
+        const fs = require('fs')
+        const settingsPath = getSettingsFilePath()
+        try { if (fs.existsSync(settingsPath)) fs.unlinkSync(settingsPath) } catch (_) {}
+        const tempDir = getTempDownloadDir()
+        if (fs.existsSync(tempDir)) {
+            for (const f of fs.readdirSync(tempDir)) {
+                try { fs.unlinkSync(join(tempDir, f)) } catch (_) {}
+            }
+        }
+        return true
+    })
+
+    ipcMain.handle('relaunch-app', () => {
+        app.relaunch()
+        app.exit(0)
+    })
+
     // ─── yt-dlp: fetch formats + metadata WITHOUT downloading ───────────────────────────
     ipcMain.handle('ytdl-get-formats', async (_, videoUrl) => {
         const fs = require('fs')
@@ -420,12 +461,8 @@ app.whenReady().then(async () => {
         const resolvedDir = getDownloadDir(outputDir)
         if (!fs.existsSync(resolvedDir)) fs.mkdirSync(resolvedDir, { recursive: true })
 
-        // When converting after download, download to a temp folder next to the exe
-        const downloadDir = convertAfterDownload
-            ? (is.dev
-                ? join(app.getAppPath(), 'Downloads_Temp')
-                : join(dirname(process.execPath), 'Downloads_Temp'))
-            : resolvedDir
+        // When converting after download, download to a writable temp folder.
+        const downloadDir = convertAfterDownload ? getTempDownloadDir() : resolvedDir
         if (convertAfterDownload && !fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true })
 
         // Sanitize filename

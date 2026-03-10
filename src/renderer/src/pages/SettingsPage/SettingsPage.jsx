@@ -102,6 +102,7 @@ const TABS_IDS = [
     { id: 'subtitles', icon: 'bi-badge-cc' },
     { id: 'filters',   icon: 'bi-sliders' },
     { id: 'hdr',       icon: 'bi-stars' },
+    { id: 'other',     icon: 'bi-three-dots' },
 ]
 
 // ─── Toggle switch ────────────────────────────────────────────────────────────
@@ -173,7 +174,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
 
     const TABS = TABS_IDS.map(tab => ({
         ...tab,
-        label: t({ app: 'tabApp', video: 'tabVideo', audio: 'tabAudio', subtitles: 'tabSubtitles', filters: 'tabFilters', hdr: 'tabHdr' }[tab.id]),
+        label: t({ app: 'tabApp', video: 'tabVideo', audio: 'tabAudio', subtitles: 'tabSubtitles', filters: 'tabFilters', hdr: 'tabHdr', other: 'tabOther' }[tab.id]),
     }))
 
     // App-level config (output folder)
@@ -295,6 +296,18 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
         window.api.getDefaultOutputDir().then(dir => setResolvedOutputDir(dir))
     }
 
+    const handleOpenTemp = () => {
+        window.api.openTempFolder()
+    }
+
+    const [showResetConfirm, setShowResetConfirm] = useState(false)
+    const handleClearCache = () => setShowResetConfirm(true)
+    const handleConfirmReset = async () => {
+        await window.api.clearAllSettings()
+        localStorage.clear()
+        window.api.relaunchApp()
+    }
+
     // Derived values for video tab
     const rfTable = CODEC_RF[enc.encoder] || CODEC_RF.x265
     const speedPresets = ENCODER_PRESETS[enc.encoder] ?? []
@@ -304,6 +317,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     const sectionRef = (id) => (el) => { sectionRefs.current[id] = el }
 
     return (
+        <>
         <div className={`sp-page ${theme}`}>
 
             {/* ── Header ── */}
@@ -887,9 +901,58 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                         </Row>
                     </div>
 
+                    {/* ══ OTHER ══ */}
+                    <div className="sp-section" data-section="other" ref={sectionRef('other')}>
+                        <SectionHeader icon="bi-folder-symlink" title={t('sectionTempFiles')} />
+                        <div className="sp-other-row">
+                            <div className="sp-other-info">
+                                <span className="sp-other-label">{t('openTempFolder')}</span>
+                                <span className="sp-other-hint">{t('hintOpenTempFolder')}</span>
+                            </div>
+                            <button className="sp-other-btn" onClick={handleOpenTemp}>
+                                <i className="bi bi-folder2-open"></i>
+                                {t('openTempFolder')}
+                            </button>
+                        </div>
+
+                        <SectionHeader icon="bi-arrow-counterclockwise" title={t('sectionResetData')} />
+                        <div className="sp-other-row">
+                            <div className="sp-other-info">
+                                <span className="sp-other-label">{t('clearCacheLabel')}</span>
+                                <span className="sp-other-hint">{t('hintClearCache')}</span>
+                            </div>
+                            <button className="sp-other-btn sp-other-btn--danger" onClick={handleClearCache}>
+                                <i className="bi bi-trash3"></i>
+                                {t('clearCacheLabel')}
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
+
+        {showResetConfirm && (
+            <div className="sp-confirm-overlay" onClick={() => setShowResetConfirm(false)}>
+                <div className={`sp-confirm-popup ${theme}`} onClick={e => e.stopPropagation()}>
+                    <div className="sp-confirm-icon">
+                        <i className="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <h3 className="sp-confirm-title">{t('resetConfirmTitle')}</h3>
+                    <p className="sp-confirm-text">{t('resetConfirmText')}</p>
+                    <div className="sp-confirm-btns">
+                        <button className="sp-confirm-cancel" onClick={() => setShowResetConfirm(false)}>
+                            {t('cancel')}
+                        </button>
+                        <button className="sp-confirm-ok" onClick={handleConfirmReset}>
+                            <i className="bi bi-arrow-counterclockwise"></i>
+                            {t('resetConfirmOk')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     )
 }
 

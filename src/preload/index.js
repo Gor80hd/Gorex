@@ -28,7 +28,11 @@ const api = {
     ytdlRun: (args) => ipcRenderer.send('ytdl-run', args),
     onYtdlProgress: (callback) => { ipcRenderer.removeAllListeners('ytdl-progress'); ipcRenderer.on('ytdl-progress', (_, data) => callback(data)) },
     onYtdlExit: (callback) => { ipcRenderer.removeAllListeners('ytdl-exit'); ipcRenderer.on('ytdl-exit', (_, data) => callback(data)) },
-    onYtdlOutput: (callback) => { ipcRenderer.removeAllListeners('ytdl-output'); ipcRenderer.on('ytdl-output', (_, data) => callback(data)) }
+    onYtdlOutput: (callback) => { ipcRenderer.removeAllListeners('ytdl-output'); ipcRenderer.on('ytdl-output', (_, data) => callback(data)) },
+    openTempFolder: () => ipcRenderer.invoke('open-temp-folder'),
+    clearTempFolder: () => ipcRenderer.invoke('clear-temp-folder'),
+    clearAllSettings: () => ipcRenderer.invoke('clear-all-settings'),
+    relaunchApp: () => ipcRenderer.invoke('relaunch-app')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
