@@ -347,118 +347,286 @@ app.whenReady().then(async () => {
         app.exit(0)
     })
 
+    // ─── Fallback: extract embedded Vimeo/YouTube URL from an arbitrary page ───────────
+    async function tryExtractAllEmbeddedVideoUrls(pageUrl) {
+        // Use Electron's net module (Chromium network stack) instead of Node's http.
+        // This is critical: sites behind Cloudflare/Akamai detect Node's raw TLS
+        // fingerprint and return bot challenges. Electron's net module looks identical
+        // to a real Chrome request, bypasses bot protection, and decompresses
+        // gzip/brotli responses automatically.
+        const { net } = require('electron')
+
+        const fetchHtml = (targetUrl) => new Promise((resolve) => {
+            let settled = false
+            const done = (v) => { if (!settled) { settled = true; resolve(v) } }
+
+            let request
+            try {
+                request = net.request({
+                    method: 'GET',
+                    url: targetUrl,
+                    redirect: 'follow',
+                })
+            } catch { resolve(null); return }
+
+            request.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
+            request.setHeader('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+            request.setHeader('Accept-Language', 'en-US,en;q=0.9')
+            request.setHeader('Sec-Fetch-Mode', 'navigate')
+            request.setHeader('Sec-Fetch-Site', 'none')
+
+            const chunks = []
+            request.on('response', (resp) => {
+                resp.on('data', d => chunks.push(d))
+                resp.on('end', () => done(Buffer.concat(chunks).toString('utf8')))
+                resp.on('error', () => done(null))
+            })
+            request.on('error', () => done(null))
+            request.on('redirect', (status, method, redirectUrl) => {
+                try { request.followRedirect() } catch { done(null) }
+            })
+
+            const timer = setTimeout(() => {
+                try { request.abort() } catch {}
+                done(null)
+            }, 15000)
+            request.on('response', () => clearTimeout(timer))
+
+            request.end()
+        })
+
+        const html = await fetchHtml(pageUrl)
+        if (!html) return null
+
+        // Normalize all common encoding variants so a single regex pass works for:
+        //  - Plain HTML attributes (& stays &)
+        //  - HTML attribute encoding (&amp; → &)
+        //  - JSON strings inside <script> / __NEXT_DATA__ (\u0026 → &, \/ → /, \u003F → ?)
+        const normalized = html
+            .replace(/\\u0026/gi, '&')
+            .replace(/\\u003[fF]/g, '?')
+            .replace(/&amp;/g, '&')
+            .replace(/\\\//g, '/')
+
+        // Deduplicate by canonical ID — same video may appear more than once in the HTML
+        const found = new Map() // key: "vimeo:{id}" | "yt:{id}" → full URL
+
+        // ── Vimeo player URLs (full, including ?h= privacy hash) ─────────────────────
+        for (const m of normalized.matchAll(/https?:\/\/player\.vimeo\.com\/video\/(\d+)(\?[a-zA-Z0-9=&._%-]+)?/g)) {
+            const key = `vimeo:${m[1]}`
+            if (!found.has(key)) found.set(key, `https://player.vimeo.com/video/${m[1]}${m[2] || ''}`)
+        }
+        // ── Vimeo data attributes / plain URLs ───────────────────────────────────────
+        for (const m of normalized.matchAll(/data-vimeo-id="(\d+)"/g)) {
+            const key = `vimeo:${m[1]}`
+            if (!found.has(key)) found.set(key, `https://vimeo.com/${m[1]}`)
+        }
+        for (const m of normalized.matchAll(/["']https?:\/\/vimeo\.com\/(\d{7,12})["']/g)) {
+            const key = `vimeo:${m[1]}`
+            if (!found.has(key)) found.set(key, `https://vimeo.com/${m[1]}`)
+        }
+        // ── YouTube embeds (incl. nocookie) ──────────────────────────────────────────
+        for (const m of normalized.matchAll(/(?:youtube(?:-nocookie)?\.com\/embed)\/([a-zA-Z0-9_-]{11})/g)) {
+            const key = `yt:${m[1]}`
+            if (!found.has(key)) found.set(key, `https://www.youtube.com/watch?v=${m[1]}`)
+        }
+        // ── og:video meta tag ─────────────────────────────────────────────────────────
+        const ogm = normalized.match(/<meta[^>]+property="og:video(?::url)?"[^>]+content="([^"]+)"/)
+            || normalized.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:video(?::url)?"/)
+        if (ogm) {
+            const v = ogm[1]
+            const vm = v.match(/player\.vimeo\.com\/video\/(\d+)/) || v.match(/vimeo\.com\/(\d+)/)
+            if (vm) { const key = `vimeo:${vm[1]}`; if (!found.has(key)) found.set(key, v) }
+            const ym = v.match(/[?&]v=([a-zA-Z0-9_-]{11})/)
+            if (ym) { const key = `yt:${ym[1]}`; if (!found.has(key)) found.set(key, v) }
+        }
+
+        return [...found.values()]
+    }
+
+    // ─── Fallback: find video IDs encoded in the URL's own query parameters ──────────
+    // Returns an array of player URLs (may be empty)
+    function tryExtractVideoIdFromQueryParams(pageUrl) {
+        let parsed
+        try { parsed = new URL(pageUrl) } catch { return [] }
+
+        const VIMEO_PARAM_NAMES = ['video', 'vid', 'vimeo', 'vimeo_id', 'videoid']
+        const YT_PARAM_NAMES = ['v', 'youtube', 'yt', 'ytid']
+        const found = new Map()
+
+        for (const [key, value] of parsed.searchParams.entries()) {
+            const k = key.toLowerCase()
+            if (VIMEO_PARAM_NAMES.includes(k) && /^\d{7,12}$/.test(value)) {
+                const urlKey = `vimeo:${value}`
+                if (!found.has(urlKey)) found.set(urlKey, `https://player.vimeo.com/video/${value}`)
+            }
+            if (YT_PARAM_NAMES.includes(k) && /^[a-zA-Z0-9_-]{11}$/.test(value)) {
+                const urlKey = `yt:${value}`
+                if (!found.has(urlKey)) found.set(urlKey, `https://www.youtube.com/watch?v=${value}`)
+            }
+        }
+        // Second pass: any param with a Vimeo-style numeric value not yet captured
+        for (const [, value] of parsed.searchParams.entries()) {
+            const urlKey = `vimeo:${value}`
+            if (/^\d{7,12}$/.test(value) && !found.has(urlKey)) found.set(urlKey, `https://player.vimeo.com/video/${value}`)
+        }
+        return [...found.values()]
+    }
+
     // ─── yt-dlp: fetch formats + metadata WITHOUT downloading ───────────────────────────
-    ipcMain.handle('ytdl-get-formats', async (_, videoUrl) => {
+    ipcMain.handle('ytdl-get-formats', async (event, videoUrl) => {
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
         if (!fs.existsSync(ytdlPath)) throw new Error(`yt-dlp не найден: ${ytdlPath}`)
 
-        return new Promise((resolve, reject) => {
+        const sendStage = (stage, extra = {}) => {
+            try { event.sender.send('ytdl-fetch-progress', { stage, ...extra }) } catch {}
+        }
+
+        // Run yt-dlp --dump-json and return { out, err, code }
+        const runDumpJson = (url, extraArgs = []) => new Promise((res) => {
             const child = spawn(ytdlPath, [
                 '--dump-json',
                 '--no-playlist',
                 '--extractor-args', 'generic:impersonate',
-                videoUrl
+                ...extraArgs,
+                url
             ], { windowsHide: true })
-
-            let out = ''
-            let err = ''
+            let out = '', err = ''
             child.stdout.on('data', d => { out += d.toString() })
-            child.stderr.on('data', d => {
-                const chunk = d.toString()
-                err += chunk
-                console.error('[ytdl-get-formats stderr]', chunk.trimEnd())
-            })
-            child.on('close', async (code) => {
-                console.log('[ytdl-get-formats] exit code:', code)
-                if (code !== 0) {
-                    const msg = err.trim() || `yt-dlp завершился с кодом ${code}`
-                    console.error('[ytdl-get-formats] FAILED:', msg)
-                    return reject(new Error(msg))
-                }
-                try {
-                    const info = JSON.parse(out.trim())
-                    const rawFormats = info.formats || []
-
-                    // Keep only video-containing formats, build friendly list
-                    const formats = rawFormats
-                        .filter(f => f.vcodec && f.vcodec !== 'none')
-                        .map(f => ({
-                            format_id: f.format_id,
-                            ext: f.ext,
-                            resolution: f.resolution || (f.width && f.height ? `${f.width}x${f.height}` : null),
-                            width: f.width || null,
-                            height: f.height || null,
-                            fps: f.fps || null,
-                            filesize: f.filesize || f.filesize_approx || null,
-                            vcodec: f.vcodec,
-                            acodec: f.acodec,
-                            tbr: f.tbr || null,
-                            format_note: f.format_note || null,
-                            hasAudio: !!(f.acodec && f.acodec !== 'none')
-                        }))
-                        .sort((a, b) => (b.height || 0) - (a.height || 0))
-
-                    const thumbnails = info.thumbnails || []
-                    const thumbnailUrl = info.thumbnail ||
-                        (thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : null)
-
-                    // Download thumbnail and convert to base64 so renderer can display it
-                    let thumbnailBase64 = null
-                    if (thumbnailUrl) {
-                        try {
-                            const https = require('https')
-                            const http = require('http')
-                            thumbnailBase64 = await new Promise((res, rej) => {
-                                const protocol = thumbnailUrl.startsWith('https') ? https : http
-                                protocol.get(thumbnailUrl, (resp) => {
-                                    const chunks = []
-                                    resp.on('data', d => chunks.push(d))
-                                    resp.on('end', () => {
-                                        const buf = Buffer.concat(chunks)
-                                        const mime = (resp.headers['content-type'] || 'image/jpeg').split(';')[0]
-                                        res(`data:${mime};base64,${buf.toString('base64')}`)
-                                    })
-                                    resp.on('error', rej)
-                                }).on('error', rej)
-                            })
-                        } catch {
-                            // thumbnail fetch failed, leave null
-                        }
-                    }
-
-                    // Normalize chapters
-                    const chapters = (info.chapters || []).map(ch => ({
-                        title: ch.title || '',
-                        start_time: ch.start_time ?? 0,
-                        end_time: ch.end_time ?? (info.duration || 0)
-                    }))
-
-                    // Available subtitle language codes
-                    const availableSubs = Object.keys(info.subtitles || {})
-                    const availableAutoSubs = Object.keys(info.automatic_captions || {})
-
-                    resolve({
-                        title: info.title || info.id || 'Видео',
-                        thumbnailUrl: thumbnailBase64,
-                        formats,
-                        duration: info.duration || null,
-                        chapters,
-                        url: videoUrl,
-                        availableSubs,
-                        availableAutoSubs,
-                    })
-                } catch (e) {
-                    console.error('[ytdl-get-formats] JSON parse error:', e.message)
-                    console.error('[ytdl-get-formats] raw stdout (first 500):', out.slice(0, 500))
-                    reject(new Error('Не удалось разобрать ответ yt-dlp: ' + e.message))
-                }
-            })
-            child.on('error', (e) => {
-                console.error('[ytdl-get-formats] spawn error:', e.message)
-                reject(e)
-            })
+            child.stderr.on('data', d => { err += d.toString(); console.error('[ytdl-get-formats stderr]', d.toString().trimEnd()) })
+            child.on('close', code => res({ out, err, code }))
+            child.on('error', e => res({ out: '', err: e.message, code: 1 }))
         })
+
+        // Build a video info object from a successful yt-dlp JSON output
+        const buildInfo = async (rawOut, origUrl, resolvedUrl) => {
+            const info = JSON.parse(rawOut.trim())
+            const rawFormats = info.formats || []
+
+            const formats = rawFormats
+                .filter(f => f.vcodec && f.vcodec !== 'none')
+                .map(f => ({
+                    format_id: f.format_id,
+                    ext: f.ext,
+                    resolution: f.resolution || (f.width && f.height ? `${f.width}x${f.height}` : null),
+                    width: f.width || null,
+                    height: f.height || null,
+                    fps: f.fps || null,
+                    filesize: f.filesize || f.filesize_approx || null,
+                    vcodec: f.vcodec,
+                    acodec: f.acodec,
+                    tbr: f.tbr || null,
+                    format_note: f.format_note || null,
+                    hasAudio: !!(f.acodec && f.acodec !== 'none')
+                }))
+                .sort((a, b) => (b.height || 0) - (a.height || 0))
+
+            const thumbnails = info.thumbnails || []
+            const thumbnailUrl = info.thumbnail ||
+                (thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : null)
+
+            let thumbnailBase64 = null
+            if (thumbnailUrl) {
+                try {
+                    const https = require('https')
+                    const http = require('http')
+                    thumbnailBase64 = await new Promise((res, rej) => {
+                        const protocol = thumbnailUrl.startsWith('https') ? https : http
+                        protocol.get(thumbnailUrl, (resp) => {
+                            const chunks = []
+                            resp.on('data', d => chunks.push(d))
+                            resp.on('end', () => {
+                                const buf = Buffer.concat(chunks)
+                                const mime = (resp.headers['content-type'] || 'image/jpeg').split(';')[0]
+                                res(`data:${mime};base64,${buf.toString('base64')}`)
+                            })
+                            resp.on('error', rej)
+                        }).on('error', rej)
+                    })
+                } catch {
+                    // thumbnail fetch failed, leave null
+                }
+            }
+
+            const chapters = (info.chapters || []).map(ch => ({
+                title: ch.title || '',
+                start_time: ch.start_time ?? 0,
+                end_time: ch.end_time ?? (info.duration || 0)
+            }))
+
+            return {
+                title: info.title || info.id || 'Видео',
+                thumbnailUrl: thumbnailBase64,
+                formats,
+                duration: info.duration || null,
+                chapters,
+                url: origUrl,
+                resolvedUrl: resolvedUrl || null,
+                availableSubs: Object.keys(info.subtitles || {}),
+                availableAutoSubs: Object.keys(info.automatic_captions || {}),
+            }
+        }
+
+        sendStage('ytdlp')
+        const firstResult = await runDumpJson(videoUrl)
+        console.log('[ytdl-get-formats] exit code:', firstResult.code)
+
+        // Direct success — single video
+        if (firstResult.code === 0) {
+            try {
+                return [await buildInfo(firstResult.out, videoUrl, null)]
+            } catch (e) {
+                console.error('[ytdl-get-formats] JSON parse error:', e.message)
+                throw new Error('Не удалось разобрать ответ yt-dlp: ' + e.message)
+            }
+        }
+
+        // Only attempt fallback for explicitly unsupported URLs
+        if (!firstResult.err.includes('Unsupported URL')) {
+            const msg = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
+            console.error('[ytdl-get-formats] FAILED:', msg)
+            throw new Error(msg)
+        }
+
+        // 1st attempt: scrape the page HTML for embedded player iframes / og:video
+        console.log('[ytdl-get-formats] unsupported URL — trying embedded video extraction for:', videoUrl)
+        sendStage('scraping')
+        let resolvedUrls = await tryExtractAllEmbeddedVideoUrls(videoUrl)
+
+        // 2nd attempt: extract video IDs directly from the URL query parameters
+        if (resolvedUrls.length === 0) {
+            console.log('[ytdl-get-formats] page extraction returned nothing — checking URL query params')
+            sendStage('queryparams')
+            resolvedUrls = tryExtractVideoIdFromQueryParams(videoUrl)
+        }
+
+        if (resolvedUrls.length === 0) {
+            const msg = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
+            console.error('[ytdl-get-formats] FAILED:', msg)
+            throw new Error(msg)
+        }
+
+        console.log(`[ytdl-get-formats] found ${resolvedUrls.length} candidate URL(s) — retrying with referer`)
+        sendStage('retry', { total: resolvedUrls.length })
+        const retryResults = await Promise.all(
+            resolvedUrls.map(u => runDumpJson(u, ['--referer', videoUrl]).then(r => ({ ...r, resolvedUrl: u })))
+        )
+        retryResults.forEach(r => console.log('[ytdl-get-formats] retry', r.resolvedUrl, '→ code:', r.code))
+
+        const successful = retryResults.filter(r => r.code === 0)
+        if (successful.length === 0) {
+            const msg = retryResults[0].err.trim() || `yt-dlp завершился с кодом ${retryResults[0].code}`
+            console.error('[ytdl-get-formats] all retries FAILED:', msg)
+            throw new Error(msg)
+        }
+
+        try {
+            return await Promise.all(successful.map(r => buildInfo(r.out, videoUrl, r.resolvedUrl)))
+        } catch (e) {
+            console.error('[ytdl-get-formats] JSON parse error:', e.message)
+            throw new Error('Не удалось разобрать ответ yt-dlp: ' + e.message)
+        }
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────

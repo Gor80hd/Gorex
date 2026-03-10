@@ -24,6 +24,7 @@ const api = {
     close: () => ipcRenderer.send('window-close'),
     openDevTools: () => ipcRenderer.send('open-devtools'),
     ytdlGetFormats: (url) => ipcRenderer.invoke('ytdl-get-formats', url),
+    onYtdlFetchProgress: (callback) => { ipcRenderer.removeAllListeners('ytdl-fetch-progress'); ipcRenderer.on('ytdl-fetch-progress', (_, data) => callback(data)) },
     selectSubtitleFile: () => ipcRenderer.invoke('select-subtitle-file'),
     ytdlRun: (args) => ipcRenderer.send('ytdl-run', args),
     onYtdlProgress: (callback) => { ipcRenderer.removeAllListeners('ytdl-progress'); ipcRenderer.on('ytdl-progress', (_, data) => callback(data)) },

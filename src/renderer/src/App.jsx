@@ -146,56 +146,81 @@ function App() {
         setVideos(prev => prev.map(v => v.id === id ? { ...v, customSettings: settings } : v))
     }
 
+    const ytdlFetchCancelledRef = useRef(false)
+
     const handleDownload = async (url, service) => {
+        ytdlFetchCancelledRef.current = false
         setIsLoading(true)
-        setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: t('loadingRequestingInfo') })
+        setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: t('loadingStageYtdlp') })
+
+        const stageLabels = {
+            ytdlp:       () => t('loadingStageYtdlp'),
+            scraping:    () => t('loadingStageScraping'),
+            queryparams: () => t('loadingStageQueryparams'),
+            retry:       () => t('loadingStageRetry'),
+        }
+        window.api.onYtdlFetchProgress(({ stage, total }) => {
+            if (stage === 'retry') {
+                const subtitle = total > 1
+                    ? t('loadingStageRetryMany').replace('{n}', total)
+                    : t('loadingStageRetry')
+                setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle })
+            } else if (stageLabels[stage]) {
+                setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: stageLabels[stage]() })
+            }
+        })
+
         try {
-            const info = await window.api.ytdlGetFormats(url)
-            const safeOutputName = (info.title || 'video')
-                .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
-                .replace(/\.+$/, '')
-                .trim() || 'video'
+            const infos = await window.api.ytdlGetFormats(url)
+            if (ytdlFetchCancelledRef.current) return
 
-            // Pick best available format: highest resolution with video, deduped by height+codec
-            let bestFormatId = ''
-            if (info.formats && info.formats.length) {
-                const seen = new Map()
-                for (const f of info.formats) {
-                    if (!f.vcodec || f.vcodec === 'none') continue
-                    const base = (f.vcodec || '').split('.')[0].toLowerCase()
-                    const key = `${f.height || 0}_${base}`
-                    const prev = seen.get(key)
-                    if (!prev || (f.tbr || 0) > (prev.tbr || 0)) seen.set(key, f)
+            const newVideos = infos.map(info => {
+                const safeOutputName = (info.title || 'video')
+                    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+                    .replace(/\.+$/, '')
+                    .trim() || 'video'
+
+                let bestFormatId = ''
+                if (info.formats && info.formats.length) {
+                    const seen = new Map()
+                    for (const f of info.formats) {
+                        if (!f.vcodec || f.vcodec === 'none') continue
+                        const base = (f.vcodec || '').split('.')[0].toLowerCase()
+                        const key = `${f.height || 0}_${base}`
+                        const prev = seen.get(key)
+                        if (!prev || (f.tbr || 0) > (prev.tbr || 0)) seen.set(key, f)
+                    }
+                    const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0))
+                    bestFormatId = sorted[0]?.format_id || ''
                 }
-                const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0))
-                bestFormatId = sorted[0]?.format_id || ''
-            }
 
-            const newVideo = {
-                id: nextIdRef.current++,
-                isYtdlItem: true,
-                ytdlUrl: url,
-                ytdlFormats: info.formats,
-                ytdlSelectedFormat: bestFormatId,
-                ytdlChapters: info.chapters || [],
-                ytdlDuration: info.duration || 0,
-                ytdlAvailableSubs: info.availableSubs || [],
-                ytdlAvailableAutoSubs: info.availableAutoSubs || [],
-                clipStart: null,
-                clipEnd: null,
-                title: info.title,
-                outputName: safeOutputName,
-                thumbnail: info.thumbnailUrl,
-                status: 'format_select',
-                progress: 0,
-                downloadService: service,
-                convertAfterDownload: false,
-                conversionSettings: null,
-                customSettings: null,
-            }
-            setVideos(prev => [...prev, newVideo])
+                return {
+                    id: nextIdRef.current++,
+                    isYtdlItem: true,
+                    ytdlUrl: info.resolvedUrl || url,
+                    ytdlFormats: info.formats,
+                    ytdlSelectedFormat: bestFormatId,
+                    ytdlChapters: info.chapters || [],
+                    ytdlDuration: info.duration || 0,
+                    ytdlAvailableSubs: info.availableSubs || [],
+                    ytdlAvailableAutoSubs: info.availableAutoSubs || [],
+                    clipStart: null,
+                    clipEnd: null,
+                    title: info.title,
+                    outputName: safeOutputName,
+                    thumbnail: info.thumbnailUrl,
+                    status: 'format_select',
+                    progress: 0,
+                    downloadService: service,
+                    convertAfterDownload: false,
+                    conversionSettings: null,
+                    customSettings: null,
+                }
+            })
+            setVideos(prev => [...prev, ...newVideos])
             setView('list')
         } catch (err) {
+            if (ytdlFetchCancelledRef.current) return
             console.error('Failed to fetch yt-dlp formats:', err)
             const errText = `[yt-dlp] Ошибка получения метаданных:\n${err.message}\n`
             _cliLogEmitter.callback?.({ type: 'err', text: errText })
@@ -204,6 +229,12 @@ function App() {
             setIsLoading(false)
             setLoadingMessage(null)
         }
+    }
+
+    const handleDownloadCancel = () => {
+        ytdlFetchCancelledRef.current = true
+        setIsLoading(false)
+        setLoadingMessage(null)
     }
 
     const handleYtdlFormatChange = (id, formatId) => {
@@ -604,6 +635,11 @@ function App() {
                         <div className="loading-bar-track">
                             <div className="loading-bar-fill"></div>
                         </div>
+                        {loadingMessage?.title === t('loadingFetchingFormats') && (
+                            <button className="loading-cancel-btn" onClick={handleDownloadCancel}>
+                                {t('loadingCancel')}
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
