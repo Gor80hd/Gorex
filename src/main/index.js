@@ -126,6 +126,8 @@ function ytdlFriendlyErr(raw) {
 }
 
 const activeJobs = new Map() // id -> child process
+let ytdlFetchActiveChildren = new Set()
+let ytdlFetchCancelled = false
 
 // ─── yt-dlp binary resolver ─────────────────────────────────────────────────────────────
 function getYtdlPath() {
@@ -590,6 +592,8 @@ app.whenReady().then(async () => {
 
     // ─── yt-dlp: fetch formats + metadata WITHOUT downloading ───────────────────────────
     ipcMain.handle('ytdl-get-formats', async (event, videoUrl) => {
+        ytdlFetchCancelled = false
+        ytdlFetchActiveChildren.clear()
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
         if (!fs.existsSync(ytdlPath)) throw new Error(`yt-dlp не найден: ${ytdlPath}`)
@@ -604,6 +608,7 @@ app.whenReady().then(async () => {
 
         // Run yt-dlp --dump-json and return { out, err, code }
         const runDumpJson = (url, extraArgs = []) => new Promise((res) => {
+            if (ytdlFetchCancelled) return res({ out: '', err: 'cancelled', code: -1 })
             const child = spawn(ytdlPath, [
                 '--dump-json',
                 '--no-playlist',
@@ -613,11 +618,12 @@ app.whenReady().then(async () => {
                 ...extraArgs,
                 url
             ], { windowsHide: true })
+            ytdlFetchActiveChildren.add(child)
             let out = '', err = ''
             child.stdout.on('data', d => { out += d.toString() })
             child.stderr.on('data', d => { err += d.toString(); console.error('[ytdl-get-formats stderr]', d.toString().trimEnd()) })
-            child.on('close', code => res({ out, err, code }))
-            child.on('error', e => res({ out: '', err: e.message, code: 1 }))
+            child.on('close', code => { ytdlFetchActiveChildren.delete(child); res({ out, err, code }) })
+            child.on('error', e => { ytdlFetchActiveChildren.delete(child); res({ out: '', err: e.message, code: 1 }) })
         })
 
         // Build a video info object from a successful yt-dlp JSON output
@@ -691,12 +697,15 @@ app.whenReady().then(async () => {
 
         sendStage('ytdlp')
         const firstResult = await runDumpJson(videoUrl)
+        if (ytdlFetchCancelled) return null
         console.log('[ytdl-get-formats] exit code:', firstResult.code)
 
         // Direct success — single video
         if (firstResult.code === 0) {
             try {
-                return [await buildInfo(firstResult.out, videoUrl, null)]
+                const info = await buildInfo(firstResult.out, videoUrl, null)
+                if (ytdlFetchCancelled) return null
+                return [info]
             } catch (e) {
                 console.error('[ytdl-get-formats] JSON parse error:', e.message)
                 throw new Error('Не удалось разобрать ответ yt-dlp: ' + e.message)
@@ -733,6 +742,7 @@ app.whenReady().then(async () => {
         const retryResults = await Promise.all(
             resolvedUrls.map(u => runDumpJson(u, ['--referer', videoUrl]).then(r => ({ ...r, resolvedUrl: u })))
         )
+        if (ytdlFetchCancelled) return null
         retryResults.forEach(r => console.log('[ytdl-get-formats] retry', r.resolvedUrl, '→ code:', r.code))
 
         const successful = retryResults.filter(r => r.code === 0)
@@ -743,11 +753,21 @@ app.whenReady().then(async () => {
         }
 
         try {
-            return await Promise.all(successful.map(r => buildInfo(r.out, videoUrl, r.resolvedUrl)))
+            const results = await Promise.all(successful.map(r => buildInfo(r.out, videoUrl, r.resolvedUrl)))
+            if (ytdlFetchCancelled) return null
+            return results
         } catch (e) {
             console.error('[ytdl-get-formats] JSON parse error:', e.message)
             throw new Error('Не удалось разобрать ответ yt-dlp: ' + e.message)
         }
+    })
+
+    ipcMain.on('ytdl-cancel-fetch', () => {
+        ytdlFetchCancelled = true
+        for (const child of ytdlFetchActiveChildren) {
+            try { child.kill() } catch {}
+        }
+        ytdlFetchActiveChildren.clear()
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
