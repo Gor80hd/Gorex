@@ -820,12 +820,12 @@ function launchApp() {
 async function elevateAndRelaunch() {
     const btn = document.getElementById('elevateBtn')
     btn.disabled = true
-    btn.textContent = 'Запуск…'
+    btn.textContent = 'Launching…'
     const ok = await window.api.elevate()
     if (!ok) {
         btn.disabled = false
-        btn.textContent = '↑ Запустить от имени администратора'
-        addLog('[error] UAC отменён или недоступен', true)
+        btn.textContent = 'Run as Administrator'
+        addLog('[error] UAC cancelled or unavailable', true)
     }
 }
 
