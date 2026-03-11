@@ -2,7 +2,7 @@
 
 [English](README.md) | **Русский**
 
-https://github.com/user-attachments/assets/a56102e0-24c1-42b2-8107-96f45e5a60ea
+https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
 **Gorex** — это десктопное приложение для конвертации видео с открытым исходным кодом, построенное на базе Electron + React + Vite. Предоставляет удобный графический интерфейс для HandBrake CLI и yt-dlp, не требуя знания командной строки.
 
