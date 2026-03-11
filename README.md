@@ -4,14 +4,14 @@
 
 https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
-**Gorex** is an open-source desktop video conversion app built on Electron + React + Vite. It provides a friendly graphical interface for HandBrake CLI and yt-dlp — no command-line knowledge required.
+**Gorex** is a standalone open-source desktop application for video conversion and downloading. Built with Electron + React + Vite, it delivers a professional-grade, polished experience that makes powerful video processing accessible to everyone — no terminal, no config files, no headaches.
 
 ---
 
 ## Features
 
 - **Local file conversion** — drag files into the window or pick them via a dialog, configure encoding settings, and start the queue.
-- **Download & convert from the web** — paste a link from YouTube, TikTok, Twitter/X, Instagram, VK, Reddit, Twitch, Vimeo, Rutube, and dozens of other services. Gorex downloads via yt-dlp and can convert on the fly.
+- **Download & convert from the web** — paste a link from YouTube, TikTok, Twitter/X, Instagram, VK, Reddit, Twitch, Vimeo, Rutube, and dozens of other services. Gorex downloads the video and can convert it on the fly.
 - **Flexible encoding settings**:
   - Video codecs: H.264, H.265/HEVC, AV1 (SVT-AV1), VP8, VP9 — software and hardware (NVIDIA NVENC, Intel QSV, AMD VCE/AMF, MediaFoundation).
   - Full control over quality (RF/CQ), encoding speed, resolution, FPS, crop modes, and deinterlacing.
@@ -33,8 +33,6 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 > Everything out there either looks like it got stuck in 2005, costs money for every little thing, or just doesn't work right. For a long time I wanted to build something truly beautiful and convenient — not for developers, but for people in the field. The concept lived in my head for a very long time, but making it myself was impossible.
 >
 > And thanks to AI technology — [Claude](https://claude.ai) — I was finally able to bring this idea to life. Gorex is not just a wrapper around HandBrake. It's a concept: a tool that respects your time, looks like a product worth being proud of, and works exactly the way a video professional expects.
-
-Gorex is a modern Electron interface for the legendary HandBrake transcoder and yt-dlp downloader. It preserves all the power of the original HandBrake CLI while delivering a convenient and aesthetic open-source user experience.
 
 ---
 
@@ -122,7 +120,32 @@ src/
 
 Gorex is distributed under the **GNU General Public License v2**. See [COPYING](COPYING) for details.
 
-Bundled components carry their own licenses:
-- **HandBrake** — GPL v2
-- **yt-dlp** — Unlicense
-- **ffmpeg / ffprobe** — LGPL v2.1 / GPL v2
+---
+
+## Open Source Libraries
+
+Gorex stands on the shoulders of outstanding open-source projects. The application bundles or links the following libraries:
+
+| Library | License |
+|---------|---------|
+| [HandBrake](https://handbrake.fr/) | GPL v2 |
+| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Unlicense |
+| [FFmpeg](https://ffmpeg.org/) | LGPL v2.1 / GPL v2 |
+| [libx264](https://www.videolan.org/developers/x264.html) | GPL v2 |
+| [libx265](http://x265.org/) | GPL v2 |
+| [SVT-AV1](https://gitlab.com/AOMediaCodec/SVT-AV1) | BSD 3-Clause |
+| [libvpx](https://github.com/webmproject/libvpx/) | BSD 3-Clause |
+| [libopus](https://www.opus-codec.org/) | BSD 3-Clause |
+| [libvorbis](https://xiph.org/vorbis/) | BSD 3-Clause |
+| [libass](https://github.com/libass/libass) | ISC |
+| [libdovi](https://github.com/quietvoid/dovi_tool) | MIT |
+| [AMD AMF](https://github.com/GPUOpen-LibrariesAndSDKs/AMF) | MIT |
+| [NV-codec-headers](https://git.videolan.org/?p=ffmpeg/nv-codec-headers.git) | MIT |
+| [libmfx / libvpl](https://github.com/intel/libvpl) | MIT |
+| [React](https://react.dev/) | MIT |
+| [Electron](https://www.electronjs.org/) | MIT |
+| [Vite](https://vitejs.dev/) | MIT |
+| [fluent-ffmpeg](https://github.com/fluent-ffmpeg/node-fluent-ffmpeg) | MIT |
+| [Bootstrap Icons](https://icons.getbootstrap.com/) | MIT |
+
+Full license texts are available in the app's About screen.
