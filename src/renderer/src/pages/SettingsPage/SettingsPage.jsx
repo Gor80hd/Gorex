@@ -10,6 +10,8 @@ import {
     WEBM_COMPATIBLE_ENCODERS,
     WEBM_COMPATIBLE_AUDIO,
     ENCODER_DISABLED_FORMATS,
+    NO_CRF_ENCODERS,
+    ALPHA_CAPABLE_ENCODERS,
 } from '../../components/GlobalSettings/GlobalSettings'
 import { useLanguage } from '../../i18n'
 import './SettingsPage.scss'
@@ -20,12 +22,18 @@ const AUDIO_CODECS = [
     { value: 'fdk_aac',    label: 'AAC (FDK)' },
     { value: 'fdk_haac',   label: 'HE-AAC (FDK)' },
     { value: 'mp3',        label: 'MP3' },
+    { value: 'mp2',        label: 'MP2' },
     { value: 'ac3',        label: 'AC-3 (Dolby Digital)' },
     { value: 'eac3',       label: 'E-AC-3 (Dolby Plus)' },
     { value: 'vorbis',     label: 'Vorbis' },
+    { value: 'opus',       label: 'Opus' },
     { value: 'flac16',     label: 'FLAC 16-bit' },
     { value: 'flac24',     label: 'FLAC 24-bit' },
-    { value: 'opus',       label: 'Opus' },
+    { value: 'alac',       label: 'ALAC (Apple Lossless)' },
+    { value: 'pcm_s16le',  label: 'PCM 16-bit (uncompressed)' },
+    { value: 'pcm_s24le',  label: 'PCM 24-bit (uncompressed)' },
+    { value: 'pcm_f32le',  label: 'PCM 32-bit Float' },
+    { value: 'wmav2',      label: 'WMA v2' },
     { value: 'copy',       label: 'Passthru (auto/авто)' },
     { value: 'copy:aac',   label: 'AAC Passthru' },
     { value: 'copy:ac3',   label: 'AC3 Passthru' },
@@ -51,6 +59,13 @@ function getGpuMeta(gpuName) {
     if (n.includes('intel')) return GPU_VENDOR_LABEL.intel
     return GPU_VENDOR_LABEL.unknown
 }
+
+const EIGHT_BIT_ONLY_ENCODERS = new Set([
+    'x264', 'x264_10bit',
+    'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264',
+    'vp8', 'theora',
+    'mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263p', 'h263', 'flv1',
+])
 
 const SOFTWARE_PRIMARY = [
     { value: 'x265',    label: 'H.265 / HEVC (x265)' },
@@ -166,9 +181,9 @@ function SectionHeader({ icon, title }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave }) {
+function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave, initialTab }) {
     const { t, lang, setLang } = useLanguage()
-    const [activeSection, setActiveSection] = useState('app')
+    const [activeSection, setActiveSection] = useState(initialTab || 'app')
     const [savedFlash, setSavedFlash] = useState(false)
     const [gpuInfo, setGpuInfo] = useState({ gpus: [], vendor: 'unknown' })
 
@@ -487,10 +502,6 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 </span>
                             )}
                         </div>
-                        <Row label={t('rowShowAllCodecs')} hint={t('hintShowAllCodecs')}>
-                            <Toggle value={!!enc.showAllCodecs} onChange={v => updateEnc('showAllCodecs', v)} />
-                        </Row>
-
                         <SectionHeader icon="bi-folder2" title={t('sectionOutputFolder')} />
                         <p className="sp-tab-description">{t('folderDesc')}</p>
                         <div className="sp-folder-widget">
@@ -524,10 +535,15 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 options={(() => {
                                     const disabledSet = ENCODER_DISABLED_FORMATS[enc.encoder] || new Set()
                                     return [
-                                        { value: 'av_mp4',  label: 'MP4',  disabled: disabledSet.has('av_mp4') },
+                                        { value: 'av_mp4',  label: 'MP4',     disabled: disabledSet.has('av_mp4') },
                                         { value: 'av_mkv',  label: 'MKV' },
-                                        { value: 'av_webm', label: 'WebM', disabled: disabledSet.has('av_webm') },
-                                        { value: 'av_mov',  label: 'MOV',  disabled: disabledSet.has('av_mov') },
+                                        { value: 'av_webm', label: 'WebM',    disabled: disabledSet.has('av_webm') },
+                                        { value: 'av_mov',  label: 'MOV',     disabled: disabledSet.has('av_mov') },
+                                        { value: 'av_avi',  label: 'AVI',     disabled: disabledSet.has('av_avi') },
+                                        { value: 'av_ts',   label: 'MPEG-TS', disabled: disabledSet.has('av_ts') },
+                                        { value: 'av_flv',  label: 'FLV',     disabled: disabledSet.has('av_flv') },
+                                        { value: 'av_ogg',  label: 'OGG',     disabled: disabledSet.has('av_ogg') },
+                                        { value: 'av_3gp',  label: '3GP',     disabled: disabledSet.has('av_3gp') },
                                     ]
                                 })()}
                                 onChange={v => {
@@ -541,6 +557,25 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                         const audioCodec = enc.audioCodec || 'av_aac'
                                         if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
                                             patch.audioCodec = 'opus'
+                                        }
+                                    } else if (v === 'av_ogg') {
+                                        if (!new Set(['theora', 'vp8', 'vp9', 'vp9_10bit']).has(enc.encoder)) {
+                                            patch.encoder = 'theora'
+                                            patch.encoderSpeed = undefined
+                                        }
+                                        const audioCodec = enc.audioCodec || 'av_aac'
+                                        if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                                            patch.audioCodec = 'vorbis'
+                                        }
+                                    } else if (v === 'av_flv') {
+                                        if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264']).has(enc.encoder)) {
+                                            patch.encoder = 'flv1'
+                                            patch.encoderSpeed = undefined
+                                        }
+                                    } else if (v === 'av_3gp') {
+                                        if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4']).has(enc.encoder)) {
+                                            patch.encoder = 'h263p'
+                                            patch.encoderSpeed = undefined
                                         }
                                     }
                                     setEnc(prev => ({ ...prev, ...patch }))
@@ -557,7 +592,8 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                     options: g.encoders.map(e => ({
                                         value: e.value,
                                         label: e.label,
-                                        disabled: enc.format === 'av_webm' && !WEBM_COMPATIBLE_ENCODERS.has(e.value),
+                                        disabled: ENCODER_DISABLED_FORMATS[e.value]?.has(enc.format) ||
+                                            (enc.format === 'av_webm' && !WEBM_COMPATIBLE_ENCODERS.has(e.value)),
                                     }))
                                 }))}
                                 onChange={v => {
@@ -567,6 +603,12 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 }}
                             />
                         </Row>
+                        {EIGHT_BIT_ONLY_ENCODERS.has(enc.encoder) && (
+                            <div className="sp-notice sp-notice--warn">
+                                <i className="bi bi-exclamation-triangle"></i>
+                                {t('warn8bitEncoder')}
+                            </div>
+                        )}
                         {speedPresets.length > 0 && (
                             <Row label={t('rowSpeedPreset')} hint={t('hintSpeedPreset')}>
                                 <GsSelect
@@ -578,6 +620,16 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                         )}
 
                         <SectionHeader icon="bi-sliders2" title={t('sectionQuality')} />
+                        {NO_CRF_ENCODERS.has(enc.encoder) ? (
+                            <div className="sp-notice">
+                                <i className="bi bi-info-circle"></i>
+                                {['ffv1', 'huffyuv'].includes(enc.encoder)
+                                    ? t('noCrfNoticeLossless')
+                                    : t('noCrfNoticeProfile')
+                                }
+                            </div>
+                        ) : (
+                        <>
                         <Row label={t('rowQualityMode')} hint={t('hintQualityMode')}>
                             <GsSelect
                                 value={enc.quality}
@@ -611,6 +663,8 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                     <span className="sp-slider-edge">{rfTable.max}</span>
                                 </div>
                             </Row>
+                        )}
+                        </>
                         )}
 
                         <SectionHeader icon="bi-aspect-ratio" title={t('sectionResFps')} />
@@ -668,6 +722,18 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                         </Row>
                         <Row label={t('rowMultiPass')} hint={t('hintMultiPass')}>
                             <Toggle value={!!enc.multiPass} onChange={v => updateEnc('multiPass', v)} />
+                        </Row>
+
+                        <SectionHeader icon="bi-layers" title={t('rowAlphaChannel')} />
+                        <Row
+                            label={t('rowAlphaChannel')}
+                            hint={ALPHA_CAPABLE_ENCODERS.has(enc.encoder) ? t('hintAlphaChannel') : t('hintAlphaNoSupport')}
+                        >
+                            <Toggle
+                                value={!!enc.alphaChannel}
+                                onChange={v => updateEnc('alphaChannel', v)}
+                                disabled={!ALPHA_CAPABLE_ENCODERS.has(enc.encoder)}
+                            />
                         </Row>
                     </div>
 

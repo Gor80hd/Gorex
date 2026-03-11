@@ -39,6 +39,7 @@ function getEncoderErrorHint(stderr, t) {
 function App() {
     const { t } = useLanguage()
     const [view, setView] = useState('source')
+    const [settingsInitialTab, setSettingsInitialTab] = useState('app')
     const [videos, setVideos] = useState([])
     const [isDragging, setIsDragging] = useState(false)
     const [isDraggingOnList, setIsDraggingOnList] = useState(false)
@@ -89,6 +90,7 @@ function App() {
     const [appSettings, setAppSettings] = useState(null)
     const [gpuVendor, setGpuVendor] = useState('unknown')
     const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gorex-onboarding-done'))
+    const [updateInfo, setUpdateInfo] = useState(null)
     const nextIdRef = useRef(0)
     const listDragCounter = useRef(0)
 
@@ -321,9 +323,9 @@ function App() {
     }
 
     const handleStop = () => {
-        // Record all active job IDs so their cli-exit/ytdl-exit events are ignored
+        // Record all active job IDs so their cli-exit/ytdl-exit/progress events are ignored
         videosRef.current
-            .filter(v => ['encoding', 'downloading', 'converting'].includes(v.status))
+            .filter(v => ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status))
             .forEach(v => stoppedJobsRef.current.add(v.id))
         window.api.stopAll()
         setIsEncoding(false)
@@ -331,7 +333,7 @@ function App() {
         setEncodingStartTime(null)
         progressStateRef.current.clear()
         setVideos(prev => prev.map(v =>
-            ['encoding', 'downloading', 'converting'].includes(v.status)
+            ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status)
                 ? { ...v, status: v.isYtdlItem ? 'format_select' : 'ready', progress: 0, startTime: null, endTime: null }
                 : v
         ))
@@ -453,6 +455,10 @@ function App() {
     }
 
     useEffect(() => {
+        window.api.checkForUpdates().then(info => { if (info) setUpdateInfo(info) }).catch(() => {})
+    }, [])
+
+    useEffect(() => {
         window.api.getDefaultOutputDir().then(dir => setDefaultOutputDir(dir))
         window.api.getAppSettings().then(s => { if (s) setAppSettings(s) })
         window.api.getGpuInfo().then(info => {
@@ -475,6 +481,7 @@ function App() {
 
     useEffect(() => {
         window.api.onCliProgress(({ id, progress }) => {
+            if (stoppedJobsRef.current.has(id)) return
             const ps = progressStateRef.current
             const state = ps.get(id) || { current: 0 }
             // Progress is already multi-pass-aware (linearized in main process),
@@ -489,6 +496,7 @@ function App() {
         })
 
         window.api.onYtdlProgress(({ id, progress, subsPhase }) => {
+            if (stoppedJobsRef.current.has(id)) return
             setVideos(prev => prev.map(v =>
                 v.id === id
                     ? { ...v, progress, status: subsPhase ? 'downloading-subs' : 'downloading', startTime: v.startTime ?? Date.now() }
@@ -568,6 +576,7 @@ function App() {
                         onBack={() => setView(videos.length > 0 ? 'list' : 'source')}
                         appSettings={appSettings}
                         onSave={handleSaveSettings}
+                        initialTab={settingsInitialTab}
                     />
                 )
             case 'list':
@@ -598,6 +607,7 @@ function App() {
                         onYtdlClipChange={handleYtdlClipChange}
                         onLocalClipChange={handleLocalClipChange}
                         onYtdlOptionsChange={handleYtdlOptionsChange}
+                        onOpenSettings={(tab) => { setSettingsInitialTab(tab || 'app'); handleViewChange('settings') }}
                         isDraggingOnList={isDraggingOnList}
                         onListDragEnter={handleListDragEnter}
                         onListDragLeave={handleListDragLeave}
@@ -649,6 +659,24 @@ function App() {
                 onClearQueue={handleClearQueue}
                 onOpenCliConsole={() => setShowCliConsole(v => !v)}
             />
+            {updateInfo && (
+                <div className={`update-popup ${theme}`}>
+                    <button className="update-popup-close" onClick={() => setUpdateInfo(null)}>
+                        <i className="bi bi-x"></i>
+                    </button>
+                    <div className="update-popup-icon">
+                        <i className="bi bi-arrow-up-circle-fill"></i>
+                    </div>
+                    <div className="update-popup-title">{t('updateAvailable').replace('{v}', updateInfo.latestVersion)}</div>
+                    <div className="update-popup-sub">{t('updateSub')}</div>
+                    <button
+                        className="update-popup-btn"
+                        onClick={() => window.api.openExternal(updateInfo.downloadUrl)}
+                    >
+                        <i className="bi bi-download"></i> {t('updateDownload')}
+                    </button>
+                </div>
+            )}
             <main className="container">
                 {renderPage()}
             </main>
@@ -741,7 +769,7 @@ function App() {
                         </div>
                         <div className="cli-error-body">
                             <div className="cli-error-item">
-                                <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8 }}>{t('ytdlFetchErrorDesc')}</p>
+                                <p style={{ margin: 0, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{ytdlFetchError}</p>
                             </div>
                         </div>
                         <div className="cli-error-footer">

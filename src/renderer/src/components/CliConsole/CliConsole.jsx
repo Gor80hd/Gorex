@@ -31,7 +31,7 @@ export default function CliConsole({ logs, onClear, onClose, theme }) {
             <div className="cli-console__header">
                 <span className="cli-console__title">
                     <i className="bi bi-terminal"></i>
-                    Вывод HandBrakeCLI / yt-dlp
+                    FFmpeg / yt-dlp
                 </span>
                 <div className="cli-console__actions">
                     <button
@@ -62,7 +62,7 @@ export default function CliConsole({ logs, onClear, onClose, theme }) {
                 onScroll={handleScroll}
             >
                 {logs.length === 0 ? (
-                    <div className="cli-console__empty">Ожидание вывода HandBrakeCLI / yt-dlp...</div>
+                    <div className="cli-console__empty">Ожидание вывода FFmpeg / yt-dlp...</div>
                 ) : (
                     logs.map((line, i) => (
                         <span key={i} className={`cli-console__line cli-console__line--${line.type}`}>

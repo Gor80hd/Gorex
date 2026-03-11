@@ -231,6 +231,78 @@
     &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
+.dl-paste-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.35;
+    transition: opacity 0.2s, background 0.2s;
+
+    &:hover:not(:disabled) {
+        opacity: 0.75;
+        background: rgba(var(--accent-rgb), 0.12);
+    }
+    &:disabled { opacity: 0.2; cursor: not-allowed; }
+}
+
+.dl-ctx-menu {
+    position: fixed;
+    z-index: 9999;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    min-width: 160px;
+    border-radius: 9px;
+    background: rgba(45, 45, 62, 0.45);
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+
+    body.light & {
+        background: rgba(255, 255, 255, 0.45);
+        border-color: rgba(0,0,0,0.1);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        color: #111;
+    }
+
+    li {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 6px 14px;
+        font-size: 0.82rem;
+        cursor: pointer;
+        border-radius: 5px;
+        margin: 1px 4px;
+        transition: background 0.15s;
+
+        i { opacity: 0.55; font-size: 0.78rem; }
+
+        &:hover { background: rgba(var(--accent-rgb), 0.14); }
+    }
+
+    .dl-ctx-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.08);
+        margin: 3px 4px;
+        padding: 0;
+        cursor: default;
+        &:hover { background: rgba(255,255,255,0.08); }
+
+        body.light & { background: rgba(0,0,0,0.08); &:hover { background: rgba(0,0,0,0.08); } }
+    }
+}
+
 .dl-btn {
     flex-shrink: 0;
     height: 32px;

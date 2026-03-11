@@ -1,7 +1,6 @@
 export const LIBRARIES = [
-    { name: 'HandBrake',        url: 'https://handbrake.fr/',                                       license: 'GPL v2' },
-    { name: 'yt-dlp',           url: 'https://github.com/yt-dlp/yt-dlp',                            license: 'Unlicense' },
     { name: 'FFmpeg',           url: 'https://ffmpeg.org/',                                         license: 'L-GPL v2.1' },
+    { name: 'yt-dlp',           url: 'https://github.com/yt-dlp/yt-dlp',                            license: 'Unlicense' },
     { name: 'libx264',          url: 'https://www.videolan.org/developers/x264.html',               license: 'GPL v2' },
     { name: 'libx265',          url: 'http://x265.org/',                                            license: 'GPL v2' },
     { name: 'SVT-AV1',         url: 'https://gitlab.com/AOMediaCodec/SVT-AV1',                     license: 'BSD 3-Clause' },

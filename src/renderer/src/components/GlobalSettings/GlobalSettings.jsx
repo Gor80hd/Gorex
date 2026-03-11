@@ -26,6 +26,21 @@ export const CODEC_RF = {
     mf_h264:       { high: 18, medium: 24, low: 32, potato: 51, min: 0, max: 51 },
     mf_h265:       { high: 20, medium: 28, low: 38, potato: 51, min: 0, max: 51 },
     theora:        { high: 8,  medium: 6,  low: 3,  potato: 0,  min: 0, max: 10 },
+    // ── Additional / Legacy / Professional ────────────────────────────────────
+    libaom_av1:   { high: 24, medium: 33, low: 45, potato: 63, min: 0, max: 63 },
+    mpeg4:        { high: 3,  medium: 8,  low: 18, potato: 31, min: 1, max: 31 },
+    mpeg2video:   { high: 2,  medium: 6,  low: 15, potato: 31, min: 1, max: 31 },
+    mpeg1video:   { high: 2,  medium: 6,  low: 15, potato: 31, min: 1, max: 31 },
+    prores_ks:    { high: 3,  medium: 2,  low: 1,  potato: 0,  min: 0, max: 5  },
+    dnxhd:        { high: 3,  medium: 2,  low: 1,  potato: 0,  min: 0, max: 3  },
+    ffv1:         { high: 0,  medium: 0,  low: 0,  potato: 0,  min: 0, max: 0  },
+    huffyuv:      { high: 0,  medium: 0,  low: 0,  potato: 0,  min: 0, max: 0  },
+    mjpeg:        { high: 2,  medium: 8,  low: 18, potato: 31, min: 2, max: 31 },
+    wmv2:         { high: 2,  medium: 8,  low: 18, potato: 31, min: 2, max: 31 },
+    wmv1:         { high: 2,  medium: 8,  low: 18, potato: 31, min: 2, max: 31 },
+    h263p:        { high: 3,  medium: 8,  low: 18, potato: 31, min: 1, max: 31 },
+    h263:         { high: 3,  medium: 8,  low: 18, potato: 31, min: 1, max: 31 },
+    flv1:         { high: 3,  medium: 8,  low: 18, potato: 31, min: 1, max: 31 },
 }
 
 // ─── Encoder speed presets ─────────────────────────────────────────────────────
@@ -58,13 +73,13 @@ const SVT_AV1_SPEEDS = [
 ]
 
 const NVENC_SPEEDS = [
-    { value: 'default', label: 'default',            desc: { ru: 'Стандартный пресет NVENC — аналог balanced.', en: 'Standard NVENC preset — equivalent to balanced.' } },
-    { value: 'hp',      label: 'hp (High Perf)',     desc: { ru: 'Максимальная скорость GPU. Файл чуть больше, чем hq.', en: 'Maximum GPU speed. File slightly larger than hq.' } },
-    { value: 'hq',      label: 'hq (High Quality)',  desc: { ru: 'Лучшее качество при аппаратном кодировании. Файл немного меньше, скорость чуть ниже hp.', en: 'Best quality for hardware encoding. File slightly smaller, speed slightly lower than hp.' }, recommended: true },
-    { value: 'bd',      label: 'bd (Blu-ray)',        desc: { ru: 'Настройки для Blu-ray совместимости. Для обычных файлов отличий от default нет.', en: 'Blu-ray compatibility settings. No difference from default for regular files.' } },
-    { value: 'll',      label: 'll (Low Latency)',    desc: { ru: 'Сниженная задержка за счёт ухудшения сжатия. Файл крупнее.', en: 'Reduced latency at the cost of worse compression. Larger file.' } },
-    { value: 'llhq',    label: 'llhq (LL + HQ)',     desc: { ru: 'Сниженная задержка с сохранением качества. Компромисс между ll и hq.', en: 'Reduced latency while retaining quality. Compromise between ll and hq.' } },
-    { value: 'llhp',    label: 'llhp (LL + HP)',     desc: { ru: 'Максимальная скорость с низкой задержкой. Файл самый крупный.', en: 'Maximum speed with low latency. Largest file.' } },
+    { value: 'p1', label: 'p1 — Fastest',       desc: { ru: 'Максимальная скорость NVENC. Файл заметно крупнее, чем p4. Только для тестов.', en: 'Maximum NVENC speed. File noticeably larger than p4. For tests only.' } },
+    { value: 'p2', label: 'p2 — Faster',        desc: { ru: 'Очень быстро, сжатие слабее среднего.', en: 'Very fast, compression below average.' } },
+    { value: 'p3', label: 'p3 — Fast',          desc: { ru: 'Быстро, файл немного крупнее p4.', en: 'Fast, file slightly larger than p4.' } },
+    { value: 'p4', label: 'p4 — Medium',        desc: { ru: 'Дефолтный пресет NVENC. Баланс скорости и размера файла.', en: 'Default NVENC preset. Balanced speed and file size.' } },
+    { value: 'p5', label: 'p5 — Slow',          desc: { ru: 'Лучше сжатие, чем p4. Файл немного меньше, скорость чуть ниже.', en: 'Better compression than p4. File slightly smaller, slightly lower speed.' }, recommended: true },
+    { value: 'p6', label: 'p6 — Slower',        desc: { ru: 'Высокое качество. Кодирует заметно дольше p5.', en: 'High quality. Encodes noticeably slower than p5.' } },
+    { value: 'p7', label: 'p7 — Slowest',       desc: { ru: 'Максимальное качество NVENC. Самый маленький файл, самое медленное кодирование.', en: 'Maximum NVENC quality. Smallest file, slowest encoding.' } },
 ]
 
 const QSV_SPEEDS = [
@@ -87,6 +102,34 @@ const VP_SPEEDS = [
     { value: 'best',     label: 'best',     desc: { ru: 'Лучшее сжатие VP8/VP9. Файл меньше, кодирование значительно дольше.', en: 'Best VP8/VP9 compression. File smaller, encoding significantly longer.' }, recommended: true },
     { value: 'good',     label: 'good',     desc: { ru: 'Разумный баланс скорости и размера файла.', en: 'Reasonable speed/file size balance.' } },
     { value: 'realtime', label: 'realtime', desc: { ru: 'Очень быстро, но слабое сжатие. Файл значительно крупнее.', en: 'Very fast, but weak compression. File significantly larger.' } },
+]
+
+const LIBAOM_AV1_SPEEDS = [
+    { value: '0', label: '0 — Slowest',  desc: { ru: 'Максимальное качество libaom AV1. Очень медленно.', en: 'Best libaom AV1 quality. Extremely slow.' } },
+    { value: '1', label: '1',            desc: { ru: 'Почти максимальное качество. Очень медленно.', en: 'Near-best quality. Very slow.' } },
+    { value: '2', label: '2',            desc: { ru: 'Высокое качество. Значительно медленнее 4.', en: 'High quality. Significantly slower than 4.' } },
+    { value: '3', label: '3',            desc: { ru: 'Хорошее качество. Медленнее 4.', en: 'Good quality. Slower than 4.' } },
+    { value: '4', label: '4 — Balanced', desc: { ru: 'Оптимальный баланс скорости и качества. Рекомендован.', en: 'Optimal speed/quality balance. Recommended.' }, recommended: true },
+    { value: '5', label: '5',            desc: { ru: 'Немного быстрее 4, чуть хуже сжатие.', en: 'Slightly faster than 4, slightly worse compression.' } },
+    { value: '6', label: '6',            desc: { ru: 'Быстро. Файл заметно крупнее, чем при 4.', en: 'Fast. File noticeably larger than at 4.' } },
+    { value: '7', label: '7',            desc: { ru: 'Быстрее, но значительно хуже качество.', en: 'Faster but significantly worse quality.' } },
+    { value: '8', label: '8 — Fastest',  desc: { ru: 'Максимальная скорость. Слабое сжатие.', en: 'Maximum speed. Weak compression.' } },
+]
+
+const PRORES_PROFILES = [
+    { value: '0', label: 'Proxy (0)',    desc: { ru: 'ProRes 422 Proxy — минимальный размер, для оффлайн-монтажа и предпросмотра.', en: 'ProRes 422 Proxy — smallest size, for offline editing and proxy workflow.' } },
+    { value: '1', label: 'LT (1)',       desc: { ru: 'ProRes 422 LT — лёгкий профиль для монтажа. Меньше, чем Standard.', en: 'ProRes 422 LT — lightweight editing profile. Smaller than Standard.' } },
+    { value: '2', label: 'Standard (2)', desc: { ru: 'ProRes 422 Standard — стандартный профиль для производства. Рекомендован.', en: 'ProRes 422 Standard — standard production profile. Recommended.' }, recommended: true },
+    { value: '3', label: 'HQ (3)',       desc: { ru: 'ProRes 422 HQ — высокое качество, более крупный файл.', en: 'ProRes 422 HQ — high quality, larger file.' } },
+    { value: '4', label: '4444 (4)',     desc: { ru: 'ProRes 4444 — включает альфа-канал, 4:4:4 цветовое пространство.', en: 'ProRes 4444 — includes alpha channel, 4:4:4 color space.' } },
+    { value: '5', label: '4444 XQ (5)', desc: { ru: 'ProRes 4444 XQ — максимальное качество ProRes. Очень крупные файлы.', en: 'ProRes 4444 XQ — maximum ProRes quality. Very large files.' } },
+]
+
+const DNXHD_PROFILES = [
+    { value: 'dnxhr_lb',  label: 'DNxHR LB',  desc: { ru: 'DNxHR Low Bandwidth — минимальный битрейт для монтажа.', en: 'DNxHR Low Bandwidth — lowest bitrate for editing.' } },
+    { value: 'dnxhr_sq',  label: 'DNxHR SQ',  desc: { ru: 'DNxHR Standard Quality — стандартный профиль. Рекомендован.', en: 'DNxHR Standard Quality — standard profile. Recommended.' }, recommended: true },
+    { value: 'dnxhr_hq',  label: 'DNxHR HQ',  desc: { ru: 'DNxHR High Quality — высокое качество для финального рендера.', en: 'DNxHR High Quality — high quality for final render.' } },
+    { value: 'dnxhr_444', label: 'DNxHR 444', desc: { ru: 'DNxHR 444 — полное 4:4:4 цветовое пространство для хроматики.', en: 'DNxHR 444 — full 4:4:4 color space for chroma.' } },
 ]
 
 export const ENCODER_PRESETS = {
@@ -112,6 +155,20 @@ export const ENCODER_PRESETS = {
     vp9:           VP_SPEEDS,
     vp9_10bit:     VP_SPEEDS,
     theora:        [],
+    libaom_av1:   LIBAOM_AV1_SPEEDS,
+    mpeg4:        [],
+    mpeg2video:   [],
+    mpeg1video:   [],
+    prores_ks:    PRORES_PROFILES,
+    dnxhd:        DNXHD_PROFILES,
+    ffv1:         [],
+    huffyuv:      [],
+    mjpeg:        [],
+    wmv2:         [],
+    wmv1:         [],
+    h263p:        [],
+    h263:         [],
+    flv1:         [],
 }
 
 // ─── Default settings ──────────────────────────────────────────────────────────
@@ -151,13 +208,15 @@ export const DEFAULT_SETTINGS = {
     hdrMetadata: 'off',
     keepMetadata: false,
     inlineParamSets: false,
+    // Video output
+    alphaChannel: false,
     // UI
     showAllCodecs: false,
 }
 
 // ─── GPU-aware defaults ────────────────────────────────────────────────────────
 const GPU_ENCODER_MAP = {
-    nvidia: { encoder: 'nvenc_h264', encoderSpeed: 'hq' },
+    nvidia: { encoder: 'nvenc_h264', encoderSpeed: 'p5' },
     amd:    { encoder: 'vce_h264',   encoderSpeed: 'quality' },
     intel:  { encoder: 'qsv_h264',   encoderSpeed: 'balanced' },
 }
@@ -175,10 +234,22 @@ export function saveGpuVendor(vendor) {
 }
 
 // ─── Default settings initializer (respects saved GPU vendor) ─────────────────
+const NVENC_ENCODERS = new Set(['nvenc_h264', 'nvenc_h265', 'nvenc_av1'])
+const NVENC_LEGACY_SPEED_MAP = {
+    default: 'p4', hp: 'p2', hq: 'p5', bd: 'p4', ll: 'p2', llhq: 'p4', llhp: 'p1',
+}
+
 export function initDefaultSettings() {
     try {
         const saved = localStorage.getItem('gorex-default-settings')
-        if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) }
+        if (saved) {
+            const parsed = JSON.parse(saved)
+            if (NVENC_ENCODERS.has(parsed.encoder) && NVENC_LEGACY_SPEED_MAP[parsed.encoderSpeed]) {
+                parsed.encoderSpeed = NVENC_LEGACY_SPEED_MAP[parsed.encoderSpeed]
+                localStorage.setItem('gorex-default-settings', JSON.stringify(parsed))
+            }
+            return { ...DEFAULT_SETTINGS, ...parsed }
+        }
     } catch {}
     const vendor = getStoredGpuVendor()
     return vendor ? getDefaultSettingsForGpu(vendor) : { ...DEFAULT_SETTINGS }
@@ -233,6 +304,30 @@ export const ENCODER_GROUPS = [
             { value: 'mf_h265', label: 'H.265 MF', desc: { ru: 'H.265 через Windows Media API. Совместимость зависит от драйверов.', en: 'H.265 via Windows Media API. Compatibility depends on drivers.' } },
         ],
     },
+    {
+        id: 'intermediate', label: 'ProRes / DNxHD / Lossless', labelKey: 'intermediateEncoders',
+        encoders: [
+            { value: 'prores_ks',  label: 'Apple ProRes',       desc: { ru: 'Apple ProRes — профессиональный промежуточный кодек. Профиль выбирается через «пресет».', en: 'Apple ProRes — professional intermediate codec. Profile is selected via the speed preset.' } },
+            { value: 'dnxhd',     label: 'Avid DNxHD/DNxHR',  desc: { ru: 'Avid DNxHD/DNxHR — промежуточный кодек для монтажных систем. Аналог ProRes для Avid.', en: 'Avid DNxHD/DNxHR — intermediate codec for editing suites. ProRes equivalent for Avid.' } },
+            { value: 'ffv1',      label: 'FFV1 (Lossless)',    desc: { ru: 'FFV1 — полностью без потерь. Идеален для архивирования исходников. Крупные файлы.', en: 'FFV1 — fully lossless. Ideal for archiving sources. Large files.' } },
+            { value: 'huffyuv',   label: 'HuffYUV (Lossless)', desc: { ru: 'HuffYUV — быстрый кодек без потерь для промежуточного рабочего процесса.', en: 'HuffYUV — fast lossless codec for intermediate workflow.' } },
+            { value: 'libaom_av1', label: 'AV1 (libaom)',      desc: { ru: 'AV1 (libaom) — референсный энкодер AV1. Лучшее качество, но значительно медленнее SVT-AV1.', en: 'AV1 (libaom) — reference AV1 encoder. Best quality but significantly slower than SVT-AV1.' } },
+        ],
+    },
+    {
+        id: 'legacy', label: 'Legacy', labelKey: 'legacyEncoders',
+        encoders: [
+            { value: 'mpeg4',      label: 'MPEG-4 Part 2',    desc: { ru: 'MPEG-4 Part 2 — устаревший кодек, совместимый с Xvid/DivX. Для контейнеров AVI и MP4.', en: 'MPEG-4 Part 2 — legacy codec compatible with Xvid/DivX. For AVI and MP4 containers.' } },
+            { value: 'mpeg2video', label: 'MPEG-2',            desc: { ru: 'MPEG-2 — стандарт DVD и вещательного ТВ. Для контейнеров AVI, MKV, MPEG-TS.', en: 'MPEG-2 — DVD and broadcast TV standard. For AVI, MKV, MPEG-TS containers.' } },
+            { value: 'mpeg1video', label: 'MPEG-1',            desc: { ru: 'MPEG-1 — кодек уровня Video CD. Для AVI и MPEG-TS. Очень устаревший.', en: 'MPEG-1 — Video CD era codec. For AVI and MPEG-TS. Very outdated.' } },
+            { value: 'mjpeg',      label: 'Motion JPEG',       desc: { ru: 'Motion JPEG — последовательность JPEG-кадров. Совместим с большинством устройств.', en: 'Motion JPEG — a sequence of JPEG frames. Compatible with most devices.' } },
+            { value: 'wmv2',       label: 'WMV8 (wmv2)',       desc: { ru: 'Windows Media Video 8 — устаревший кодек Microsoft. Работает в AVI и MKV.', en: 'Windows Media Video 8 — legacy Microsoft codec. Works in AVI and MKV.' } },
+            { value: 'wmv1',       label: 'WMV7 (wmv1)',       desc: { ru: 'Windows Media Video 7 — ранний кодек Microsoft. Только для старых проектов.', en: 'Windows Media Video 7 — early Microsoft codec. For legacy projects only.' } },
+            { value: 'h263p',      label: 'H.263+ (h263p)',    desc: { ru: 'H.263+ — улучшенный H.263 для видеоконференций. Используется в 3GP и MPEG-TS.', en: 'H.263+ — enhanced H.263 for video conferencing. Used in 3GP and MPEG-TS.' } },
+            { value: 'h263',       label: 'H.263',             desc: { ru: 'H.263 — устаревший видеокодек для мобильных устройств и 3G звонков.', en: 'H.263 — legacy video codec for mobile devices and 3G calls.' } },
+            { value: 'flv1',       label: 'Sorenson Spark (FLV)', desc: { ru: 'Sorenson Spark / FLV1 — кодек Flash Video. Только для FLV-контейнера.', en: 'Sorenson Spark / FLV1 — Flash Video codec. FLV container only.' } },
+        ],
+    },
 ]
 
 // ─── Encoder groups for conversion page (GPU-aware) ───────────────────────────
@@ -282,22 +377,80 @@ export function getConversionEncoderGroups(vendor, showAll, t) {
 }
 
 // ─── WebM codec compatibility ─────────────────────────────────────────────────
-export const WEBM_COMPATIBLE_ENCODERS = new Set(['vp8', 'vp9', 'vp9_10bit', 'svt_av1', 'svt_av1_10bit', 'nvenc_av1', 'qsv_av1', 'vce_av1'])
+export const WEBM_COMPATIBLE_ENCODERS = new Set(['vp8', 'vp9', 'vp9_10bit', 'svt_av1', 'svt_av1_10bit', 'nvenc_av1', 'qsv_av1', 'vce_av1', 'libaom_av1'])
 export const WEBM_COMPATIBLE_AUDIO    = new Set(['vorbis', 'opus'])
+
+// ─── Encoders where CRF/quality does not apply ────────────────────────────────
+// prores_ks and dnxhd use profile-based quality via the speed preset selector.
+// ffv1 and huffyuv are truly lossless — no quality parameter is used.
+export const NO_CRF_ENCODERS = new Set(['ffv1', 'huffyuv', 'prores_ks', 'dnxhd'])
+
+// ─── Encoders that support alpha channel (transparency) ──────────────────────
+export const ALPHA_CAPABLE_ENCODERS = new Set(['vp9', 'vp9_10bit', 'ffv1', 'prores_ks', 'libaom_av1'])
 
 // ─── Per-encoder disabled formats ─────────────────────────────────────────────────
 export const ENCODER_DISABLED_FORMATS = {
-    // VP8 / VP9 — несовместимы с MP4 и MOV
-    vp8:        new Set(['av_mp4', 'av_mov']),
-    vp9:        new Set(['av_mp4', 'av_mov']),
-    vp9_10bit:  new Set(['av_mp4', 'av_mov']),
-    // Theora — только MKV
-    theora:     new Set(['av_mp4', 'av_mov', 'av_webm']),
+    // VP8 / VP9 — несовместимы с MP4, MOV и legacy контейнерами
+    vp8:        new Set(['av_mp4', 'av_mov', 'av_avi', 'av_flv', 'av_ts', 'av_3gp']),
+    vp9:        new Set(['av_mp4', 'av_mov', 'av_avi', 'av_flv', 'av_ts', 'av_3gp']),
+    vp9_10bit:  new Set(['av_mp4', 'av_mov', 'av_avi', 'av_flv', 'av_ts', 'av_3gp']),
+    // Theora — только MKV и OGG
+    theora:     new Set(['av_mp4', 'av_mov', 'av_webm', 'av_avi', 'av_flv', 'av_ts', 'av_3gp']),
+    // SVT-AV1 / HW AV1 — не подходят для legacy контейнеров
+    svt_av1:        new Set(['av_avi', 'av_flv', 'av_3gp']),
+    svt_av1_10bit:  new Set(['av_avi', 'av_flv', 'av_3gp']),
+    nvenc_av1:      new Set(['av_avi', 'av_flv', 'av_3gp']),
+    qsv_av1:        new Set(['av_avi', 'av_flv', 'av_3gp']),
+    vce_av1:        new Set(['av_avi', 'av_flv', 'av_3gp']),
+    // x265 — не стандартен для FLV, OGG, 3GP
+    x265:         new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    x265_10bit:   new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    x265_12bit:   new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    nvenc_h265:   new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    qsv_h265:     new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    vce_h265:     new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    mf_h265:      new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    // libaom AV1 — не подходит для legacy/специфичных контейнеров
+    libaom_av1:   new Set(['av_avi', 'av_flv', 'av_3gp']),
+    // MPEG-4 Part 2 — не работает в WebM и OGG
+    mpeg4:        new Set(['av_webm', 'av_ogg']),
+    // MPEG-2 — только AVI, MKV, TS
+    mpeg2video:   new Set(['av_webm', 'av_ogg', 'av_flv', 'av_3gp', 'av_mp4', 'av_mov']),
+    // MPEG-1 — только AVI, MKV, TS
+    mpeg1video:   new Set(['av_webm', 'av_ogg', 'av_flv', 'av_3gp', 'av_mp4', 'av_mov']),
+    // ProRes — только MOV и MKV
+    prores_ks:    new Set(['av_webm', 'av_avi', 'av_flv', 'av_ts', 'av_ogg', 'av_3gp', 'av_mp4']),
+    // DNxHD — только MOV и MKV
+    dnxhd:        new Set(['av_webm', 'av_avi', 'av_flv', 'av_ts', 'av_ogg', 'av_3gp', 'av_mp4']),
+    // FFV1 — только MKV и AVI
+    ffv1:         new Set(['av_mp4', 'av_mov', 'av_webm', 'av_flv', 'av_ts', 'av_ogg', 'av_3gp']),
+    // HuffYUV — только MKV и AVI
+    huffyuv:      new Set(['av_mp4', 'av_mov', 'av_webm', 'av_flv', 'av_ts', 'av_ogg', 'av_3gp']),
+    // Motion JPEG — не работает в WebM, OGG, FLV
+    mjpeg:        new Set(['av_webm', 'av_ogg', 'av_flv']),
+    // WMV — только AVI и MKV
+    wmv2:         new Set(['av_mp4', 'av_mov', 'av_webm', 'av_ts', 'av_ogg', 'av_3gp', 'av_flv']),
+    wmv1:         new Set(['av_mp4', 'av_mov', 'av_webm', 'av_ts', 'av_ogg', 'av_3gp', 'av_flv']),
+    // H.263 — только 3GP, TS, AVI
+    h263p:        new Set(['av_webm', 'av_ogg', 'av_mkv', 'av_mov', 'av_flv']),
+    h263:         new Set(['av_webm', 'av_ogg', 'av_mkv', 'av_mov', 'av_flv']),
+    // FLV1 / Sorenson Spark — только FLV
+    flv1:         new Set(['av_mp4', 'av_mkv', 'av_mov', 'av_webm', 'av_ts', 'av_ogg', 'av_3gp', 'av_avi']),
 }
 
 // ─── Help texts (i18n-based lookups) ──────────────────────────────────────────
 function getFormatHelp(format, t) {
-    const key = { av_mp4: 'helpFmtMp4', av_mkv: 'helpFmtMkv', av_webm: 'helpFmtWebm', av_mov: 'helpFmtMov' }[format]
+    const key = {
+        av_mp4:  'helpFmtMp4',
+        av_mkv:  'helpFmtMkv',
+        av_webm: 'helpFmtWebm',
+        av_mov:  'helpFmtMov',
+        av_avi:  'helpFmtAvi',
+        av_flv:  'helpFmtFlv',
+        av_ts:   'helpFmtTs',
+        av_ogg:  'helpFmtOgg',
+        av_3gp:  'helpFmt3gp',
+    }[format]
     return key ? t(key) : t('hintFormat')
 }
 function getResolutionHelp(res, t) {
@@ -322,6 +475,12 @@ function getEncoderHelpText(encoder, t) {
         qsv_h264: 'helpEncQsvH264', qsv_h265: 'helpEncQsvH265', qsv_av1: 'helpEncQsvAv1',
         vce_h264: 'helpEncVceH264', vce_h265: 'helpEncVceH265', vce_av1: 'helpEncVceAv1',
         mf_h264: 'helpEncMfH264', mf_h265: 'helpEncMfH265',
+        libaom_av1: 'helpEncLibaomAv1',
+        mpeg4: 'helpEncMpeg4', mpeg2video: 'helpEncMpeg2', mpeg1video: 'helpEncMpeg1',
+        prores_ks: 'helpEncProres', dnxhd: 'helpEncDnxhd',
+        ffv1: 'helpEncFfv1', huffyuv: 'helpEncHuffyuv',
+        mjpeg: 'helpEncMjpeg', wmv2: 'helpEncWmv2', wmv1: 'helpEncWmv1',
+        h263p: 'helpEncH263p', h263: 'helpEncH263', flv1: 'helpEncFlv1',
     }[encoder]
     return key ? t(key) : t('hintVideoCodec')
 }
@@ -376,7 +535,7 @@ function getEncoderLabel(encoder) {
 }
 
 // ─── Custom dropdown ─────────────────────────────────────────────────────────
-export function GsSelect({ value, onChange, options, groups, disabled, className, onSpecial, direction = 'up' }) {
+export function GsSelect({ value, onChange, options, groups, disabled, className, onSpecial, direction = 'up', footer }) {
     const [open, setOpen] = useState(false)
     const ref = useRef(null)
     const { t, lang } = useLanguage()
@@ -429,6 +588,7 @@ export function GsSelect({ value, onChange, options, groups, disabled, className
             </button>
             {open && (
                 <div className="gs-dropdown-menu">
+                    <div className="gs-dropdown-menu-scroll">
                     {options && options.map(o => (
                         <button
                             key={o.value}
@@ -479,6 +639,10 @@ export function GsSelect({ value, onChange, options, groups, disabled, className
                             ))}
                         </div>
                     ))}
+                    </div>
+                    {footer && (
+                        <div className="gs-dropdown-footer">{footer}</div>
+                    )}
                 </div>
             )}
         </div>
@@ -512,11 +676,12 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
     const { t } = useLanguage()
     const [showCustomQuality, setShowCustomQuality] = useState(false)
     const [draftRF, setDraftRF] = useState(settings.customQuality)
+    const [showMoreCodecs, setShowMoreCodecs] = useState(false)
 
     const rfTable = CODEC_RF[settings.encoder] || CODEC_RF.x265
     const speedPresets = ENCODER_PRESETS[settings.encoder] ?? []
     const resOptions = getResolutionOptions(videos, t)
-    const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', !!settings.showAllCodecs, t)
+    const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', showMoreCodecs, t)
 
     const update = (key, value) => onChange({ ...settings, [key]: value })
 
@@ -532,6 +697,28 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
             if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
                 patch.audioCodec = 'opus'
             }
+        } else if (fmt === 'av_ogg') {
+            // OGG: auto-switch to Theora if current encoder is not OGG-compatible
+            if (!new Set(['theora', 'vp8', 'vp9', 'vp9_10bit']).has(settings.encoder)) {
+                patch.encoder = 'theora'
+                patch.encoderSpeed = undefined
+            }
+            const audioCodec = settings.audioCodec || 'av_aac'
+            if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                patch.audioCodec = 'vorbis'
+            }
+        } else if (fmt === 'av_flv') {
+            // FLV: only flv1 or x264 are valid; switch to flv1 if incompatible
+            if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264']).has(settings.encoder)) {
+                patch.encoder = 'flv1'
+                patch.encoderSpeed = undefined
+            }
+        } else if (fmt === 'av_3gp') {
+            // 3GP: only h263/h263p/h264 are valid
+            if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4']).has(settings.encoder)) {
+                patch.encoder = 'h263p'
+                patch.encoderSpeed = undefined
+            }
         } else {
             const disabledFormats = ENCODER_DISABLED_FORMATS[settings.encoder]
             if (disabledFormats?.has(fmt)) {
@@ -540,7 +727,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                 patch.encoderSpeed = speeds?.find(s => s.value === 'slow')?.value
                     ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? 'slow'
             }
-            if (fmt === 'av_mp4' || fmt === 'av_mov') {
+            if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_avi' || fmt === 'av_ts') {
                 const audioCodec = settings.audioCodec || 'av_aac'
                 if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
                     patch.audioCodec = 'av_aac'
@@ -602,6 +789,11 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                             { value: 'av_mkv',  label: 'MKV' },
                             { value: 'av_webm', label: 'WebM' },
                             { value: 'av_mov',  label: 'MOV' },
+                            { value: 'av_avi',  label: 'AVI' },
+                            { value: 'av_ts',   label: 'MPEG-TS' },
+                            { value: 'av_flv',  label: 'FLV' },
+                            { value: 'av_ogg',  label: 'OGG' },
+                            { value: 'av_3gp',  label: '3GP' },
                         ]}
                         onChange={handleFormatChange}
                         disabled={disabled}
@@ -653,10 +845,19 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                         <span className="gs-card-label">{t('sectionQuality')}</span>
                         <Tooltip text={currentQualityHelp} />
                     </div>
+                    {NO_CRF_ENCODERS.has(settings.encoder) ? (
+                        <div className="gs-notice">
+                            <i className="bi bi-info-circle"></i>
+                            {['ffv1', 'huffyuv'].includes(settings.encoder)
+                                ? t('noCrfNoticeLossless')
+                                : t('noCrfNoticeProfile')
+                            }
+                        </div>
+                    ) : (
                     <GsSelect
                         value={settings.quality}
                         options={[
-                            { value: 'lossless', label: `Lossless (RF ${rfTable.min})` },
+                            { value: 'lossless', label: `${t('qualityMaxQual')} (RF ${rfTable.min})` },
                             ...qualityPresets.map(p => ({ value: p.key, label: `${p.label} (RF ${p.rf})` })),
                             { value: 'custom', label: settings.quality === 'custom' ? `${t('qualityCustomLabel')} (RF ${settings.customQuality})` : t('qualityCustomEmpty'), special: true },
                         ]}
@@ -664,6 +865,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                         onSpecial={() => openCustomQuality()}
                         disabled={disabled}
                     />
+                    )}
                 </div>
 
                 {/* ── Codec ── */}
@@ -680,12 +882,24 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                                 value: e.value,
                                 label: e.label,
                                 desc: e.desc,
-                                disabled: settings.format === 'av_webm' && !WEBM_COMPATIBLE_ENCODERS.has(e.value),
+                                disabled: ENCODER_DISABLED_FORMATS[e.value]?.has(settings.format) ||
+                                    (settings.format === 'av_webm' && !WEBM_COMPATIBLE_ENCODERS.has(e.value)),
                             })) }))
                             }
                             onChange={handleEncoderChange}
                             disabled={disabled}
                             className="gs-dropdown--encoder"
+                            footer={
+                                <button
+                                    type="button"
+                                    className="gs-show-more-codecs"
+                                    onMouseDown={e => e.stopPropagation()}
+                                    onClick={e => { e.stopPropagation(); setShowMoreCodecs(v => !v) }}
+                                >
+                                    <i className={`bi bi-chevron-${showMoreCodecs ? 'up' : 'down'}`}></i>
+                                    {showMoreCodecs ? t('collapseCodecs') : t('expandCodecs')}
+                                </button>
+                            }
                         />
                         {speedPresets.length > 0 && (
                             <GsSelect
@@ -774,6 +988,20 @@ const COMPRESSION_RATIOS = {
     mf_h264:       [0.87, 0.65, 0.41, 0.20],
     mf_h265:       [0.62, 0.43, 0.27, 0.13],
     theora:        [0.90, 0.70, 0.50, 0.24],
+    libaom_av1:    [0.48, 0.32, 0.18, 0.08],
+    mpeg4:         [0.88, 0.66, 0.44, 0.22],
+    mpeg2video:    [0.95, 0.75, 0.52, 0.28],
+    mpeg1video:    [1.10, 0.90, 0.65, 0.38],
+    prores_ks:     [2.50, 2.00, 1.50, 1.00],
+    dnxhd:         [2.20, 1.80, 1.30, 0.90],
+    ffv1:          [3.00, 3.00, 3.00, 3.00],
+    huffyuv:       [3.50, 3.50, 3.50, 3.50],
+    mjpeg:         [0.70, 0.50, 0.35, 0.20],
+    wmv2:          [0.92, 0.72, 0.50, 0.26],
+    wmv1:          [0.95, 0.75, 0.54, 0.28],
+    h263p:         [0.93, 0.74, 0.52, 0.27],
+    h263:          [0.96, 0.78, 0.56, 0.30],
+    flv1:          [0.94, 0.75, 0.53, 0.28],
 }
 
 // Size multipliers per speed preset relative to each encoder's baseline.
@@ -782,9 +1010,9 @@ const SPEED_MULT = {
     x264:       { ultrafast: 2.40, superfast: 1.80, veryfast: 1.40, faster: 1.20, fast: 1.10, medium: 1.05, slow: 1.00, slower: 0.93, veryslow: 0.87 },
     x265:       { ultrafast: 2.20, superfast: 1.70, veryfast: 1.35, faster: 1.18, fast: 1.08, medium: 1.04, slow: 1.00, slower: 0.94, veryslow: 0.88 },
     svt_av1:    { '12': 1.60, '11': 1.45, '10': 1.30, '9': 1.18, '8': 1.10, '7': 1.05, '6': 1.00, '5': 0.97, '4': 0.93, '3': 0.89, '2': 0.87, '1': 0.85, '0': 0.83 },
-    nvenc_h264: { hp: 1.08, default: 1.03, bd: 1.03, hq: 1.00, ll: 1.15, llhq: 1.08, llhp: 1.18 },
-    nvenc_h265: { hp: 1.08, default: 1.03, bd: 1.03, hq: 1.00, ll: 1.15, llhq: 1.08, llhp: 1.18 },
-    nvenc_av1:  { hp: 1.08, default: 1.03, bd: 1.03, hq: 1.00, ll: 1.15, llhq: 1.08, llhp: 1.18 },
+    nvenc_h264: { p1: 1.28, p2: 1.18, p3: 1.10, p4: 1.04, p5: 1.00, p6: 0.96, p7: 0.92 },
+    nvenc_h265: { p1: 1.28, p2: 1.18, p3: 1.10, p4: 1.04, p5: 1.00, p6: 0.96, p7: 0.92 },
+    nvenc_av1:  { p1: 1.28, p2: 1.18, p3: 1.10, p4: 1.04, p5: 1.00, p6: 0.96, p7: 0.92 },
     qsv_h264:   { veryfast: 1.30, faster: 1.18, fast: 1.08, balanced: 1.00, slow: 0.95, slower: 0.91, veryslow: 0.88 },
     qsv_h265:   { veryfast: 1.30, faster: 1.18, fast: 1.08, balanced: 1.00, slow: 0.95, slower: 0.91, veryslow: 0.88 },
     qsv_av1:    { veryfast: 1.30, faster: 1.18, fast: 1.08, balanced: 1.00, slow: 0.95, slower: 0.91, veryslow: 0.88 },

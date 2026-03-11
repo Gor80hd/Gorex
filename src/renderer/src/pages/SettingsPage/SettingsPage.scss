@@ -417,6 +417,26 @@
     .light & { color: #1e293b; }
 }
 
+// ─── Inline notice / warning ────────────────────────────────────────────────
+.sp-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    border-radius: 8px;
+    font-size: 0.73rem;
+    line-height: 1.45;
+    margin-top: 6px;
+
+    i { flex-shrink: 0; }
+
+    &--warn {
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px dashed rgba(245, 158, 11, 0.3);
+        i { color: #f59e0b; }
+    }
+}
+
 .sp-row-hint {
     font-size: 0.67rem;
     line-height: 1.35;
