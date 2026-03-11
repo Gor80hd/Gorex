@@ -12,6 +12,7 @@ const THANKS = [
     { nameKey: 'thanksName2', tg: 'memsteel',  url: 'https://t.me/memsteel' },
     { nameKey: 'thanksName3', tg: null,        url: null },
     { nameKey: 'thanksName4', tg: null,        url: null },
+    { nameKey: 'thanksName5', tg: null,        url: null },
 ]
 
 function AboutPage({ theme, onBack }) {
@@ -36,7 +37,7 @@ function AboutPage({ theme, onBack }) {
                 </div>
                 <div className="about-title-block">
                     <h1>Gorex</h1>
-                    <p className="version-info">Version 1.2.0 · Web Edition · GPLv2</p>
+                    <p className="version-info">Version 2.0.0 · Web Edition · GPLv2</p>
                 </div>
             </div>
 

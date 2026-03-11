@@ -87,12 +87,12 @@ function TitleBar({
                                         <span className="tb-item-label">{t('menuStop')}</span>
                                     </button>
                                     <div className="tb-dropdown-sep"></div>
-                                    <button className="tb-dropdown-item" onClick={() => menuAction(() => window.api.close())}>
-                                        <span className="tb-item-label">{t('menuExit')}</span>
-                                    </button>
-                                    <div className="tb-dropdown-sep"></div>
                                     <button className="tb-dropdown-item" onClick={() => menuAction(() => onOpenCliConsole())}>
                                         <span className="tb-item-label">{t('menuDebugConsole')}</span>
+                                    </button>
+                                    <div className="tb-dropdown-sep"></div>
+                                    <button className="tb-dropdown-item" onClick={() => menuAction(() => window.api.close())}>
+                                        <span className="tb-item-label">{t('menuExit')}</span>
                                     </button>
                                 </div>
                             )}
