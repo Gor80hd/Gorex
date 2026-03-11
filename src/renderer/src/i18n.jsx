@@ -13,6 +13,8 @@ const TRANSLATIONS = {
         apply: 'Применить',
         recommended: 'рекомендован',
         softwareEncoders: 'Программные',
+        intermediateEncoders: 'ProRes / DNxHD / Lossless',
+        legacyEncoders: 'Устаревшие',
 
         // TitleBar
         menuFile: 'Файл',
@@ -31,6 +33,11 @@ const TRANSLATIONS = {
         dlFromWeb: 'Загрузить из сети',
         dlPlaceholder: 'Вставьте ссылку (YouTube, TikTok, Twitter ...)',
         dlDownload: 'Скачать',
+        dlPasteTip: 'Вставить из буфера обмена',
+        ctxCut: 'Вырезать',
+        ctxCopy: 'Копировать',
+        ctxPaste: 'Вставить',
+        ctxSelectAll: 'Выделить всё',
         dlUnsupported: 'Сервис не поддерживается',
         dlErrorDefault: 'Ошибка запроса форматов',
         ytdlFetchErrorTitle: 'Не удалось получить данные видео',
@@ -84,9 +91,9 @@ const TRANSLATIONS = {
         langEn: 'English',
 
         // Settings — CLI
-        sectionCli: 'HandBrake CLI',
+        sectionCli: 'FFmpeg',
         rowCliStatus: 'Статус',
-        hintCliStatus: 'HandBrakeCLI.exe рядом с приложением',
+        hintCliStatus: 'ffmpeg.exe найден в папке ytdl',
         cliChecking: 'Проверка...',
         cliFound: 'Обнаружен',
         cliNotFound: 'Не найден',
@@ -97,6 +104,9 @@ const TRANSLATIONS = {
         gpuUnknown: 'Видеокарта не определена — показаны программные кодеки',
         rowShowAllCodecs: 'Показывать все кодеки',
         hintShowAllCodecs: 'На странице конвертации показывать все, а не только GPU-рекомендованные',
+        expandCodecs:   'Показать все кодеки',
+        collapseCodecs: 'Свернуть',
+
 
         // Settings — Output folder
         sectionOutputFolder: 'Папка вывода по умолчанию',
@@ -137,6 +147,7 @@ const TRANSLATIONS = {
         rowQualityMode: 'Режим качества',
         hintQualityMode: 'Предустановка или точное значение RF/CRF',
         qualitySource: 'Исходное (без потерь)',
+        qualityMaxQual: 'Максимальное качество',
         qualityHigh: 'Высокое',
         qualityMedium: 'Среднее',
         qualityLow: 'Низкое',
@@ -146,6 +157,13 @@ const TRANSLATIONS = {
         rfRange: 'Диапазон:',
         rfBetter: 'лучше',
         rfWorse: 'хуже',
+        noCrfNoticeProfile: 'CRF не используется — качество задаётся через «Пресет».',
+        noCrfNoticeLossless: 'Этот кодек записывает без потерь — настройка качества не используется.',
+
+        // Alpha channel
+        rowAlphaChannel: 'Альфа-канал (прозрачность)',
+        hintAlphaChannel: 'Сохраняет прозрачность в выходном файле. Требует поддерживающий кодек и контейнер (WebM/MKV/MOV).',
+        hintAlphaNoSupport: 'Этот кодек не поддерживает альфа-канал. Смените кодек на VP9, FFV1, ProRes 4444 или AV1 (libaom).',
 
         // Resolution & FPS
         sectionResFps: 'Разрешение и частота кадров',
@@ -337,6 +355,13 @@ const TRANSLATIONS = {
         gpuErrNvencInit: 'Не удалось инициализировать NVENC. Убедитесь, что драйверы NVIDIA актуальны.',
         gpuErrQsvInit: 'Не удалось инициализировать Intel QSV. Проверьте драйверы Intel.',
         gpuErrVceInit: 'Не удалось инициализировать AMD VCE/AMF. Проверьте драйверы AMD.',
+        warn8bitEncoder: 'Выбранный кодек поддерживает только 8-бит. HDR и 10-битное видео будет автоматически понижено до 8-бит.',
+
+        // Update banner
+        updateAvailable: 'Доступна новая версия {v}',
+        updateSub: 'Перейдите на GitHub и скачайте последний релиз',
+        updateDownload: 'Скачать',
+        updateDismiss: 'Закрыть',
 
         // ListPage
         urlPlaceholder: 'Ссылка для загрузки (YouTube, TikTok ...)',
@@ -394,7 +419,7 @@ const TRANSLATIONS = {
         vspTimeClip: 'Обрезка по времени',
         vspConvertAfterDl: 'Конвертация после загрузки',
         vspConvertFile: 'Конвертировать файл',
-        vspHintConvertFile: 'После загрузки запустить HandBrake конвертацию (настройки — во вкладках Видео/Аудио)',
+        vspHintConvertFile: 'После загрузки запустить FFmpeg конвертацию (настройки — во вкладках Видео/Аудио)',
         vspConvertNotice: 'Вкладки Видео / Аудио / Фильтры доступны только если включена конвертация.',
         vspResetBtn: 'Сбросить (глобальные)',
         vspQualityHint: 'лучше качество',
@@ -412,6 +437,9 @@ const TRANSLATIONS = {
         vspHintAutoSubs: 'Включить автоматически сгенерированные субтитры (YouTube)',
         vspSubLangs: 'Языки',
         vspHintSubLangs: 'Языки субтитров для загрузки',
+        subLangAll: 'Все языки',
+        vspSubsAllWarning: 'Загрузка всех субтитров без файла cookies может не сработать на YouTube (ошибки 429).',
+        vspSubsAllWarningLink: 'Настроить cookies →',
         vspSubsGroupManual: 'Субтитры',
         vspSubsGroupAuto: 'Авто-субтитры (YouTube)',
         vspSubFormat: 'Формат субтитров',
@@ -448,7 +476,7 @@ const TRANSLATIONS = {
         meStoryP2: 'Всё существующее либо выглядит так, будто застряло в 2005-м, либо стоит денег за каждый чих, либо просто не работает как надо. Я давно хотел сделать что-то по-настоящему красивое и удобное — не для разработчиков, а для людей из сферы. Концепт жил у меня в голове очень долго, но реализовать его самому было невозможно.',
         meStoryP3a: 'И вот благодаря технологиям ИИ —\u00a0',
         meStoryP3b: '\u00a0— я наконец смог воплотить эту идею в жизнь. Gorex — это не просто обёртка над HandBrake. Это концепция: инструмент, который уважает твоё время, выглядит как продукт, за который не стыдно, и работает именно так, как ожидает профессионал в видео.',
-        aboutDescription: 'Gorex — современный Electron-интерфейс для легендарного транскодера HandBrake и загрузчика yt-dlp. Сохраняет всю мощь оригинального HandBrake CLI, предоставляя удобный и эстетичный пользовательский опыт с открытым исходным кодом.',
+        aboutDescription: 'Gorex — современный Electron-интерфейс для FFmpeg и yt-dlp. Полная мощь FFmpeg с удобным и эстетичным интерфейсом с открытым исходным кодом.',
         aboutLicenseNotice1: 'Gorex использует yt-dlp и FFmpeg — программы с открытым исходным кодом. Gorex распространяется под лицензией ',
         aboutLicenseNotice3: '. Web UI дополнительно использует MIT-библиотеки React, Vite и Electron.',
         licenseSummary1a: 'Gorex распространяется под лицензией ',
@@ -472,6 +500,11 @@ const TRANSLATIONS = {
         helpFmtMkv:  'MKV — гибкий контейнер без ограничений на количество дорожек. Идеален для архивирования, поддерживает любые кодеки.',
         helpFmtWebm: 'WebM — контейнер для веба. Поддерживает только VP8/VP9/AV1 и аудио Vorbis/Opus. При выборе WebM кодек автоматически скорректируется.',
         helpFmtMov:  'MOV — контейнер Apple QuickTime. Хорошо совместим с macOS / iOS, поддерживает H.264, H.265 и большинство кодеков.',
+        helpFmtAvi:  'AVI — старый контейнер Microsoft. Широкая совместимость, поддерживает MPEG-4, H.264, MJPEG, FFV1, HuffYUV и другие.',
+        helpFmtFlv:  'FLV — Flash Video. Старый веб-формат. Поддерживает Sorenson Spark (FLV1) и H.264.',
+        helpFmtTs:   'MPEG-TS — транспортный поток MPEG. Используется для вещательного ТВ, HLS/IPTV и спутниковых записей. Поддерживает H.264, H.265, MPEG-2.',
+        helpFmtOgg:  'OGG — открытый контейнер Xiph. Используется с Theora (видео) и Vorbis/Opus (аудио). Устарел. При выборе OGG кодек автоматически скорректируется.',
+        helpFmt3gp:  '3GP — контейнер для мобильных устройств. Поддерживает H.263, H.264, MPEG-4. Устарел.',
 
         // GlobalSettings — Resolution help
         helpResSource: 'Разрешение исходного видео сохраняется без изменений. Никакого масштабирования.',
@@ -490,7 +523,7 @@ const TRANSLATIONS = {
         helpFps23976: '23.976 fps — NTSC-кинематографический стандарт. Совместим с большинством медиаплееров.',
 
         // GlobalSettings — Quality help
-        helpQualLossless: 'Lossless — RF 0, кодирование без потерь. Файл будет значительно больше исходника, так как хранит декодированный YUV без сжатия.',
+        helpQualLossless: 'Максимальное качество — RF 0, наилучший результат для данного кодека. Файл значительно больше исходника. Не является истинной записью без потерь — декодированный исходник всегда отличается от перекодированного.',
         helpQualHigh:   'Высокое качество — визуально близко к оригиналу. Рекомендуется для архива и дальнейшего редактирования.',
         helpQualMedium: 'Баланс качества и размера — минимально заметная потеря детализации при значительном уменьшении файла.',
         helpQualLow:    'Низкое качество — заметные артефакты компрессии. Маленький файл для быстрой передачи.',
@@ -520,6 +553,20 @@ const TRANSLATIONS = {
         helpEncVceAv1:        'AMD VCE AV1 — аппаратный AV1 на AMD RX 7xxx+.',
         helpEncMfH264:        'MediaFoundation H.264 — аппаратное кодирование через Windows Media API.',
         helpEncMfH265:        'MediaFoundation H.265 — H.265 через Windows Media API. Совместимость зависит от драйверов.',
+        helpEncLibaomAv1:     'AV1 (libaom) — референсный энкодер AV1. Лучшее качество, но значительно медленнее SVT-AV1. Скорость задаётся через cpu-used (0–8).',
+        helpEncMpeg4:         'MPEG-4 Part 2 — устаревший кодек, совместимый с Xvid/DivX. Работает в AVI, MP4, MKV и 3GP.',
+        helpEncMpeg2:         'MPEG-2 — стандарт DVD и профессионального ТВ. Работает в AVI, MKV и MPEG-TS.',
+        helpEncMpeg1:         'MPEG-1 — кодек эпохи VCD. Опюскается практически на любом устройстве. Устарел.',
+        helpEncProres:        'Apple ProRes — профессиональный промежуточный кодек. Профиль выбирается через «пресет» (Proxy, LT, Standard, HQ, 4444). Только MOV и MKV.',
+        helpEncDnxhd:         'Avid DNxHD/DNxHR — промежуточный кодек для монтажных систем. Профиль выбирается через «пресет». Только MOV и MKV.',
+        helpEncFfv1:          'FFV1 — полностью без потерь. Идеален для архивирования. Работает в MKV и AVI.',
+        helpEncHuffyuv:       'HuffYUV — быстрый кодек без потерь для промежуточного процесса. Работает в MKV и AVI.',
+        helpEncMjpeg:         'Motion JPEG — последовательность JPEG-кадров. Широко совместим. Работает в MP4, MKV, MOV, AVI.',
+        helpEncWmv2:          'WMV8 (wmv2) — устаревший Windows Media Video 8. Работает в AVI и MKV.',
+        helpEncWmv1:          'WMV7 (wmv1) — ранний Windows Media Video 7. Только для старых проектов.',
+        helpEncH263p:         'H.263+ — улучшенный H.263 для видеоконференций и 3G. Работает в 3GP, MPEG-TS, AVI.',
+        helpEncH263:          'H.263 — устаревший кодек для мобильных устройств и 3G звонков. Работает в 3GP, MPEG-TS.',
+        helpEncFlv1:          'Sorenson Spark / FLV1 — кодек Flash Video. Только для FLV-контейнера.',
     },
 
     en: {
@@ -533,6 +580,8 @@ const TRANSLATIONS = {
         apply: 'Apply',
         recommended: 'recommended',
         softwareEncoders: 'Software',
+        intermediateEncoders: 'ProRes / DNxHD / Lossless',
+        legacyEncoders: 'Legacy',
 
         // TitleBar
         menuFile: 'File',
@@ -551,6 +600,11 @@ const TRANSLATIONS = {
         dlFromWeb: 'Download from web',
         dlPlaceholder: 'Paste link (YouTube, TikTok, Twitter ...)',
         dlDownload: 'Download',
+        dlPasteTip: 'Paste from clipboard',
+        ctxCut: 'Cut',
+        ctxCopy: 'Copy',
+        ctxPaste: 'Paste',
+        ctxSelectAll: 'Select all',
         dlUnsupported: 'Service not supported',
         dlErrorDefault: 'Error fetching formats',
         ytdlFetchErrorTitle: 'Failed to fetch video data',
@@ -604,9 +658,9 @@ const TRANSLATIONS = {
         langEn: 'English',
 
         // Settings — CLI
-        sectionCli: 'HandBrake CLI',
+        sectionCli: 'FFmpeg',
         rowCliStatus: 'Status',
-        hintCliStatus: 'HandBrakeCLI.exe next to the app',
+        hintCliStatus: 'ffmpeg.exe found in ytdl folder',
         cliChecking: 'Checking...',
         cliFound: 'Found',
         cliNotFound: 'Not found',
@@ -617,6 +671,9 @@ const TRANSLATIONS = {
         gpuUnknown: 'GPU not detected — software codecs shown',
         rowShowAllCodecs: 'Show all codecs',
         hintShowAllCodecs: 'Show all (not just GPU-recommended) codecs on the conversion page',
+        expandCodecs:   'Show all codecs',
+        collapseCodecs: 'Collapse',
+
 
         // Settings — Output folder
         sectionOutputFolder: 'Default output folder',
@@ -657,6 +714,7 @@ const TRANSLATIONS = {
         rowQualityMode: 'Quality Mode',
         hintQualityMode: 'Preset or exact RF/CRF value',
         qualitySource: 'Source (lossless)',
+        qualityMaxQual: 'Maximum quality',
         qualityHigh: 'High',
         qualityMedium: 'Medium',
         qualityLow: 'Low',
@@ -666,6 +724,13 @@ const TRANSLATIONS = {
         rfRange: 'Range:',
         rfBetter: 'better',
         rfWorse: 'worse',
+        noCrfNoticeProfile: 'CRF not used — quality is set via the speed preset.',
+        noCrfNoticeLossless: 'This codec is fully lossless — the quality setting is unused.',
+
+        // Alpha channel
+        rowAlphaChannel: 'Alpha channel (transparency)',
+        hintAlphaChannel: 'Preserves transparency in the output file. Requires a compatible codec and container (WebM/MKV/MOV).',
+        hintAlphaNoSupport: 'This codec does not support alpha channel. Switch to VP9, FFV1, ProRes 4444, or AV1 (libaom).',
 
         // Resolution & FPS
         sectionResFps: 'Resolution and Frame Rate',
@@ -857,6 +922,13 @@ const TRANSLATIONS = {
         gpuErrNvencInit: 'Failed to initialize NVENC. Make sure your NVIDIA drivers are up to date.',
         gpuErrQsvInit: 'Failed to initialize Intel QSV. Check your Intel drivers.',
         gpuErrVceInit: 'Failed to initialize AMD VCE/AMF. Check your AMD drivers.',
+        warn8bitEncoder: '8-bit encoder selected. HDR and 10-bit video will be automatically downgraded to 8-bit.',
+
+        // Update banner
+        updateAvailable: 'New version {v} available',
+        updateSub: 'Visit GitHub and download the latest release',
+        updateDownload: 'Download',
+        updateDismiss: 'Dismiss',
 
         // ListPage
         urlPlaceholder: 'Download link (YouTube, TikTok ...)',
@@ -914,7 +986,7 @@ const TRANSLATIONS = {
         vspTimeClip: 'Time clip',
         vspConvertAfterDl: 'Convert after download',
         vspConvertFile: 'Convert file',
-        vspHintConvertFile: 'After download, run HandBrake conversion (settings in Video/Audio tabs)',
+        vspHintConvertFile: 'After download, run FFmpeg conversion (settings in Video/Audio tabs)',
         vspConvertNotice: 'Video / Audio / Filters tabs are only available when conversion is enabled.',
         vspResetBtn: 'Reset (global)',
         vspQualityHint: 'better quality',
@@ -932,6 +1004,9 @@ const TRANSLATIONS = {
         vspHintAutoSubs: 'Include auto-generated subtitles (YouTube)',
         vspSubLangs: 'Languages',
         vspHintSubLangs: 'Subtitle languages to download',
+        subLangAll: 'All languages',
+        vspSubsAllWarning: 'Downloading all subtitles without a cookies file may fail on YouTube (429 errors).',
+        vspSubsAllWarningLink: 'Set up cookies →',
         vspSubsGroupManual: 'Subtitles',
         vspSubsGroupAuto: 'Auto-generated (YouTube)',
         vspSubFormat: 'Subtitle format',
@@ -968,7 +1043,7 @@ const TRANSLATIONS = {
         meStoryP2: "Everything out there either looks like it got stuck in 2005, costs money for every little thing, or just doesn't work right. For a long time I wanted to build something truly beautiful and convenient — not for developers, but for people in the field. The concept lived in my head for a very long time, but making it myself was impossible.",
         meStoryP3a: 'And thanks to AI technology\u00a0—\u00a0',
         meStoryP3b: '\u00a0— I was finally able to bring this idea to life. Gorex is not just a wrapper around HandBrake. It\'s a concept: a tool that respects your time, looks like a product worth being proud of, and works exactly the way a video professional expects.',
-        aboutDescription: 'Gorex — a modern Electron interface for the legendary HandBrake transcoder and yt-dlp downloader. Preserves all the power of the original HandBrake CLI, providing a convenient and aesthetic open-source user experience.',
+        aboutDescription: 'Gorex — a modern Electron interface for FFmpeg and yt-dlp. Full power of FFmpeg with a convenient and aesthetic open-source user experience.',
         aboutLicenseNotice1: 'Gorex uses yt-dlp and FFmpeg — open source programs. Gorex is distributed under the ',
         aboutLicenseNotice3: '. The Web UI also uses MIT-licensed libraries: React, Vite, and Electron.',
         licenseSummary1a: 'Gorex is distributed under the ',
@@ -992,6 +1067,11 @@ const TRANSLATIONS = {
         helpFmtMkv:  'MKV — flexible container with no track limit. Ideal for archiving, supports any codec.',
         helpFmtWebm: 'WebM — web container. Supports only VP8/VP9/AV1 and Vorbis/Opus audio. Selecting WebM auto-adjusts the codec.',
         helpFmtMov:  'MOV — Apple QuickTime container. Well compatible with macOS / iOS, supports H.264, H.265 and most codecs.',
+        helpFmtAvi:  'AVI — legacy Microsoft container. Wide compatibility, supports MPEG-4, H.264, MJPEG, FFV1, HuffYUV and more.',
+        helpFmtFlv:  'FLV — Flash Video legacy web format. Supports Sorenson Spark (FLV1) and H.264.',
+        helpFmtTs:   'MPEG-TS — MPEG Transport Stream. Used for broadcast TV, HLS/IPTV, and Blu-ray. Supports H.264, H.265, MPEG-2.',
+        helpFmtOgg:  'OGG — open Xiph container. Used with Theora video and Vorbis/Opus audio. Legacy. Selecting OGG auto-adjusts the codec.',
+        helpFmt3gp:  '3GP — mobile container. Supports H.263, H.264, MPEG-4. Legacy format for older phones.',
 
         // GlobalSettings — Resolution help
         helpResSource: 'Source video resolution is preserved unchanged. No scaling.',
@@ -1010,7 +1090,7 @@ const TRANSLATIONS = {
         helpFps23976: '23.976 fps — NTSC cinematic standard. Compatible with most media players.',
 
         // GlobalSettings — Quality help
-        helpQualLossless: 'Lossless — RF 0, lossless encoding. File will be significantly larger than source, as it stores decoded YUV without compression.',
+        helpQualLossless: 'Maximum quality — RF 0, best result the codec can produce. File significantly larger than source. Not truly lossless — the decoded source always differs from re-encoded content.',
         helpQualHigh:   'High quality — visually close to the original. Recommended for archiving and further editing.',
         helpQualMedium: 'Quality/size balance — minimal visible loss of detail with significant file size reduction.',
         helpQualLow:    'Low quality — noticeable compression artifacts. Small file for quick transfers.',
@@ -1040,6 +1120,20 @@ const TRANSLATIONS = {
         helpEncVceAv1:        'AMD VCE AV1 — hardware AV1 on AMD RX 7xxx+.',
         helpEncMfH264:        'MediaFoundation H.264 — hardware encoding via Windows Media API.',
         helpEncMfH265:        'MediaFoundation H.265 — H.265 via Windows Media API. Compatibility depends on drivers.',
+        helpEncLibaomAv1:     'AV1 (libaom) — reference AV1 encoder. Best quality but significantly slower than SVT-AV1. Speed set via cpu-used (0–8).',
+        helpEncMpeg4:         'MPEG-4 Part 2 — legacy codec compatible with Xvid/DivX. Works in AVI, MP4, MKV, and 3GP.',
+        helpEncMpeg2:         'MPEG-2 — DVD and broadcast TV standard. Works in AVI, MKV, and MPEG-TS.',
+        helpEncMpeg1:         'MPEG-1 — VCD era codec. Compatible with virtually any device. Very outdated.',
+        helpEncProres:        'Apple ProRes — professional intermediate codec. Profile selected via preset (Proxy, LT, Standard, HQ, 4444). MOV and MKV only.',
+        helpEncDnxhd:         'Avid DNxHD/DNxHR — intermediate codec for editing suites. Profile selected via preset. MOV and MKV only.',
+        helpEncFfv1:          'FFV1 — fully lossless. Ideal for archiving sources. Works in MKV and AVI.',
+        helpEncHuffyuv:       'HuffYUV — fast lossless codec for intermediate workflow. Works in MKV and AVI.',
+        helpEncMjpeg:         'Motion JPEG — a sequence of JPEG frames. Widely compatible. Works in MP4, MKV, MOV, AVI.',
+        helpEncWmv2:          'WMV8 (wmv2) — legacy Windows Media Video 8. Works in AVI and MKV.',
+        helpEncWmv1:          'WMV7 (wmv1) — early Windows Media Video 7. For legacy projects only.',
+        helpEncH263p:         'H.263+ — enhanced H.263 for video conferencing. Works in 3GP, MPEG-TS, AVI.',
+        helpEncH263:          'H.263 — legacy codec for mobile devices and 3G calls. Works in 3GP and MPEG-TS.',
+        helpEncFlv1:          'Sorenson Spark / FLV1 — Flash Video codec. FLV container only.',
     },
 }
 

@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import './ListPage.scss'
-import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, ENCODER_GROUPS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS } from '../../components/GlobalSettings/GlobalSettings'
+import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, ENCODER_GROUPS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS, NO_CRF_ENCODERS, ALPHA_CAPABLE_ENCODERS } from '../../components/GlobalSettings/GlobalSettings'
 import { useLanguage } from '../../i18n'
+
+const EIGHT_BIT_ONLY_ENCODERS = new Set([
+    'x264', 'x264_10bit',
+    'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264',
+    'vp8', 'theora',
+    'mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263p', 'h263', 'flv1',
+])
 
 // ─── Service detection (shared with SourcePage) ────────────────────────────────
 const SERVICE_MAP = {
@@ -176,8 +184,16 @@ const ENCODER_SHORT = {
     vce_h264: 'H.264 VCE', vce_h265: 'H.265 VCE', vce_av1: 'AV1 VCE',
     mf_h264: 'H.264 MF', mf_h265: 'H.265 MF',
     theora: 'Theora',
+    libaom_av1: 'AV1 libaom',
+    mpeg4: 'MPEG-4', mpeg2video: 'MPEG-2', mpeg1video: 'MPEG-1',
+    prores_ks: 'ProRes', dnxhd: 'DNxHD',
+    ffv1: 'FFV1', huffyuv: 'HuffYUV',
+    mjpeg: 'MJPEG',
+    wmv2: 'WMV8', wmv1: 'WMV7',
+    h263p: 'H.263+', h263: 'H.263',
+    flv1: 'FLV1',
 }
-const FORMAT_LABEL = { av_mp4: 'MP4', av_mkv: 'MKV', av_webm: 'WebM', av_mov: 'MOV' }
+const FORMAT_LABEL = { av_mp4: 'MP4', av_mkv: 'MKV', av_webm: 'WebM', av_mov: 'MOV', av_avi: 'AVI', av_ts: 'TS', av_flv: 'FLV', av_ogg: 'OGG', av_3gp: '3GP' }
 const RES_LABEL = { '4k': '4K', '1440p': '1440p', '1080p': '1080p', '720p': '720p', '480p': '480p' }
 
 function getTransformTags(video, s, t) {
@@ -210,12 +226,18 @@ const AUDIO_CODECS = [
     { value: 'fdk_aac',     label: 'AAC (FDK)' },
     { value: 'fdk_haac',    label: 'HE-AAC (FDK)' },
     { value: 'mp3',         label: 'MP3' },
+    { value: 'mp2',         label: 'MP2' },
     { value: 'ac3',         label: 'AC-3 (Dolby Digital)' },
     { value: 'eac3',        label: 'E-AC-3 (Dolby Plus)' },
     { value: 'vorbis',      label: 'Vorbis' },
+    { value: 'opus',        label: 'Opus' },
     { value: 'flac16',      label: 'FLAC 16-bit' },
     { value: 'flac24',      label: 'FLAC 24-bit' },
-    { value: 'opus',        label: 'Opus' },
+    { value: 'alac',        label: 'ALAC (Apple Lossless)' },
+    { value: 'pcm_s16le',   label: 'PCM 16-bit (uncompressed)' },
+    { value: 'pcm_s24le',   label: 'PCM 24-bit (uncompressed)' },
+    { value: 'pcm_f32le',   label: 'PCM 32-bit Float' },
+    { value: 'wmav2',       label: 'WMA v2' },
     { value: 'copy',        label: 'Passthru (auto)' },
     { value: 'copy:aac',    label: 'AAC Passthru' },
     { value: 'copy:ac3',    label: 'AC3 Passthru' },
@@ -750,7 +772,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
 const PanelSelect = (props) => <GsSelect direction="down" {...props} />
 
 // ─── Video Settings Panel ──────────────────────────────────────────────────────
-function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange, onLocalClipChange }) {
+function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange, onLocalClipChange, onOpenSettings }) {
     const { t } = useLanguage()
     const VSP_TABS = [
         { id: 'video',     label: t('tabVideo'),     icon: 'bi-camera-video' },
@@ -809,6 +831,25 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
                 patch.audioCodec = 'opus'
             }
+        } else if (fmt === 'av_ogg') {
+            if (!new Set(['theora', 'vp8', 'vp9', 'vp9_10bit']).has(draft.encoder)) {
+                patch.encoder = 'theora'
+                patch.encoderSpeed = undefined
+            }
+            const audioCodec = draft.audioCodec || 'av_aac'
+            if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                patch.audioCodec = 'vorbis'
+            }
+        } else if (fmt === 'av_flv') {
+            if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264']).has(draft.encoder)) {
+                patch.encoder = 'flv1'
+                patch.encoderSpeed = undefined
+            }
+        } else if (fmt === 'av_3gp') {
+            if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4']).has(draft.encoder)) {
+                patch.encoder = 'h263p'
+                patch.encoderSpeed = undefined
+            }
         } else {
             const disabledFormats = ENCODER_DISABLED_FORMATS[draft.encoder]
             if (disabledFormats?.has(fmt)) {
@@ -817,7 +858,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                 patch.encoderSpeed = speeds?.find(s => s.value === 'slow')?.value
                     ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? 'slow'
             }
-            if (fmt === 'av_mp4' || fmt === 'av_mov') {
+            if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_avi' || fmt === 'av_ts') {
                 const audioCodec = draft.audioCodec || 'av_aac'
                 if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
                     patch.audioCodec = 'av_aac'
@@ -841,12 +882,13 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             onYtdlConvertToggle(video.id, draft._convertAfterDownload ?? !!video.convertAfterDownload)
             if (onYtdlOptionsChange) {
                 const rawLang = draft._ytdlSubLangs || 'all'
-                const isAutoLang = rawLang.startsWith('auto:')
+                const isAllLangs = rawLang === 'all'
+                const isAutoLang = !isAllLangs && rawLang.startsWith('auto:')
                 const langCode = isAutoLang ? rawLang.slice(5) : rawLang
                 onYtdlOptionsChange(video.id, {
                     noAudio:      !!draft._ytdlNoAudio,
-                    downloadSubs: !!draft._ytdlDownloadSubs && !isAutoLang,
-                    autoSubs:     !!draft._ytdlDownloadSubs && isAutoLang,
+                    downloadSubs: !!draft._ytdlDownloadSubs && (isAllLangs || !isAutoLang),
+                    autoSubs:     !!draft._ytdlDownloadSubs && (isAllLangs || isAutoLang),
                     subLangs:     langCode,
                     subFormat:    draft._ytdlSubFormat  || 'srt',
                 })
@@ -1010,11 +1052,28 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                         <VspRow label={t('vspSubLangs')} hint={t('vspHintSubLangs')}>
                                             <PanelSelect
                                                 value={draft._ytdlSubLangs || 'all'}
-                                                groups={subLangGroups || undefined}
-                                                options={subLangGroups ? undefined : subLangFlatOptions}
+                                                groups={subLangGroups ? [{ label: '', options: [{ value: 'all', label: t('subLangAll') }] }, ...subLangGroups] : undefined}
+                                                options={subLangGroups ? undefined : [{ value: 'all', label: t('subLangAll') }, ...subLangFlatOptions]}
                                                 onChange={v => setDraft(prev => ({ ...prev, _ytdlSubLangs: v }))}
                                             />
                                         </VspRow>
+                                        {!!draft._ytdlDownloadSubs && (
+                                            <div className="vsp-notice vsp-notice--warn">
+                                                <i className="bi bi-exclamation-triangle"></i>
+                                                <span>
+                                                    {t('vspSubsAllWarning')}{' '}
+                                                    {onOpenSettings && (
+                                                        <button
+                                                            type="button"
+                                                            className="vsp-notice-link"
+                                                            onClick={() => { onClose(); onOpenSettings('other') }}
+                                                        >
+                                                            {t('vspSubsAllWarningLink')}
+                                                        </button>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
                                         <VspRow label={t('vspSubFormat')} hint={t('vspHintSubFormat')}>
                                             <PanelSelect
                                                 value={draft._ytdlSubFormat || 'srt'}
@@ -1062,6 +1121,11 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                             { value: 'av_mkv',  label: 'MKV' },
                                             { value: 'av_webm', label: 'WebM' },
                                             { value: 'av_mov',  label: 'MOV' },
+                                            { value: 'av_avi',  label: 'AVI' },
+                                            { value: 'av_ts',   label: 'MPEG-TS' },
+                                            { value: 'av_flv',  label: 'FLV' },
+                                            { value: 'av_ogg',  label: 'OGG' },
+                                            { value: 'av_3gp',  label: '3GP' },
                                         ]}
                                         onChange={handleFormatChange}
                                     />
@@ -1073,9 +1137,10 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                         value={draft.encoder}
                                         groups={encoderGroups.map(g => ({
                                             ...g,
-                                            options: g.options.map(e => ({
+                                        options: g.options.map(e => ({
                                                 ...e,
-                                                disabled: draft.format === 'av_webm' && !WEBM_COMPATIBLE_ENCODERS.has(e.value),
+                                                disabled: ENCODER_DISABLED_FORMATS[e.value]?.has(draft.format) ||
+                                                    (draft.format === 'av_webm' && !WEBM_COMPATIBLE_ENCODERS.has(e.value)),
                                             }))
                                         }))}
                                         onChange={v => {
@@ -1085,6 +1150,12 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                         }}
                                     />
                                 </VspRow>
+                                {EIGHT_BIT_ONLY_ENCODERS.has(draft.encoder) && (
+                                    <div className="vsp-notice vsp-notice--warn">
+                                        <i className="bi bi-exclamation-triangle"></i>
+                                        {t('warn8bitEncoder')}
+                                    </div>
+                                )}
                                 {speedPresets.length > 0 && (
                                     <VspRow label={t('rowSpeedPreset')} hint={t('hintSpeedPreset')}>
                                         <PanelSelect
@@ -1096,11 +1167,21 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                 )}
 
                                 <VspSectionHeader icon="bi-sliders2" title={t('sectionQuality')} />
+                                {NO_CRF_ENCODERS.has(draft.encoder) ? (
+                                    <div className="vsp-notice">
+                                        <i className="bi bi-info-circle"></i>
+                                        {['ffv1', 'huffyuv'].includes(draft.encoder)
+                                            ? t('noCrfNoticeLossless')
+                                            : t('noCrfNoticeProfile')
+                                        }
+                                    </div>
+                                ) : (
+                                <>
                                 <VspRow label={t('rowQualityMode')} hint={t('hintQualityMode')}>
                                     <PanelSelect
                                         value={draft.quality}
                                         options={[
-                                            { value: 'lossless', label: `Lossless (RF ${rfTable.min})` },
+                                            { value: 'lossless', label: `${t('qualityMaxQual')} (RF ${rfTable.min})` },
                                             { value: 'high',     label: `${t('qualityHigh')} (RF ${rfTable.high})` },
                                             { value: 'medium',   label: `${t('qualityMedium')} (RF ${rfTable.medium})` },
                                             { value: 'low',      label: `${t('qualityLow')} (RF ${rfTable.low})` },
@@ -1130,6 +1211,20 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                         </div>
                                     </VspRow>
                                 )}
+                                </>
+                                )}
+
+                                <VspSectionHeader icon="bi-layers" title={t('rowAlphaChannel')} />
+                                <VspRow
+                                    label={t('rowAlphaChannel')}
+                                    hint={ALPHA_CAPABLE_ENCODERS.has(draft.encoder) ? t('hintAlphaChannel') : t('hintAlphaNoSupport')}
+                                >
+                                    <VspToggle
+                                        value={!!draft.alphaChannel}
+                                        onChange={v => update('alphaChannel', v)}
+                                        disabled={!ALPHA_CAPABLE_ENCODERS.has(draft.encoder)}
+                                    />
+                                </VspRow>
 
                                 <VspSectionHeader icon="bi-aspect-ratio" title={t('sectionResFps')} />
                                 <VspRow label={t('rowResolution')} hint={t('hintResolution')}>
@@ -1544,7 +1639,7 @@ function ListPage({
     onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings, onYtdlClipChange, onYtdlOptionsChange,
     onLocalClipChange,
     isDraggingOnList, onListDragEnter, onListDragLeave, onListDragOver, onListDrop,
-    gpuVendor, encodingStartTime
+    gpuVendor, encodingStartTime, onOpenSettings
 }) {
     const [editingId, setEditingId] = useState(null)
     const [editingValue, setEditingValue] = useState('')
@@ -1554,6 +1649,75 @@ function ListPage({
     const [isAddingUrl, setIsAddingUrl] = useState(false)
     const [addUrlError, setAddUrlError] = useState('')
     const { t } = useLanguage()
+    const urlInputRef = useRef(null)
+    const [urlCtxMenu, setUrlCtxMenu] = useState(null)
+
+    // Close context menu on outside click / scroll
+    useEffect(() => {
+        if (!urlCtxMenu) return
+        const close = () => setUrlCtxMenu(null)
+        window.addEventListener('mousedown', close)
+        window.addEventListener('scroll', close)
+        return () => {
+            window.removeEventListener('mousedown', close)
+            window.removeEventListener('scroll', close)
+        }
+    }, [urlCtxMenu])
+
+    const handleUrlContextMenu = useCallback((e) => {
+        e.preventDefault()
+        setUrlCtxMenu({ x: e.clientX, y: e.clientY })
+    }, [])
+
+    const handleUrlCtxCut = useCallback(() => {
+        const el = urlInputRef.current
+        if (!el) return
+        const { selectionStart: s, selectionEnd: e } = el
+        const text = el.value.substring(s, e)
+        if (text) {
+            navigator.clipboard.writeText(text)
+            const next = el.value.slice(0, s) + el.value.slice(e)
+            setAddUrl(next)
+            setAddUrlError('')
+            requestAnimationFrame(() => el.setSelectionRange(s, s))
+        }
+        setUrlCtxMenu(null)
+    }, [])
+
+    const handleUrlCtxCopy = useCallback(() => {
+        const el = urlInputRef.current
+        if (!el) return
+        const { selectionStart: s, selectionEnd: e } = el
+        const text = el.value.substring(s, e)
+        if (text) navigator.clipboard.writeText(text)
+        setUrlCtxMenu(null)
+    }, [])
+
+    const handleUrlCtxPaste = useCallback(async () => {
+        setUrlCtxMenu(null)
+        try {
+            const text = await navigator.clipboard.readText()
+            const el = urlInputRef.current
+            if (!el || !text) return
+            const { selectionStart: s, selectionEnd: e } = el
+            const next = el.value.slice(0, s) + text + el.value.slice(e)
+            setAddUrl(next)
+            setAddUrlError('')
+            requestAnimationFrame(() => el.setSelectionRange(s + text.length, s + text.length))
+        } catch { /* permission denied */ }
+    }, [])
+
+    const handleUrlCtxSelectAll = useCallback(() => {
+        if (urlInputRef.current) urlInputRef.current.select()
+        setUrlCtxMenu(null)
+    }, [])
+
+    const handleUrlPasteBtn = useCallback(async () => {
+        try {
+            const text = await navigator.clipboard.readText()
+            if (text) { setAddUrl(text); setAddUrlError('') }
+        } catch { /* permission denied */ }
+    }, [])
 
     useEffect(() => {
         if (!isEncoding) return
@@ -1612,6 +1776,7 @@ function ListPage({
     const editingVideo = editingVideoId !== null ? videos.find(v => v.id === editingVideoId) : null
 
     return (
+        <>
         <div className="video-list-container">
             <div className="video-list-header">
                 <div className="video-list-topbar">
@@ -1625,16 +1790,28 @@ function ListPage({
                             }
                         </span>
                         <input
+                            ref={urlInputRef}
                             className="list-url-input"
                             type="url"
                             placeholder={t('urlPlaceholder')}
                             value={addUrl}
                             onChange={e => { setAddUrl(e.target.value); setAddUrlError('') }}
                             onKeyDown={e => e.key === 'Enter' && handleAddUrl()}
+                            onContextMenu={handleUrlContextMenu}
                             disabled={isAddingUrl || isEncoding}
                             spellCheck={false}
                         />
                         {addUrlService && <span className="list-url-svc">{addUrlService.name}</span>}
+                        <button
+                            className="list-url-paste-btn"
+                            onClick={handleUrlPasteBtn}
+                            title={t('dlPasteTip')}
+                            tabIndex={-1}
+                            disabled={isAddingUrl || isEncoding}
+                            type="button"
+                        >
+                            <i className="bi bi-clipboard" />
+                        </button>
                         <button
                             className="list-url-btn"
                             onClick={handleAddUrl}
@@ -2038,9 +2215,25 @@ function ListPage({
                     onYtdlClipChange={onYtdlClipChange}
                     onYtdlOptionsChange={onYtdlOptionsChange}
                     onLocalClipChange={onLocalClipChange}
+                    onOpenSettings={onOpenSettings}
                 />
             )}
         </div>
+        {urlCtxMenu && createPortal(
+            <ul
+                className="dl-ctx-menu"
+                style={{ top: urlCtxMenu.y, left: urlCtxMenu.x }}
+                onMouseDown={e => e.stopPropagation()}
+            >
+                <li onClick={handleUrlCtxCut}><i className="bi bi-scissors" />{t('ctxCut')}</li>
+                <li onClick={handleUrlCtxCopy}><i className="bi bi-copy" />{t('ctxCopy')}</li>
+                <li onClick={handleUrlCtxPaste}><i className="bi bi-clipboard" />{t('ctxPaste')}</li>
+                <li className="dl-ctx-divider" />
+                <li onClick={handleUrlCtxSelectAll}><i className="bi bi-text-paragraph" />{t('ctxSelectAll')}</li>
+            </ul>,
+            document.body
+        )}
+        </>
     )
 }
 

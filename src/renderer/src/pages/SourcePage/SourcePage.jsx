@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import logoWhite from '../../assets/images/logo_white.svg'
 import logoDark from '../../assets/images/logo.svg'
 import { useLanguage } from '../../i18n'
@@ -78,10 +79,83 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
     const [dlError, setDlError] = useState('')
     const [dlHint, setDlHint] = useState('')
     const { t } = useLanguage()
+    const inputRef = useRef(null)
+    const [ctxMenu, setCtxMenu] = useState(null) // { x, y }
 
     const trimmed = url.trim()
     const isUrl = isValidUrl(trimmed)
     const service = useMemo(() => detectService(trimmed), [trimmed])
+
+    // Close context menu on outside click or scroll
+    useEffect(() => {
+        if (!ctxMenu) return
+        const close = () => setCtxMenu(null)
+        window.addEventListener('mousedown', close)
+        window.addEventListener('scroll', close)
+        return () => {
+            window.removeEventListener('mousedown', close)
+            window.removeEventListener('scroll', close)
+        }
+    }, [ctxMenu])
+
+    const handleContextMenu = useCallback((e) => {
+        e.preventDefault()
+        setCtxMenu({ x: e.clientX, y: e.clientY })
+    }, [])
+
+    const handleCtxCut = useCallback(() => {
+        const el = inputRef.current
+        if (!el) return
+        const { selectionStart: s, selectionEnd: e } = el
+        const text = el.value.substring(s, e)
+        if (text) {
+            navigator.clipboard.writeText(text)
+            const next = el.value.slice(0, s) + el.value.slice(e)
+            setUrl(next)
+            setDlError('')
+            requestAnimationFrame(() => { el.setSelectionRange(s, s) })
+        }
+        setCtxMenu(null)
+    }, [])
+
+    const handleCtxCopy = useCallback(() => {
+        const el = inputRef.current
+        if (!el) return
+        const { selectionStart: s, selectionEnd: e } = el
+        const text = el.value.substring(s, e)
+        if (text) navigator.clipboard.writeText(text)
+        setCtxMenu(null)
+    }, [])
+
+    const handleCtxPaste = useCallback(async () => {
+        setCtxMenu(null)
+        try {
+            const text = await navigator.clipboard.readText()
+            const el = inputRef.current
+            if (!el || !text) return
+            const { selectionStart: s, selectionEnd: e } = el
+            const next = el.value.slice(0, s) + text + el.value.slice(e)
+            setUrl(next)
+            setDlError('')
+            requestAnimationFrame(() => { el.setSelectionRange(s + text.length, s + text.length) })
+        } catch { /* permission denied */ }
+    }, [])
+
+    const handleCtxSelectAll = useCallback(() => {
+        const el = inputRef.current
+        if (el) { el.select() }
+        setCtxMenu(null)
+    }, [])
+
+    const handlePasteBtn = useCallback(async () => {
+        try {
+            const text = await navigator.clipboard.readText()
+            if (text) {
+                setUrl(text)
+                setDlError('')
+            }
+        } catch { /* permission denied */ }
+    }, [])
 
     const handleDownload = async () => {
         if (!trimmed || isDownloading) return
@@ -125,16 +199,28 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                     <div className={`dl-input-wrap${service ? ' dl-input-wrap--ok' : ''}`}>
                         <span className="dl-input-icon">{iconEl}</span>
                         <input
+                            ref={inputRef}
                             className="dl-input"
                             type="url"
                             placeholder={t('dlPlaceholder')}
                             value={url}
                             onChange={handleChange}
                             onKeyDown={handleKeyDown}
+                            onContextMenu={handleContextMenu}
                             disabled={isDownloading}
                             spellCheck={false}
                         />
                         {service && <span className="dl-service-label">{service.name}</span>}
+                        <button
+                            className="dl-paste-btn"
+                            onClick={handlePasteBtn}
+                            title={t('dlPasteTip')}
+                            tabIndex={-1}
+                            disabled={isDownloading}
+                            type="button"
+                        >
+                            <i className="bi bi-clipboard" />
+                        </button>
                         <button
                             className="dl-btn"
                             onClick={handleDownload}
@@ -150,6 +236,21 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                     {dlError && <span className="dl-hint dl-hint--error">{dlError}</span>}
                 </div>
             </div>
+
+            {ctxMenu && createPortal(
+                <ul
+                    className="dl-ctx-menu"
+                    style={{ top: ctxMenu.y, left: ctxMenu.x }}
+                    onMouseDown={e => e.stopPropagation()}
+                >
+                    <li onClick={handleCtxCut}><i className="bi bi-scissors" />{t('ctxCut')}</li>
+                    <li onClick={handleCtxCopy}><i className="bi bi-copy" />{t('ctxCopy')}</li>
+                    <li onClick={handleCtxPaste}><i className="bi bi-clipboard" />{t('ctxPaste')}</li>
+                    <li className="dl-ctx-divider" />
+                    <li onClick={handleCtxSelectAll}><i className="bi bi-text-paragraph" />{t('ctxSelectAll')}</li>
+                </ul>,
+                document.body
+            )}
 
             <div
                 className={`drop-area ${isDragging ? 'active' : ''} ${theme}`}

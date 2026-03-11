@@ -35,7 +35,9 @@ const api = {
     openTempFolder: () => ipcRenderer.invoke('open-temp-folder'),
     clearTempFolder: () => ipcRenderer.invoke('clear-temp-folder'),
     clearAllSettings: () => ipcRenderer.invoke('clear-all-settings'),
-    relaunchApp: () => ipcRenderer.invoke('relaunch-app')
+    relaunchApp: () => ipcRenderer.invoke('relaunch-app'),
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    openExternal: (url) => ipcRenderer.invoke('open-external', url)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

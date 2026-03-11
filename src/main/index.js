@@ -80,14 +80,6 @@ protocol.registerSchemesAsPrivileged([
 
 let rendererPort = 0
 
-// ─── CLI path resolution ────────────────────────────────────────────────────────────────
-function getCLIPath() {
-    if (is.dev) {
-        return join(app.getAppPath(), 'resources', 'HandBrakeCLI.exe')
-    }
-    return join(dirname(process.execPath), 'resources', 'HandBrakeCLI.exe')
-}
-
 // ─── Persistent app settings (stored in userData) ───────────────────────────────────────
 let settingsFilePath = ''
 
@@ -118,14 +110,23 @@ function ytdlFriendlyErr(raw) {
             'Решения:\n' +
             '• Используйте Firefox в качестве источника cookies (не имеет этой проблемы)\n' +
             '• Экспортируйте cookies в файл через расширение браузера "Get cookies.txt LOCALLY"\n' +
-            '  и укажите этот файл в Настройках → Cookies браузера → Файл cookies.txt\n\n' +
-            'Исходная ошибка:\n' + raw
+            '  и укажите этот файл в Настройках → Cookies браузера → Файл cookies.txt'
         )
     }
-    return raw
+    if (raw.includes('The page needs to be reloaded')) {
+        return (
+            'YouTube требует обновления сессии.\n\n' +
+            'Если у вас настроены cookies — попробуйте:\n' +
+            '• Обновить файл cookies.txt (экспортировать заново из браузера)\n' +
+            '• Удалить cookies в Настройках и попробовать без них\n' +
+            '• Сменить браузер-источник cookies на Firefox'
+        )
+    }
+    return null
 }
 
 const activeJobs = new Map() // id -> child process
+let mainWindow = null
 let ytdlFetchActiveChildren = new Set()
 let ytdlFetchCancelled = false
 
@@ -191,7 +192,7 @@ function getDownloadDir(customOutputDir) {
 }
 
 function createWindow() {
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 1280,
         height: 850,
         show: false,
@@ -341,7 +342,7 @@ app.whenReady().then(async () => {
         BrowserWindow.getFocusedWindow()?.webContents.openDevTools()
     })
 
-    // IPC handlers for HandBrake CLI
+    // IPC handlers for file/folder dialogs
     ipcMain.handle('select-files', async () => {
         const { canceled, filePaths } = await dialog.showOpenDialog({
             properties: ['openFile', 'multiSelections'],
@@ -389,26 +390,26 @@ app.whenReady().then(async () => {
     })
 
     ipcMain.handle('check-cli', async () => {
-        const cliPath = getCLIPath()
+        const ffmpegBin = getFfmpegPath()
         const fs = require('fs')
-        if (!fs.existsSync(cliPath)) {
-            return { found: false, version: null, path: cliPath }
+        if (!fs.existsSync(ffmpegBin)) {
+            return { found: false, version: null, path: ffmpegBin }
         }
         return new Promise((resolve) => {
-            const child = spawn(cliPath, ['--version'])
+            const child = spawn(ffmpegBin, ['-version'])
             let output = ''
             child.stdout.on('data', d => { output += d.toString() })
             child.stderr.on('data', d => { output += d.toString() })
             child.on('close', () => {
-                const versionMatch = output.match(/HandBrake\s+([\d.]+)/i)
+                const versionMatch = output.match(/ffmpeg version ([\w.]+(?:[-~][\w.]+)*)/i)
                 resolve({
                     found: true,
                     version: versionMatch ? versionMatch[1] : output.trim().split('\n')[0],
-                    path: cliPath
+                    path: ffmpegBin
                 })
             })
             child.on('error', () => {
-                resolve({ found: false, version: null, path: cliPath })
+                resolve({ found: false, version: null, path: ffmpegBin })
             })
         })
     })
@@ -462,6 +463,37 @@ app.whenReady().then(async () => {
     ipcMain.handle('relaunch-app', () => {
         app.relaunch()
         app.exit(0)
+    })
+
+    ipcMain.handle('open-external', async (event, url) => {
+        if (typeof url === 'string' && (url.startsWith('https://github.com/Gor80hd/Gorex/') || url.startsWith('https://github.com/Gor80hd/Gorex'))) {
+            await shell.openExternal(url)
+        }
+    })
+
+    ipcMain.handle('check-for-updates', async () => {
+        try {
+            const res = await net.fetch('https://api.github.com/repos/Gor80hd/Gorex/releases/latest', {
+                headers: { 'User-Agent': 'Gorex-App/' + app.getVersion() }
+            })
+            if (!res.ok) return null
+            const data = await res.json()
+            const latest = (data.tag_name || '').replace(/^v/i, '')
+            const current = app.getVersion()
+            if (!latest) return null
+            const toNums = (v) => v.split('.').map(n => parseInt(n, 10) || 0)
+            const [la, lb, lc] = toNums(latest)
+            const [ca, cb, cc] = toNums(current)
+            const isNewer = la > ca || (la === ca && lb > cb) || (la === ca && lb === cb && lc > cc)
+            if (!isNewer) return null
+            // Only allow verified github.com release URLs
+            const url = typeof data.html_url === 'string' && data.html_url.startsWith('https://github.com/Gor80hd/Gorex/')
+                ? data.html_url
+                : 'https://github.com/Gor80hd/Gorex/releases/latest'
+            return { latestVersion: latest, downloadUrl: url }
+        } catch {
+            return null
+        }
     })
 
     // ─── Fallback: extract embedded Vimeo/YouTube URL from an arbitrary page ───────────
@@ -716,7 +748,7 @@ app.whenReady().then(async () => {
         if (!firstResult.err.includes('Unsupported URL')) {
             const raw = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
             console.error('[ytdl-get-formats] FAILED:', raw)
-            throw new Error(ytdlFriendlyErr(raw))
+            throw new Error(ytdlFriendlyErr(raw) || raw)
         }
 
         // 1st attempt: scrape the page HTML for embedded player iframes / og:video
@@ -734,7 +766,7 @@ app.whenReady().then(async () => {
         if (resolvedUrls.length === 0) {
             const raw = firstResult.err.trim() || `yt-dlp завершился с кодом ${firstResult.code}`
             console.error('[ytdl-get-formats] FAILED:', raw)
-            throw new Error(ytdlFriendlyErr(raw))
+            throw new Error(ytdlFriendlyErr(raw) || raw)
         }
 
         console.log(`[ytdl-get-formats] found ${resolvedUrls.length} candidate URL(s) — retrying with referer`)
@@ -749,7 +781,7 @@ app.whenReady().then(async () => {
         if (successful.length === 0) {
             const raw = retryResults[0].err.trim() || `yt-dlp завершился с кодом ${retryResults[0].code}`
             console.error('[ytdl-get-formats] all retries FAILED:', raw)
-            throw new Error(ytdlFriendlyErr(raw))
+            throw new Error(ytdlFriendlyErr(raw) || raw)
         }
 
         try {
@@ -774,7 +806,6 @@ app.whenReady().then(async () => {
     ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat }) => {
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
-        const cliPath = getCLIPath()
 
         if (!fs.existsSync(ytdlPath)) {
             event.sender.send('ytdl-exit', { id, code: 1, error: `yt-dlp не найден: ${ytdlPath}` })
@@ -808,10 +839,10 @@ app.whenReady().then(async () => {
             fmtArg = `${formatId}+bestaudio/${formatId}/bestvideo+bestaudio/best`
         }
 
-        // When converting after download, use an ASCII-only temp filename.
-        // HandBrakeCLI (MinGW build) cannot handle non-ASCII paths because its C
-        // runtime decodes argv via the system ANSI code page, garbling Unicode.
-        const downloadBase = convertAfterDownload ? `gorex_temp_${id}_${Date.now()}` : safeBase
+        // When converting after download, use an ASCII-only temp filename
+        // to keep the intermediate file name simple and predictable.
+        const convertAfterDownloadTemp = !!convertAfterDownload
+        const downloadBase = convertAfterDownloadTemp ? `gorex_temp_${id}_${Date.now()}` : safeBase
         const outputTemplate = join(downloadDir, downloadBase + '.%(ext)s')
 
         // Build time-clipping arguments if a partial range is requested
@@ -860,7 +891,7 @@ app.whenReady().then(async () => {
         console.log('[yt-dlp] args:', ytdlArgs.join(' '))
 
         const child = spawn(ytdlPath, ytdlArgs, { windowsHide: true })
-        activeJobs.set(id, { child, outputPath: null })
+        activeJobs.set(id, { child, outputPath: null, downloadDir, downloadBase, isTempDownload: convertAfterDownloadTemp })
 
         let downloadedPath = null
         let stderrAccum = ''
@@ -879,6 +910,7 @@ app.whenReady().then(async () => {
             if (progressMatch) {
                 const progress = parseFloat(progressMatch[1])
                 event.sender.send('ytdl-progress', { id, progress })
+                if (activeJobs.has(id)) mainWindow?.setProgressBar(progress / 100)
                 return
             }
             // Fragment-based: [download] Downloading fragment 3 of 47
@@ -896,6 +928,7 @@ app.whenReady().then(async () => {
                     const phaseProgress = (current / total) * (lastFragTotal > 0 ? 50 : 100)
                     const progress = Math.min(99, fragPhaseOffset + phaseProgress)
                     event.sender.send('ytdl-progress', { id, progress })
+                    if (activeJobs.has(id)) mainWindow?.setProgressBar(progress / 100)
                 }
                 return
             }
@@ -909,6 +942,7 @@ app.whenReady().then(async () => {
                         + parseFloat(timeMatch[3])
                     const progress = Math.min(99, (secs / clipDuration) * 100)
                     event.sender.send('ytdl-progress', { id, progress })
+                    if (activeJobs.has(id)) mainWindow?.setProgressBar(progress / 100)
                 }
             }
         }
@@ -920,16 +954,26 @@ app.whenReady().then(async () => {
 
             parseProgress(str, false)
 
-            // Capture destination path
+            // Capture destination path and stash in activeJobs for cleanup on stop
+            const trackPath = (p) => {
+                downloadedPath = p
+                const job = activeJobs.get(id)
+                if (job) {
+                    if (!job.trackedPaths) job.trackedPaths = new Set()
+                    job.trackedPaths.add(p)
+                    job.trackedPaths.add(p + '.part')
+                }
+            }
+
             const destMatch = str.match(/\[download\] Destination:\s+(.+)/)
-            if (destMatch) downloadedPath = destMatch[1].trim()
+            if (destMatch) trackPath(destMatch[1].trim())
 
             // yt-dlp ≥ 2023 uses [ffmpeg] prefix; older builds used [Merger]
             const mergeMatch = str.match(/\[(?:Merger|ffmpeg)\] Merging formats into "(.+)"/)
-            if (mergeMatch) downloadedPath = mergeMatch[1].trim()
+            if (mergeMatch) trackPath(mergeMatch[1].trim())
 
             const alreadyMatch = str.match(/\[download\] (.+) has already been downloaded/)
-            if (alreadyMatch) downloadedPath = alreadyMatch[1].trim()
+            if (alreadyMatch) trackPath(alreadyMatch[1].trim())
         })
 
         child.stderr.on('data', (data) => {
@@ -944,6 +988,7 @@ app.whenReady().then(async () => {
         child.on('error', (err) => {
             console.log('[yt-dlp error]', err.message)
             activeJobs.delete(id)
+            if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
             event.sender.send('ytdl-exit', { id, code: 1, error: err.message })
         })
 
@@ -952,6 +997,7 @@ app.whenReady().then(async () => {
             activeJobs.delete(id)
 
             if (code !== 0) {
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
                 event.sender.send('ytdl-exit', { id, code, outputPath: null })
                 return
             }
@@ -968,9 +1014,9 @@ app.whenReady().then(async () => {
                 } catch (_) {}
             }
 
-            // Before passing to HandBrake, verify the file actually has a video stream.
+            // Before passing to FFmpeg, verify the file actually has a video stream.
             // yt-dlp may have left an audio-only temp file (e.g. .f251.webm) if the
-            // merger message format wasn't recognised or the selected format is audio-only.
+            // merger message format wasn’t recognised or the selected format is audio-only.
 
             // ── Subtitle second pass ──────────────────────────────────────────────
             // Run a separate yt-dlp invocation with --skip-download to fetch only
@@ -1006,6 +1052,7 @@ app.whenReady().then(async () => {
                 console.log('[yt-dlp subs] args:', subArgs.join(' '))
 
                 const subChild = spawn(ytdlPath, subArgs, { windowsHide: true })
+                activeJobs.set(id + '_subs', { child: subChild, outputPath: null })
                 subChild.stdout.on('data', d => {
                     const str = d.toString()
                     console.log('[yt-dlp subs stdout]', str.trimEnd())
@@ -1018,24 +1065,31 @@ app.whenReady().then(async () => {
                 })
                 subChild.on('close', subCode => {
                     console.log('[yt-dlp subs exit] code:', subCode)
+                    activeJobs.delete(id + '_subs')
                     onDone()
                 })
             }
 
-            if (convertAfterDownload && downloadedPath && fs.existsSync(downloadedPath) && fs.existsSync(cliPath)) {
-                const ffmpeg = require('fluent-ffmpeg')
+            const localFfmpegPath = getFfmpegPath()
+            if (convertAfterDownload && downloadedPath && fs.existsSync(downloadedPath) && fs.existsSync(localFfmpegPath)) {
+                const ffmpegLib = require('fluent-ffmpeg')
                 let hasVideo = false
+                let inputDuration = null
                 try {
-                    hasVideo = await new Promise((res) => {
-                        ffmpeg.ffprobe(downloadedPath, (err, meta) => {
-                            if (err) return res(false)
-                            res(!!(meta && meta.streams && meta.streams.some(s => s.codec_type === 'video')))
+                    const probeResult = await new Promise((res) => {
+                        ffmpegLib.ffprobe(downloadedPath, (err, meta) => {
+                            if (err) return res(null)
+                            res(meta)
                         })
                     })
-                } catch (_) { hasVideo = false }
+                    if (probeResult) {
+                        hasVideo = !!(probeResult.streams && probeResult.streams.some(s => s.codec_type === 'video'))
+                        inputDuration = probeResult.format?.duration ?? null
+                    }
+                } catch (_) {}
 
                 if (!hasVideo) {
-                    // Audio-only file — skip HandBrake, move to output dir as-is
+                    // Audio-only file — skip FFmpeg, move to output dir as-is
                     const audioExt = require('path').extname(downloadedPath)
                     const audioBase = (outputName || safeBase).replace(/_converted(\s*\(\d+\))?$/i, '').trimEnd()
                     let audioOut = join(resolvedDir, audioBase + audioExt)
@@ -1068,38 +1122,83 @@ app.whenReady().then(async () => {
                     convertedPath = join(resolvedDir, `${convertedBase} (${c}).${ext}`)
                 }
 
-                const args = buildCliArgs(downloadedPath, convertedPath, s, videoResolution)
+                const os = require('os')
+                const PASS_CODECS_CVT = new Set(['libx264', 'libx265', 'libsvtav1', 'libvpx', 'libvpx-vp9', 'libaom-av1'])
+                const cvtEncoderCodec = ENCODER_CODEC_MAP[s.encoder || 'x265'] || 'libx265'
+                const doCvtTwoPass = !!(s.multiPass) && PASS_CODECS_CVT.has(cvtEncoderCodec)
+                const cvtPasslogfile = doCvtTwoPass ? join(os.tmpdir(), `gorex_cvt_pass_${id}`) : null
                 const stderrLines = []
-                const hbChild = spawn(cliPath, args)
-                activeJobs.set(id + '_cvt', { child: hbChild, outputPath: convertedPath })
 
-                hbChild.stdout.on('data', (d) => {
-                    const str = d.toString()
-                    let pv = null
-                    const em = str.match(/Encoding:.*?([\d.]+)\s*%/)
-                    if (em) {
-                        pv = parseFloat(em[1])
-                    } else {
-                        const all = [...str.matchAll(/([\d.]+)\s*%/g)]
-                        if (all.length > 0) pv = parseFloat(all[all.length - 1][1])
-                    }
-                    if (pv !== null && pv <= 100) event.sender.send('cli-progress', { id, progress: pv })
+                const spawnCvtPass = (passMode) => new Promise((resolve) => {
+                    const args = buildFfmpegArgs(downloadedPath, convertedPath, s, videoResolution, null, null, passMode)
+                    event.sender.send('cli-output', `$ ${localFfmpegPath} ${args.join(' ')}\n`)
+                    const ffChild = spawn(localFfmpegPath, args, { windowsHide: true })
+                    activeJobs.set(id + '_cvt', { child: ffChild, outputPath: convertedPath })
+                    ffChild.stdout.on('data', (d) => { event.sender.send('cli-output', d.toString()) })
+                    ffChild.stderr.on('data', (d) => {
+                        const str = d.toString()
+                        stderrLines.push(str)
+                        event.sender.send('cli-output', str)
+                        if (inputDuration) {
+                            const m = str.match(/time=(\d+):(\d+):([\d.]+)/)
+                            if (m) {
+                                const secs = parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3])
+                                let progress = Math.min(99, (secs / inputDuration) * 100)
+                                if (doCvtTwoPass) {
+                                    progress = passMode?.pass === 1 ? progress * 0.5 : 50 + progress * 0.5
+                                }
+                                event.sender.send('cli-progress', { id, progress })
+                                if (activeJobs.has(id + '_cvt')) mainWindow?.setProgressBar(Math.min(0.99, progress / 100))
+                            }
+                        }
+                    })
+                    ffChild.on('error', (err) => {
+                        activeJobs.delete(id + '_cvt')
+                        stderrLines.push(err.message)
+                        resolve(1)
+                    })
+                    ffChild.on('close', (code) => {
+                        activeJobs.delete(id + '_cvt')
+                        resolve(code)
+                    })
                 })
 
-                hbChild.stderr.on('data', (d) => { stderrLines.push(d.toString()) })
-
-                hbChild.on('close', (hbCode) => {
-                    activeJobs.delete(id + '_cvt')
-                    // Delete the temp downloaded file from Downloads_Temp after conversion
-                    if (downloadedPath && fs.existsSync(downloadedPath)) {
-                        try { fs.unlinkSync(downloadedPath) } catch (_) {}
+                const cleanupCvtPasslog = () => {
+                    if (cvtPasslogfile) {
+                        ;[cvtPasslogfile + '-0.log', cvtPasslogfile + '.log'].forEach(f => { try { fs.unlinkSync(f) } catch {} })
                     }
-                    runSubtitlePass(convertedPath, () => {
-                        event.sender.send('cli-exit', { id, code: hbCode, outputPath: convertedPath, stderr: stderrLines.join('') })
-                    })
+                }
+
+                let ffCode
+                if (doCvtTwoPass) {
+                    const code1 = await spawnCvtPass({ pass: 1, passlogfile: cvtPasslogfile })
+                    if (code1 !== 0) {
+                        if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                        cleanupCvtPasslog()
+                        if (downloadedPath && fs.existsSync(downloadedPath)) {
+                            try { fs.unlinkSync(downloadedPath) } catch (_) {}
+                        }
+                        return
+                    }
+                    ffCode = await spawnCvtPass({ pass: 2, passlogfile: cvtPasslogfile })
+                    cleanupCvtPasslog()
+                } else {
+                    ffCode = await spawnCvtPass(null)
+                }
+
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                // Delete the temp downloaded file from Downloads_Temp after conversion
+                if (downloadedPath && fs.existsSync(downloadedPath)) {
+                    try { fs.unlinkSync(downloadedPath) } catch (_) {}
+                }
+                // If killed/errored, skip subtitle pass — partial output already deleted by stop handler
+                if (ffCode !== 0) return
+                runSubtitlePass(convertedPath, () => {
+                    event.sender.send('cli-exit', { id, code: ffCode, outputPath: convertedPath, stderr: stderrLines.join('') })
                 })
             } else {
                 runSubtitlePass(downloadedPath, () => {
+                    if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
                     event.sender.send('ytdl-exit', { id, code: 0, outputPath: downloadedPath })
                 })
             }
@@ -1218,8 +1317,11 @@ app.whenReady().then(async () => {
         return results
     })
 
-    // ── CLI argument builder ──────────────────────────────────────────────────────
-    const FORMAT_EXT = { av_mp4: 'mp4', av_mkv: 'mkv', av_webm: 'webm', av_mov: 'mov' }
+    // ── FFmpeg argument builder ───────────────────────────────────────────────────
+    const FORMAT_EXT = {
+        av_mp4: 'mp4', av_mkv: 'mkv', av_webm: 'webm', av_mov: 'mov',
+        av_avi: 'avi', av_flv: 'flv', av_ts: 'ts', av_ogg: 'ogg', av_3gp: '3gp',
+    }
 
     const CODEC_RF_TABLE = {
         x264:          { high: 18, medium: 23, low: 30, potato: 51, lossless: 0  },
@@ -1244,220 +1346,520 @@ app.whenReady().then(async () => {
         mf_h264:       { high: 18, medium: 24, low: 32, potato: 51, lossless: 0  },
         mf_h265:       { high: 20, medium: 28, low: 38, potato: 51, lossless: 0  },
         theora:        { high: 8,  medium: 6,  low: 3,  potato: 0,  lossless: 10 },
+        libaom_av1:    { high: 24, medium: 33, low: 45, potato: 63, lossless: 0  },
+        mpeg4:         { high: 3,  medium: 8,  low: 18, potato: 31, lossless: 1  },
+        mpeg2video:    { high: 2,  medium: 6,  low: 15, potato: 31, lossless: 1  },
+        mpeg1video:    { high: 2,  medium: 6,  low: 15, potato: 31, lossless: 1  },
+        prores_ks:     { high: 3,  medium: 2,  low: 1,  potato: 0,  lossless: 5  },
+        dnxhd:         { high: 3,  medium: 2,  low: 1,  potato: 0,  lossless: 3  },
+        ffv1:          { high: 0,  medium: 0,  low: 0,  potato: 0,  lossless: 0  },
+        huffyuv:       { high: 0,  medium: 0,  low: 0,  potato: 0,  lossless: 0  },
+        mjpeg:         { high: 2,  medium: 8,  low: 18, potato: 31, lossless: 2  },
+        wmv2:          { high: 2,  medium: 8,  low: 18, potato: 31, lossless: 2  },
+        wmv1:          { high: 2,  medium: 8,  low: 18, potato: 31, lossless: 2  },
+        h263p:         { high: 3,  medium: 8,  low: 18, potato: 31, lossless: 1  },
+        h263:          { high: 3,  medium: 8,  low: 18, potato: 31, lossless: 1  },
+        flv1:          { high: 3,  medium: 8,  low: 18, potato: 31, lossless: 1  },
     }
 
-    function getResolutionArgs(resolutionKey, videoResolution) {
-        const heightMap = { '4k': 2160, '1440p': 1440, '1080p': 1080, '720p': 720, '480p': 480 }
-        const targetShort = heightMap[resolutionKey]
-        if (!targetShort) return []
+    // Video encoder name → FFmpeg codec name
+    const ENCODER_CODEC_MAP = {
+        x264:          'libx264',
+        x264_10bit:    'libx264',
+        x265:          'libx265',
+        x265_10bit:    'libx265',
+        x265_12bit:    'libx265',
+        svt_av1:       'libsvtav1',
+        svt_av1_10bit: 'libsvtav1',
+        vp8:           'libvpx',
+        vp9:           'libvpx-vp9',
+        vp9_10bit:     'libvpx-vp9',
+        nvenc_h264:    'h264_nvenc',
+        nvenc_h265:    'hevc_nvenc',
+        nvenc_av1:     'av1_nvenc',
+        qsv_h264:      'h264_qsv',
+        qsv_h265:      'hevc_qsv',
+        qsv_av1:       'av1_qsv',
+        vce_h264:      'h264_amf',
+        vce_h265:      'hevc_amf',
+        vce_av1:       'av1_amf',
+        mf_h264:       'h264_mf',
+        mf_h265:       'hevc_mf',
+        theora:        'libtheora',
+        // ── Additional / Legacy / Professional ─────────────────────────────────────────────────
+        libaom_av1:    'libaom-av1',
+        mpeg4:         'mpeg4',
+        mpeg2video:    'mpeg2video',
+        mpeg1video:    'mpeg1video',
+        prores_ks:     'prores_ks',
+        dnxhd:         'dnxhd',
+        ffv1:          'ffv1',
+        huffyuv:       'huffyuv',
+        mjpeg:         'mjpeg',
+        wmv2:          'wmv2',
+        wmv1:          'wmv1',
+        h263p:         'h263p',
+        h263:          'h263',
+        flv1:          'flv',
+    }
 
-        if (videoResolution) {
-            const parts = videoResolution.split('x')
-            if (parts.length === 2) {
-                const srcW = parseInt(parts[0], 10)
-                const srcH = parseInt(parts[1], 10)
-                if (srcW > 0 && srcH > 0) {
-                    const isPortrait = srcH > srcW
-                    let outW, outH
-                    if (isPortrait) {
-                        // Portrait: 480p means width = 480
-                        outW = targetShort
-                        outH = Math.round(srcH * (targetShort / srcW))
-                        if (outH % 2 !== 0) outH++
-                    } else {
-                        // Landscape: 480p means height = 480
-                        outH = targetShort
-                        outW = Math.round(srcW * (targetShort / srcH))
-                        if (outW % 2 !== 0) outW++
-                    }
-                    return ['--width', String(outW), '--height', String(outH)]
-                }
+    // Audio codec name → FFmpeg codec name
+    const AUDIO_CODEC_MAP = {
+        av_aac:   'aac',
+        fdk_aac:  'libfdk_aac',
+        fdk_haac: 'libfdk_aac',
+        mp3:      'libmp3lame',
+        ac3:      'ac3',
+        eac3:     'eac3',
+        vorbis:   'libvorbis',
+        flac16:   'flac',
+        flac24:   'flac',
+        opus:     'libopus',
+        alac:     'alac',
+        pcm_s16le: 'pcm_s16le',
+        pcm_s24le: 'pcm_s24le',
+        pcm_f32le: 'pcm_f32le',
+        mp2:      'mp2',
+        wmav2:    'wmav2',
+    }
+
+    // Mixdown name → channel count
+    const MIXDOWN_CHANNELS = {
+        mono:      '1',
+        stereo:    '2',
+        dpl1:      '2',
+        dpl2:      '2',
+        '5point1': '6',
+        '6point1': '7',
+        '7point1': '8',
+    }
+
+    // Container format → FFmpeg -f value
+    const CONTAINER_FORMAT = {
+        av_mp4:  'mp4',
+        av_mkv:  'matroska',
+        av_webm: 'webm',
+        av_mov:  'mov',
+        av_avi:  'avi',
+        av_flv:  'flv',
+        av_ts:   'mpegts',
+        av_ogg:  'ogg',
+        av_3gp:  '3gp',
+    }
+
+    // Subtitle codec appropriate for the output container
+    function subCodecForContainer(fmt) {
+        if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_3gp') return 'mov_text'
+        if (fmt === 'av_webm' || fmt === 'av_ogg') return 'webvtt'
+        return 'srt'
+    }
+
+    // Build FFmpeg arguments for encoding.
+    // clipStart / clipEnd are in seconds (numbers or null).
+    function buildFfmpegArgs(filePath, outputPath, settings, videoResolution, clipStart = null, clipEnd = null, passMode = null) {
+        const args = []
+
+        // ── Hardware decoding (before -i) ──────────────────────────────────────────
+        if (settings.hwDecoding === 'nvdec') {
+            args.push('-hwaccel', 'nvdec')
+        } else if (settings.hwDecoding === 'qsv') {
+            args.push('-hwaccel', 'qsv')
+        }
+
+        // ── Input-side time seeking (fast, keyframe-accurate) ───────────────────────
+        if (clipStart != null && clipStart > 0) {
+            args.push('-ss', String(Math.max(0, clipStart)))
+        }
+
+        // ── External subtitle as second input (soft subs, no burn-in) ──────────────
+        const extSubFile = settings.subtitleExternalFile || ''
+        const subBurn = settings.subtitleBurn
+        const subMode = settings.subtitleMode || 'none'
+        const useExtSubAsInput = !!(extSubFile && !subBurn)
+
+        args.push('-i', filePath)
+
+        if (useExtSubAsInput) {
+            args.push('-i', extSubFile)
+        }
+
+        // ── Clip duration limit ─────────────────────────────────────────────────────
+        if (clipEnd != null) {
+            const dur = Math.max(1, clipEnd - (clipStart ?? 0))
+            args.push('-t', String(dur))
+        }
+
+        // ── Video codec ─────────────────────────────────────────────────────────────
+        const WEBM_VIDEO = new Set(['vp8', 'vp9', 'vp9_10bit', 'svt_av1', 'svt_av1_10bit', 'nvenc_av1', 'qsv_av1', 'vce_av1', 'libaom_av1'])
+        const OGG_VIDEO  = new Set(['theora', 'vp8', 'vp9', 'vp9_10bit'])
+        const FLV_VIDEO  = new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264'])
+        const GP3_VIDEO  = new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4'])
+        const WEBM_AUDIO = new Set(['vorbis', 'opus'])
+        let encoder = settings.encoder || 'x265'
+        if (settings.format === 'av_webm' && !WEBM_VIDEO.has(encoder)) encoder = 'vp9'
+        if (settings.format === 'av_ogg'  && !OGG_VIDEO.has(encoder))  encoder = 'theora'
+        if (settings.format === 'av_flv'  && !FLV_VIDEO.has(encoder))  encoder = 'flv1'
+        if (settings.format === 'av_3gp'  && !GP3_VIDEO.has(encoder))  encoder = 'h263p'
+
+        const ffCodec = ENCODER_CODEC_MAP[encoder] || 'libx265'
+        args.push('-c:v', ffCodec)
+
+        // Pixel format for 10/12-bit variants
+        if (encoder.endsWith('_10bit')) {
+            args.push('-pix_fmt', 'yuv420p10le')
+        } else if (encoder.endsWith('_12bit')) {
+            args.push('-pix_fmt', 'yuv420p12le')
+        } else {
+            // Encoders that only support 8-bit YUV: force yuv420p so that 10-bit HDR
+            // sources (e.g. VP9 Profile 2 / H.265 Main10) don't cause "10 bit encode
+            // not supported" failures at runtime.
+            const EIGHT_BIT_ONLY_CODECS = new Set([
+                'libx264', 'h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_mf',
+                'libvpx', 'libtheora',
+                'mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263', 'h263p', 'flv',
+            ])
+            if (EIGHT_BIT_ONLY_CODECS.has(ffCodec)) {
+                args.push('-pix_fmt', 'yuv420p')
             }
         }
 
-        // Fallback when source resolution is unknown
-        return ['--maxHeight', String(targetShort), '--keep-display-aspect']
-    }
-
-    function buildCliArgs(filePath, outputPath, settings, videoResolution) {
-        const args = ['-i', filePath, '-o', outputPath]
-
-        // Container format
-        if (settings.format) args.push('-f', settings.format)
-
-        // Video encoder
-        let encoder = settings.encoder || 'x265'
-
-        // WebM only supports VP8 / VP9 / AV1 video and Vorbis / Opus audio.
-        // Auto-correct incompatible encoder/audio if the user somehow saved bad settings.
-        const WEBM_VIDEO = new Set(['vp8', 'vp9', 'vp9_10bit', 'svt_av1', 'svt_av1_10bit', 'nvenc_av1', 'qsv_av1', 'vce_av1'])
-        const WEBM_AUDIO = new Set(['vorbis', 'opus'])
-        if (settings.format === 'av_webm' && !WEBM_VIDEO.has(encoder)) {
-            encoder = 'vp9'
+        // ── Encoder speed preset ────────────────────────────────────────────────────
+        if (settings.encoderSpeed) {
+            if (['libx264', 'libx265', 'libsvtav1'].includes(ffCodec)) {
+                args.push('-preset', settings.encoderSpeed)
+            } else if (['h264_nvenc', 'hevc_nvenc', 'av1_nvenc'].includes(ffCodec)) {
+                args.push('-preset', settings.encoderSpeed)
+            } else if (['h264_qsv', 'hevc_qsv', 'av1_qsv'].includes(ffCodec)) {
+                args.push('-preset', settings.encoderSpeed)
+            } else if (['h264_amf', 'hevc_amf', 'av1_amf'].includes(ffCodec)) {
+                args.push('-quality', settings.encoderSpeed)
+            } else if (['libvpx', 'libvpx-vp9'].includes(ffCodec)) {
+                args.push('-deadline', settings.encoderSpeed)
+            } else if (ffCodec === 'libaom-av1') {
+                args.push('-cpu-used', settings.encoderSpeed)
+            } else if (ffCodec === 'prores_ks') {
+                args.push('-profile:v', settings.encoderSpeed)
+            } else if (ffCodec === 'dnxhd') {
+                args.push('-profile:v', settings.encoderSpeed)
+            }
         }
-        args.push('-e', encoder)
 
-        // Encoder speed preset
-        if (settings.encoderSpeed) args.push('--encoder-preset', settings.encoderSpeed)
-
-        // Quality (RF / CRF)
+        // ── Quality (CRF / CQ / global_quality / q:v) ──────────────────────────────
         const rfTable = CODEC_RF_TABLE[encoder] || CODEC_RF_TABLE.x265
         const rfValue = settings.quality === 'lossless'
             ? rfTable.lossless
             : settings.quality === 'custom'
-                ? settings.customQuality
+                ? (settings.customQuality ?? rfTable.medium)
                 : (rfTable[settings.quality] ?? rfTable.medium)
-        args.push('-q', String(rfValue))
+
+        if (['libx264', 'libx265', 'libsvtav1'].includes(ffCodec)) {
+            args.push('-crf', String(rfValue))
+        } else if (['libvpx', 'libvpx-vp9'].includes(ffCodec)) {
+            args.push('-crf', String(rfValue), '-b:v', '0')
+        } else if (ffCodec === 'libaom-av1') {
+            args.push('-crf', String(rfValue), '-b:v', '0')
+        } else if (['h264_nvenc', 'hevc_nvenc', 'av1_nvenc'].includes(ffCodec)) {
+            if (settings.quality === 'lossless' && ffCodec !== 'av1_nvenc') {
+                // NVENC H264/H265 lossless: constant-QP mode (Maxwell GPU+, no -preset needed)
+                args.push('-rc', 'constqp', '-qp', '0')
+            } else {
+                // For NVENC, CQ=0 means "disabled/auto", not maximum quality like CRF=0.
+                // Must set -rc vbr to activate CQ mode and clamp to minimum CQ=1.
+                const cqVal = Math.max(1, rfValue)
+                args.push('-rc', 'vbr', '-cq', String(cqVal))
+            }
+        } else if (['h264_qsv', 'hevc_qsv', 'av1_qsv'].includes(ffCodec)) {
+            args.push('-global_quality', String(rfValue))
+        } else if (['h264_amf', 'hevc_amf', 'av1_amf'].includes(ffCodec)) {
+            args.push('-rc', 'qvbr', '-qvbr_quality_level', String(rfValue))
+        } else if (['h264_mf', 'hevc_mf'].includes(ffCodec)) {
+            args.push('-q', String(rfValue))
+        } else if (ffCodec === 'libtheora') {
+            args.push('-q:v', String(rfValue))
+        } else if (['mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263', 'h263p', 'flv'].includes(ffCodec)) {
+            args.push('-q:v', String(rfValue))
+        }
+        // ffv1 and huffyuv are lossless — no quality argument needed
+
+        // ── Hardware encoder two-pass / lookahead ───────────────────────────────────────────
+        // Software codec two-pass is handled separately via passMode (-pass 1/2 -passlogfile).
+        // Hardware encoders require vendor-specific flags instead of the log-file approach.
+        if (settings.multiPass && !passMode) {
+            if (['h264_nvenc', 'hevc_nvenc', 'av1_nvenc'].includes(ffCodec) && settings.quality !== 'lossless') {
+                args.push('-multipass', 'fullres')
+            } else if (['h264_qsv', 'hevc_qsv', 'av1_qsv'].includes(ffCodec)) {
+                args.push('-look_ahead', '1')
+            } else if (['h264_amf', 'hevc_amf', 'av1_amf'].includes(ffCodec)) {
+                args.push('-preanalysis', '1')
+            }
+        }
+
+        // ── Alpha channel: override pix_fmt when supported ──────────────────────────────────
+        if (settings.alphaChannel) {
+            const ALPHA_PIX_FMT = {
+                'libvpx-vp9': 'yuva420p',
+                'ffv1':       'yuva420p',
+                'libaom-av1': 'yuva420p',
+                'prores_ks':  'yuva444p10le',
+            }
+            const alphaFmt = ALPHA_PIX_FMT[ffCodec]
+            if (alphaFmt) {
+                const pfIdx = args.lastIndexOf('-pix_fmt')
+                if (pfIdx >= 0) {
+                    args[pfIdx + 1] = alphaFmt
+                } else {
+                    args.push('-pix_fmt', alphaFmt)
+                }
+            }
+        }
+
+        // ── HDR applicability ────────────────────────────────────────────────────────
+        // Dynamic HDR metadata (HDR10+, Dolby Vision) is only meaningful for codecs
+        // that can output at least 10-bit colour depth.
+        const HDR_CAPABLE_CODECS = new Set([
+            'libx265',   'hevc_nvenc', 'hevc_qsv',  'hevc_amf',
+            'libsvtav1', 'av1_nvenc',  'av1_qsv',   'av1_amf', 'libaom-av1',
+            'libvpx-vp9', 'ffv1', 'prores_ks', 'dnxhd',
+        ])
+        const hdrApplicable = !!(settings.hdrMetadata && settings.hdrMetadata !== 'off'
+            && HDR_CAPABLE_CODECS.has(ffCodec))
+
+        // ── Video filter chain ──────────────────────────────────────────────────────
+        const vfFilters = []
 
         // Resolution scaling
         if (settings.resolution && settings.resolution !== 'source') {
-            args.push(...getResolutionArgs(settings.resolution, videoResolution))
+            const heightMap = { '4k': 2160, '1440p': 1440, '1080p': 1080, '720p': 720, '480p': 480 }
+            const targetH = heightMap[settings.resolution]
+            if (targetH) {
+                if (videoResolution) {
+                    const [srcW, srcH] = videoResolution.split('x').map(Number)
+                    if (srcW > 0 && srcH > 0) {
+                        if (srcH > srcW) {
+                            let outH = Math.round(srcH * (targetH / srcW))
+                            if (outH % 2 !== 0) outH++
+                            vfFilters.push(`scale=${targetH}:${outH}`)
+                        } else {
+                            let outW = Math.round(srcW * (targetH / srcH))
+                            if (outW % 2 !== 0) outW++
+                            vfFilters.push(`scale=${outW}:${targetH}`)
+                        }
+                    } else {
+                        vfFilters.push(`scale=-2:${targetH}`)
+                    }
+                } else {
+                    vfFilters.push(`scale=-2:${targetH}`)
+                }
+            }
         }
 
-        // Frame rate + mode
+        // FPS
         if (settings.fps && settings.fps !== 'source') {
-            const fpsMode = settings.fpsMode || 'pfr'
-            args.push('-r', settings.fps, `--${fpsMode}`)
-        } else if (settings.fpsMode && settings.fpsMode !== 'vfr') {
-            args.push(`--${settings.fpsMode}`)
+            vfFilters.push(`fps=${settings.fps}`)
         }
 
-        // Hardware decoding
-        if (settings.hwDecoding && settings.hwDecoding !== 'none') {
-            args.push('--enable-hw-decoding', settings.hwDecoding)
-        }
-
-        // Multi-pass
-        if (settings.multiPass) {
-            args.push('--multi-pass')
-        }
-
-        // Audio
-        if (settings.noAudio) {
-            args.push('-a', 'none')
-        } else {
-            let audioCodec = settings.audioCodec || 'av_aac'
-            if (settings.format === 'av_webm' && !WEBM_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
-                audioCodec = 'opus'
-            }
-            args.push('-a', '1', '-E', audioCodec)
-            if (!audioCodec.startsWith('copy')) {
-                args.push('-B', String(settings.audioBitrate || '160'))
-                args.push('-6', settings.audioMixdown || 'stereo')
-            }
-            if (settings.audioSampleRate && settings.audioSampleRate !== 'auto') {
-                args.push('-R', settings.audioSampleRate)
-            }
-        }
-
-        // Chapter markers (default on)
-        if (settings.chapterMarkers !== false) {
-            args.push('-m')
-        } else {
-            args.push('--no-markers')
-        }
-
-        // Optimize MP4 for HTTP streaming
-        if (settings.optimizeMP4 && settings.format === 'av_mp4') {
-            args.push('-O')
-        }
-
-        // ─ Filters ───────────────────────────────────────────────────────
         // Deinterlace
         if (settings.deinterlace && settings.deinterlace !== 'off') {
+            const bob = settings.deinterlace.includes('bob') ? 1 : 0
             if (settings.deinterlace.startsWith('bwdif')) {
-                args.push(`--bwdif=${settings.deinterlace.replace('bwdif_', '')}`)
+                vfFilters.push(`bwdif=mode=${bob}:parity=-1:deint=0`)
             } else {
-                args.push(`--yadif=${settings.deinterlace.replace('yadif_', '')}`)
+                vfFilters.push(`yadif=mode=${bob}:parity=-1:deint=0`)
             }
         }
 
         // Denoise
         if (settings.denoise && settings.denoise !== 'off') {
-            const parts = settings.denoise.split('_')
-            const denoiseType = parts[0]
-            const denoisePreset = parts.slice(1).join('_') || 'medium'
-            args.push(`--${denoiseType}=${denoisePreset}`)
+            const DENOISE_MAP = {
+                'nlmeans_ultralight': 'hqdn3d=1:0.7:1:1.5',
+                'nlmeans_light':      'hqdn3d=2:1.5:2:2.5',
+                'nlmeans_medium':     'hqdn3d=3:2:3:3',
+                'nlmeans_strong':     'hqdn3d=7:5:7:5',
+                'hqdn3d_light':       'hqdn3d=2:1:2:3',
+                'hqdn3d_medium':      'hqdn3d=3:2:2:3',
+                'hqdn3d_strong':      'hqdn3d=7:7:7:5',
+            }
+            const f = DENOISE_MAP[settings.denoise]
+            if (f) vfFilters.push(f)
         }
 
         // Deblock
         if (settings.deblock && settings.deblock !== 'off') {
-            args.push(`--deblock=${settings.deblock}`)
+            const DEBLOCK_MAP = {
+                ultralight: 'deblock=filter=weak:block=4',
+                light:      'deblock=filter=weak:block=4',
+                medium:     'deblock=filter=strong:block=4',
+                strong:     'deblock=filter=strong:block=8',
+                stronger:   'deblock=filter=strong:block=8',
+            }
+            const f = DEBLOCK_MAP[settings.deblock] || 'deblock=filter=weak:block=4'
+            vfFilters.push(f)
         }
 
         // Sharpen
         if (settings.sharpen && settings.sharpen !== 'off') {
-            const parts = settings.sharpen.split('_')
-            const sharpenType = parts[0]
-            const sharpenPreset = parts.slice(1).join('_') || 'medium'
-            args.push(`--${sharpenType}=${sharpenPreset}`)
+            const SHARPEN_MAP = {
+                'unsharp_ultralight':  'unsharp=5:5:0.5:5:5:0',
+                'unsharp_light':       'unsharp=5:5:0.75:5:5:0',
+                'unsharp_medium':      'unsharp=5:5:1.0:5:5:0',
+                'unsharp_strong':      'unsharp=5:5:1.5:5:5:0',
+                'lapsharp_ultralight': 'unsharp=5:5:0.5:5:5:0',
+                'lapsharp_light':      'unsharp=5:5:0.75:5:5:0',
+                'lapsharp_medium':     'unsharp=5:5:1.0:5:5:0',
+                'lapsharp_strong':     'unsharp=5:5:1.5:5:5:0',
+            }
+            const f = SHARPEN_MAP[settings.sharpen]
+            if (f) vfFilters.push(f)
         }
 
         // Grayscale
-        if (settings.grayscale) args.push('--grayscale')
+        if (settings.grayscale) vfFilters.push('hue=s=0')
 
-        // Rotate
+        // Rotate / flip
         if (settings.rotate && settings.rotate !== '0') {
-            const rotateMap = {
-                '90': 'angle=90:hflip=0',
-                '180': 'angle=180:hflip=0',
-                '270': 'angle=270:hflip=0',
-                'hflip': 'angle=0:hflip=1',
+            const ROT_MAP = {
+                '90':    'transpose=1',
+                '180':   'vflip,hflip',
+                '270':   'transpose=2',
+                'hflip': 'hflip',
             }
-            const rotateArg = rotateMap[settings.rotate]
-            if (rotateArg) args.push(`--rotate=${rotateArg}`)
+            const r = ROT_MAP[settings.rotate]
+            if (r) vfFilters.push(r)
         }
 
-        // ─ HDR & Meta ───────────────────────────────────────────────────
-        if (settings.hdrMetadata && settings.hdrMetadata !== 'off') {
-            args.push('--hdr-dynamic-metadata', settings.hdrMetadata)
-        }
-        if (settings.keepMetadata) {
-            args.push('--keep-metadata')
-        }
-        if (settings.inlineParamSets) {
-            args.push('--inline-parameter-sets')
+        // Subtitle burn-in via filter
+        if (extSubFile && subBurn) {
+            const escaped = extSubFile.replace(/\\/g, '/').replace(/:/g, '\\:')
+            vfFilters.push(`subtitles='${escaped}'`)
         }
 
-        // ─ Subtitles ─────────────────────────────────────────────────
-        const subMode = settings.subtitleMode || 'none'
-        const extFile = settings.subtitleExternalFile || ''
+        // HDR metadata: tag colour-space info in the filter graph so scalers/
+        // converters downstream preserve BT.2020 primaries and PQ transfer.
+        if (hdrApplicable) {
+            vfFilters.push('setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc:range=tv')
+        }
 
-        // External subtitle file (SRT/ASS/etc.) — takes priority, added as track 1
-        if (extFile) {
-            args.push('--srt-file', extFile)
-            if (settings.subtitleBurn) {
-                args.push('--srt-burn', '1')
-            } else if (settings.subtitleDefault) {
-                args.push('--srt-default', '1')
+        if (vfFilters.length > 0) {
+            args.push('-vf', vfFilters.join(','))
+        }
+
+        // HDR metadata: stream-level colour tags (effective even without a filter chain)
+        if (hdrApplicable) {
+            args.push('-color_primaries', 'bt2020')
+            args.push('-color_trc',       'smpte2084')
+            args.push('-colorspace',      'bt2020nc')
+            args.push('-color_range',     'tv')
+        }
+
+        // CFR mode
+        if (settings.fps && settings.fps !== 'source' && (settings.fpsMode || 'vfr') === 'cfr') {
+            args.push('-vsync', 'cfr')
+        }
+
+        // ── Audio ────────────────────────────────────────────────────────────────────
+        if (settings.noAudio || passMode?.pass === 1) {
+            args.push('-an')
+        } else {
+            let audioCodec = settings.audioCodec || 'av_aac'
+            if (settings.format === 'av_webm' && !WEBM_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                audioCodec = 'opus'
             }
-        } else if (subMode === 'first') {
-            args.push('--subtitle', '1')
-            if (settings.subtitleBurn) {
-                args.push('--subtitle-burn', '1')
-            } else if (settings.subtitleDefault) {
-                args.push('--subtitle-default', '1')
+            if (settings.format === 'av_ogg' && !WEBM_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                audioCodec = 'vorbis'
             }
-        } else if (subMode === 'all') {
-            args.push('--all-subtitles')
-        } else if (subMode === 'scan_forced') {
-            args.push('--subtitle', 'scan')
-            if (settings.subtitleBurn) {
-                args.push('--subtitle-burn', '1')
-            } else if (settings.subtitleDefault) {
-                args.push('--subtitle-default', '1')
+            if (audioCodec.startsWith('copy')) {
+                args.push('-c:a', 'copy')
+            } else {
+                const ffAudio = AUDIO_CODEC_MAP[audioCodec] || 'aac'
+                args.push('-c:a', ffAudio)
+                if (audioCodec === 'fdk_haac') args.push('-profile:a', 'aac_he')
+                if (audioCodec === 'flac24')   args.push('-sample_fmt', 's32')
+                if (audioCodec === 'pcm_s24le') args.push('-sample_fmt', 's32')
+                const noBitrateCodecs = ['flac16', 'flac24', 'pcm_s16le', 'pcm_s24le', 'pcm_f32le', 'alac']
+                if (!noBitrateCodecs.includes(audioCodec)) {
+                    args.push('-b:a', `${settings.audioBitrate || 160}k`)
+                }
+                const channels = MIXDOWN_CHANNELS[settings.audioMixdown] || '2'
+                args.push('-ac', channels)
+                if (settings.audioSampleRate && settings.audioSampleRate !== 'auto') {
+                    args.push('-ar', settings.audioSampleRate)
+                }
             }
         }
-        if (subMode !== 'none' && !extFile && settings.subtitleLanguage && settings.subtitleLanguage !== 'any') {
-            args.push('--native-language', settings.subtitleLanguage)
+
+        // ── Subtitle stream mapping, metadata, chapters (pass 2 / single-pass only) ──
+        if (!passMode || passMode.pass !== 1) {
+            if (extSubFile && subBurn) {
+                // Burned into video — drop any existing subtitle streams
+                args.push('-sn')
+            } else if (useExtSubAsInput) {
+                args.push('-map', '0:v:0', '-map', '0:a?', '-map', '1:0')
+                args.push('-c:s', subCodecForContainer(settings.format))
+            } else if (subMode === 'first' || subMode === 'scan_forced') {
+                args.push('-map', '0:v:0', '-map', '0:a?', '-map', '0:s:0?')
+                args.push('-c:s', subCodecForContainer(settings.format))
+            } else if (subMode === 'all') {
+                args.push('-map', '0:v:0', '-map', '0:a?', '-map', '0:s?')
+                args.push('-c:s', subCodecForContainer(settings.format))
+            } else {
+                args.push('-sn')
+            }
+
+            // ── Metadata ──────────────────────────────────────────────────────────────
+            args.push('-map_metadata', settings.keepMetadata ? '0' : '-1')
+
+            // ── Chapter markers ───────────────────────────────────────────────────────
+            args.push('-map_chapters', settings.chapterMarkers !== false ? '0' : '-1')
+        }
+
+        // ── x265-params: HDR metadata + inline parameter sets (merged) ─────────────
+        // Both options may contribute x265-params; FFmpeg only honours the last
+        // occurrence, so we accumulate all parts and emit a single flag.
+        {
+            const x265Parts = []
+            if (hdrApplicable && ffCodec === 'libx265') {
+                // hdr-opt=1  : copy mastering-display / MaxCLL SEI from source
+                // repeat-headers : embed VPS/SPS/PPS at every keyframe (required for
+                //                  HDR10+ streams in HLS/DASH and for some players)
+                x265Parts.push('hdr-opt=1', 'repeat-headers=1')
+            }
+            if (settings.inlineParamSets) {
+                if (ffCodec === 'libx264') {
+                    args.push('-x264-params', 'repeat_headers=1')
+                } else if (ffCodec === 'libx265' && !x265Parts.includes('repeat-headers=1')) {
+                    x265Parts.push('repeat-headers=1')
+                }
+            }
+            if (x265Parts.length > 0) {
+                args.push('-x265-params', x265Parts.join(':'))
+            }
+        }
+
+        // ── Two-pass encoding ────────────────────────────────────────────────────────
+        const TWO_PASS_CODECS = new Set(['libx264', 'libx265', 'libsvtav1', 'libvpx', 'libvpx-vp9', 'libaom-av1'])
+        if (passMode && TWO_PASS_CODECS.has(ffCodec)) {
+            args.push('-pass', String(passMode.pass), '-passlogfile', passMode.passlogfile)
+        }
+
+        // ── MP4 fast-start (pass 2 / single-pass only) ──────────────────────────────
+        if ((!passMode || passMode.pass !== 1) && settings.optimizeMP4 && settings.format === 'av_mp4') {
+            args.push('-movflags', '+faststart')
+        }
+
+        // ── Container format + output ───────────────────────────────────────────────
+        if (passMode?.pass === 1 && TWO_PASS_CODECS.has(ffCodec)) {
+            args.push('-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null')
+        } else {
+            args.push('-f', CONTAINER_FORMAT[settings.format] || 'mp4')
+            args.push(outputPath)
         }
 
         return args
     }
 
-    // IPC handlers for HandBrake CLI
-    ipcMain.on('run-cli', (event, { filePath, settings, id, outputMode, customOutputDir, outputName, videoResolution, clipStart, clipEnd }) => {
-        const cliPath = getCLIPath()
+    // IPC handler — FFmpeg encoding
+    ipcMain.on('run-cli', async (event, { filePath, settings, id, outputMode, customOutputDir, outputName, videoResolution, clipStart, clipEnd }) => {
+        const ffmpegPath = getFfmpegPath()
         const fs = require('fs')
         const rawBase = outputName || filePath.split('\\').pop().split('.').slice(0, -1).join('.')
         // Strip an existing _converted suffix so we don't accumulate them
@@ -1485,96 +1887,145 @@ app.whenReady().then(async () => {
 
         const fallbackSettings = settings || { format: 'av_mkv', encoder: 'x265', encoderSpeed: 'slow', quality: 'high', fps: 'source', resolution: 'source' }
 
-        // HandBrakeCLI (MinGW) cannot open files with non-ASCII paths because its
-        // C runtime decodes argv via the system ANSI code page, garbling Unicode.
-        // Create a hard link with an ASCII-only name pointing to the source file,
-        // pass that to HandBrake, then delete the link when encoding finishes.
-        let hbInputPath = filePath
-        if (process.platform === 'win32' && /[^\x00-\x7F]/.test(filePath)) {
-            const { extname } = require('path')
-            const { tmpdir } = require('os')
-            const asciiLink = join(tmpdir(), `gorex_encode_${id}_${Date.now()}${extname(filePath)}`)
-            try {
-                fs.linkSync(filePath, asciiLink)
-                hbInputPath = asciiLink
-            } catch (_) {
-                // Hard link failed (e.g. cross-device); fall back to original path
-            }
-        }
+        // Probe input file duration for progress calculation
+        let inputDuration = null
+        try {
+            const fluentFfmpeg = require('fluent-ffmpeg')
+            inputDuration = await new Promise((res) => {
+                fluentFfmpeg.ffprobe(filePath, (err, meta) => {
+                    res(err ? null : (meta?.format?.duration ?? null))
+                })
+            })
+        } catch (_) {}
 
-        const args = buildCliArgs(hbInputPath, outputPath, fallbackSettings, videoResolution)
+        // Effective duration for progress bar
+        const effectiveDuration = (clipStart != null || clipEnd != null)
+            ? Math.max(1, (clipEnd ?? (inputDuration || 0)) - (clipStart ?? 0))
+            : (inputDuration || null)
 
-        // Time-based trim (HandBrakeCLI --start-at / --stop-at)
-        if (clipStart != null && clipStart > 0) {
-            args.push('--start-at', `duration:${Math.round(clipStart)}`)
-        }
-        if (clipEnd != null && clipEnd > 0) {
-            const clipDur = Math.max(1, clipEnd - (clipStart ?? 0))
-            args.push('--stop-at', `duration:${Math.round(clipDur)}`)
-        }
-
-        console.log(`Running CLI: ${cliPath} ${args.join(' ')}`)
+        const os = require('os')
+        const PASS_CODECS = new Set(['libx264', 'libx265', 'libsvtav1', 'libvpx', 'libvpx-vp9', 'libaom-av1'])
+        const encoderForPass = ENCODER_CODEC_MAP[fallbackSettings.encoder || 'x265'] || 'libx265'
+        const doTwoPass = !!(fallbackSettings.multiPass) && PASS_CODECS.has(encoderForPass)
+        const passlogfile = doTwoPass ? join(os.tmpdir(), `gorex_pass_${id}`) : null
 
         const stderrLines = []
-        const child = spawn(cliPath, args)
-        activeJobs.set(id, { child, outputPath })
 
-        child.stdout.on('data', (data) => {
-            const str = data.toString()
-            // Parse "Encoding: task X of Y[, Searching for start time], Z %" from the chunk.
-            // Take the LAST match in the chunk (most recent update).
-            // Apply the macOS multi-pass formula: (Z + (X-1)*100) / Y to get total progress
-            // so the bar never jumps backward when a new pass starts.
-            let progressValue = null
-            const encodingMatches = [...str.matchAll(/Encoding: task (\d+) of (\d+).*?([\d.]+)\s*%/g)]
-            if (encodingMatches.length > 0) {
-                const last = encodingMatches[encodingMatches.length - 1]
-                const pass = parseInt(last[1])
-                const passCount = parseInt(last[2])
-                const passPercent = parseFloat(last[3])
-                progressValue = (passPercent + (pass - 1) * 100) / passCount
-            }
-            if (progressValue !== null && progressValue <= 100) {
-                event.sender.send('cli-progress', { id, progress: progressValue })
-            }
-            event.sender.send('cli-output', str)
+        const spawnPass = (passMode) => new Promise((resolve) => {
+            const args = buildFfmpegArgs(filePath, outputPath, fallbackSettings, videoResolution, clipStart, clipEnd, passMode)
+            console.log(`[ffmpeg] spawn: ${ffmpegPath}`)
+            console.log(`[ffmpeg] args: ${args.join(' ')}`)
+            event.sender.send('cli-output', `$ ${ffmpegPath} ${args.join(' ')}\n`)
+
+            const child = spawn(ffmpegPath, args, { windowsHide: true })
+            activeJobs.set(id, { child, outputPath })
+
+            child.stdout.on('data', (data) => {
+                event.sender.send('cli-output', data.toString())
+            })
+
+            child.stderr.on('data', (data) => {
+                const str = data.toString()
+                stderrLines.push(str)
+                event.sender.send('cli-output', str)
+                if (effectiveDuration) {
+                    const m = str.match(/time=(\d+):(\d+):([\d.]+)/)
+                    if (m) {
+                        const secs = parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3])
+                        let progress = Math.min(99, (secs / effectiveDuration) * 100)
+                        if (doTwoPass) {
+                            progress = passMode?.pass === 1 ? progress * 0.5 : 50 + progress * 0.5
+                        }
+                        event.sender.send('cli-progress', { id, progress })
+                        if (activeJobs.has(id)) mainWindow?.setProgressBar(progress / 100)
+                    }
+                }
+            })
+
+            child.on('error', (err) => {
+                activeJobs.delete(id)
+                stderrLines.push(err.message)
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                resolve(1)
+            })
+
+            child.on('close', (code) => {
+                activeJobs.delete(id)
+                resolve(code)
+            })
         })
 
-        child.stderr.on('data', (data) => {
-            const str = data.toString()
-            stderrLines.push(str)
-            event.sender.send('cli-error', str)
-        })
-
-        child.on('close', (code) => {
-            // Remove the ASCII hard link if one was created
-            if (hbInputPath !== filePath && fs.existsSync(hbInputPath)) {
-                try { fs.unlinkSync(hbInputPath) } catch (_) {}
+        const cleanupPasslog = () => {
+            if (passlogfile) {
+                const _fs = require('fs')
+                ;[passlogfile + '-0.log', passlogfile + '.log'].forEach(f => { try { _fs.unlinkSync(f) } catch {} })
             }
-            activeJobs.delete(id)
+        }
+
+        if (doTwoPass) {
+            const code1 = await spawnPass({ pass: 1, passlogfile })
+            if (code1 !== 0) {
+                cleanupPasslog()
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                event.sender.send('cli-exit', { id, code: code1, outputPath, stderr: stderrLines.join('') })
+                return
+            }
+            const code2 = await spawnPass({ pass: 2, passlogfile })
+            cleanupPasslog()
+            if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+            event.sender.send('cli-exit', { id, code: code2, outputPath, stderr: stderrLines.join('') })
+        } else {
+            const code = await spawnPass(null)
+            if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
             event.sender.send('cli-exit', { id, code, outputPath, stderr: stderrLines.join('') })
-        })
+        }
     })
 
     ipcMain.on('stop-all-cli', () => {
         const fs = require('fs')
-        for (const [jobId, { child, outputPath }] of activeJobs) {
+
+        const cleanupJob = (outputPath, jDownloadDir, jDownloadBase, isTempDownload, trackedPaths) => {
+            // Delete exact paths yt-dlp reported (most reliable)
+            if (trackedPaths) {
+                for (const p of trackedPaths) {
+                    try { if (fs.existsSync(p)) fs.unlinkSync(p) } catch (_) {}
+                }
+            }
+            // Delete the output file (e.g. partial FFmpeg output or converted file)
+            if (outputPath) {
+                try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath) } catch (_) {}
+            }
+            // Fallback: scan dir for any remaining partial files with matching prefix
+            if (jDownloadDir && jDownloadBase) {
+                try {
+                    fs.readdirSync(jDownloadDir)
+                        .filter(f => {
+                            if (!f.startsWith(jDownloadBase)) return false
+                            if (isTempDownload) return true
+                            return /\.(part|ytdl|ytdlpart)$/.test(f) || /\.f\d+\.[a-z0-9]+$/.test(f)
+                        })
+                        .forEach(f => { try { fs.unlinkSync(join(jDownloadDir, f)) } catch (_) {} })
+                } catch (_) {}
+            }
+        }
+
+        for (const [jobId, { child, outputPath, downloadDir: jDownloadDir, downloadBase: jDownloadBase, isTempDownload, trackedPaths }] of activeJobs) {
             try {
-                // On Windows, child.kill() only kills yt-dlp but leaves ffmpeg (spawned by yt-dlp)
-                // running as an orphan. Use taskkill /T to kill the whole process tree.
                 if (process.platform === 'win32' && child.pid) {
-                    exec(`taskkill /F /T /PID ${child.pid}`, () => {})
+                    // Run cleanup AFTER taskkill so files are no longer locked
+                    exec(`taskkill /F /T /PID ${child.pid}`, () => {
+                        cleanupJob(outputPath, jDownloadDir, jDownloadBase, isTempDownload, trackedPaths)
+                    })
                 } else {
                     child.kill()
+                    cleanupJob(outputPath, jDownloadDir, jDownloadBase, isTempDownload, trackedPaths)
                 }
-            } catch (_) {}
-            if (outputPath) {
-                try {
-                    if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
-                } catch (_) {}
+            } catch (_) {
+                cleanupJob(outputPath, jDownloadDir, jDownloadBase, isTempDownload, trackedPaths)
             }
             activeJobs.delete(jobId)
         }
+        mainWindow?.setProgressBar(-1)
     })
 
     ipcMain.on('pause-all-cli', () => {

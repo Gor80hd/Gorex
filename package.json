@@ -1,7 +1,7 @@
 {
   "name": "gorex",
   "version": "1.2.0",
-  "description": "Gorex — HandBrake Web UI with Electron + Vite + React",
+  "description": "Gorex — FFmpeg / yt-dlp GUI with Electron + Vite + React",
   "main": "./out/main/index.js",
   "author": "Akhmatyarov",
   "scripts": {
@@ -50,10 +50,6 @@
     "win": {
       "target": "nsis",
       "extraFiles": [
-        {
-          "from": "resources/HandBrakeCLI.exe",
-          "to": "resources/HandBrakeCLI.exe"
-        },
         {
           "from": "resources/ytdl",
           "to": "resources/ytdl"
