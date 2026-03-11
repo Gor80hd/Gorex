@@ -89,4 +89,10 @@ export const AUTHORS = [
         role: 'Build system',
         contributions: ['Build system and related guides']
     },
+    {
+        name: 'Егор Вязников',
+        handle: '',
+        role: '',
+        contributions: []
+    },
 ]

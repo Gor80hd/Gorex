@@ -486,6 +486,7 @@ const TRANSLATIONS = {
         thanksName2: 'Святослав Драгунов',
         thanksName3: 'Павел Яшкин',
         thanksName4: 'Барвашов Егор',
+        thanksName5: 'Егор Вязников',
         donate: 'Поддержать',
 
         // GlobalSettings card/popup
@@ -1053,6 +1054,7 @@ const TRANSLATIONS = {
         thanksName2: 'Svyatoslav Dragunov',
         thanksName3: 'Pavel Yashkin',
         thanksName4: 'Egor Barvashov',
+        thanksName5: 'Egor Vyaznikov',
         donate: 'Donate',
 
         // GlobalSettings card/popup
