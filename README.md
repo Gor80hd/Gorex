@@ -32,7 +32,7 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 >
 > Everything out there either looks like it got stuck in 2005, costs money for every little thing, or just doesn't work right. For a long time I wanted to build something truly beautiful and convenient — not for developers, but for people in the field. The concept lived in my head for a very long time, but making it myself was impossible.
 >
-> And thanks to AI technology — [Claude](https://claude.ai) — I was finally able to bring this idea to life. Gorex is not just a wrapper around HandBrake. It's a concept: a tool that respects your time, looks like a product worth being proud of, and works exactly the way a video professional expects.
+> And thanks to AI technology — [Claude](https://claude.ai) — I was finally able to bring this idea to life. Gorex is not just another conversion tool. It's a concept: a tool that respects your time, looks like a product worth being proud of, and works exactly the way a video professional expects.
 
 ---
 
@@ -43,7 +43,7 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 | Shell          | Electron 28                             |
 | UI             | React 18 + Vite 5                       |
 | Styles         | SCSS + Bootstrap Icons                  |
-| Video engine   | HandBrake CLI (bundled)                 |
+| Video engine   | FFmpeg (bundled)                        |
 | Downloader     | yt-dlp (bundled)                        |
 | Media info     | ffprobe / fluent-ffmpeg (bundled)       |
 | Build          | electron-vite + electron-builder        |
@@ -55,7 +55,6 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 - **Node.js** ≥ 18
 - **npm** ≥ 9
 - **Windows 10/11** (primary platform; macOS support in progress)
-- `resources/HandBrakeCLI.exe` — the HandBrake CLI binary must be present in the `resources/` folder
 
 ---
 
@@ -88,8 +87,6 @@ npm run dist
 ```
 
 The built installer will appear in the `dist/` folder.
-
-> Before building, make sure `resources/HandBrakeCLI.exe` is present — it is not bundled in the repository and must be downloaded separately from the [HandBrake website](https://handbrake.fr/downloads2.php).
 
 ---
 
@@ -128,7 +125,6 @@ Gorex stands on the shoulders of outstanding open-source projects. The applicati
 
 | Library | License |
 |---------|---------|
-| [HandBrake](https://handbrake.fr/) | GPL v2 |
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Unlicense |
 | [FFmpeg](https://ffmpeg.org/) | LGPL v2.1 / GPL v2 |
 | [libx264](https://www.videolan.org/developers/x264.html) | GPL v2 |
