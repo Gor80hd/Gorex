@@ -115,7 +115,7 @@ function App() {
                 const updated = [...prev, ...newVideos]
                 return updated
             })
-            setView('list')
+            if (newVideos.length > 0) setView('list')
         } catch (err) {
             console.error('Failed to load video data:', err)
         } finally {
@@ -374,7 +374,7 @@ function App() {
         e.preventDefault()
         setIsDragging(false)
         if (e.dataTransfer.files.length > 0) {
-            const paths = Array.from(e.dataTransfer.files).map(f => f.path)
+            const paths = Array.from(e.dataTransfer.files).map(f => window.electron.webUtils.getPathForFile(f)).filter(Boolean)
             loadAndAddVideos(paths)
         }
     }
@@ -400,7 +400,7 @@ function App() {
         listDragCounter.current = 0
         setIsDraggingOnList(false)
         if (e.dataTransfer.files.length > 0) {
-            const paths = Array.from(e.dataTransfer.files).map(f => f.path)
+            const paths = Array.from(e.dataTransfer.files).map(f => window.electron.webUtils.getPathForFile(f)).filter(Boolean)
             loadAndAddVideos(paths)
         }
     }
