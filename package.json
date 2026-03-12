@@ -38,6 +38,10 @@
     "appId": "com.akhmatyarov.gorex",
     "productName": "Gorex",
     "icon": "resources/icon.png",
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**",
+      "node_modules/ffprobe-static/**"
+    ],
     "files": [
       "out/**",
       "resources/**",
