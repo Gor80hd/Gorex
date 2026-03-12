@@ -109,6 +109,14 @@ ipcMain.on('install', (event, { destDir, createDesktopShortcut = true, createSta
                 const rel = path.relative(src, srcFile)
                 const dest = path.join(destDir, rel)
                 fs.mkdirSync(path.dirname(dest), { recursive: true })
+                if (!fs.existsSync(srcFile)) {
+                    const name = path.basename(srcFile)
+                    const isExe = name.endsWith('.exe') || name.endsWith('.dll') || name === 'yt-dlp' || name === 'yt-dlp_macos'
+                    const hint = isExe
+                        ? `\n\nВозможная причина: антивирус удалил файл "${name}" из временной папки.\nДобавьте папку установки и папку TEMP в исключения антивируса и попробуйте снова.`
+                        : ''
+                    throw new Error(`File removed before it could be copied: ${srcFile}${hint}`)
+                }
                 fs.copyFileSync(srcFile, dest)
                 copied++
                 if (copied % 25 === 0 || copied === total) {
@@ -138,7 +146,14 @@ ipcMain.on('install', (event, { destDir, createDesktopShortcut = true, createSta
 
             send(100, 'Done!')
         } catch (err) {
-            event.sender.send('install-progress', { progress: -1, status: 'Error: ' + err.message })
+            let msg = err.message
+            // ENOENT during copyfile usually means antivirus quarantined the file
+            if (!msg.includes('антивирус') && err.code === 'ENOENT' && /copyfile/i.test(msg)) {
+                const m = msg.match(/copyfile '([^']+)'/)
+                const name = m ? path.basename(m[1]) : ''
+                msg = `Файл не найден: ${name || msg}\n\nВероятная причина: антивирус удалил файл из временной папки установщика.\nДобавьте исключение для папки %TEMP% и папки назначения, затем повторите установку.`
+            }
+            event.sender.send('install-progress', { progress: -1, status: 'Error: ' + msg })
         } finally {
             process.noAsar = _noAsar
         }
