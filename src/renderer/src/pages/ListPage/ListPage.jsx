@@ -1766,7 +1766,9 @@ function ListPage({
     const hasRegular = videos.some(v => !v.isYtdlItem)
     const hasDownloads = videos.some(v => v.isYtdlItem)
     const hasYtdlConvert = videos.some(v => v.isYtdlItem && v.convertAfterDownload)
-    const globalSettingsActive = hasRegular || hasYtdlConvert
+    const globalSettingsActive =
+        videos.some(v => !v.isYtdlItem && !v.customSettings) ||
+        videos.some(v => v.isYtdlItem && v.convertAfterDownload && !v.conversionSettings)
     const allReady = videos.every(v =>
         v.isYtdlItem ? ['format_select', 'error'].includes(v.status) : ['ready', 'done', 'error'].includes(v.status)
     )
@@ -2087,8 +2089,8 @@ function ListPage({
                     </span>
                 </div>
 
-                {/* Global conversion settings — always visible; dimmed when no video is set for conversion */}
-                <div className={`gs-section${!globalSettingsActive ? ' gs-section--dimmed' : ''}`}>
+                {/* Global conversion settings — always visible; dimmed when no video is set for conversion or when encoding */}
+                <div className={`gs-section${(!globalSettingsActive || isEncoding) ? ' gs-section--dimmed' : ''}`}>
                     <GlobalSettings
                         settings={settings}
                         onChange={onSettingsChange}
