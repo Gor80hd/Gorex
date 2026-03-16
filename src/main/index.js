@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, session, protocol, net } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, session, protocol, net, Tray, Menu, nativeImage } from 'electron'
 import { join, dirname, extname, normalize } from 'path'
 import { createServer } from 'http'
 import { readFileSync, existsSync, statSync, createReadStream } from 'fs'
@@ -127,8 +127,96 @@ function ytdlFriendlyErr(raw) {
 
 const activeJobs = new Map() // id -> child process
 let mainWindow = null
+let tray = null
+let isQuitting = false
 let ytdlFetchActiveChildren = new Set()
 let ytdlFetchCancelled = false
+
+// ─── Tray helpers ────────────────────────────────────────────────────────────
+function isBackgroundModeEnabled() {
+    try { return readAppSettings().backgroundMode !== false } catch { return true }
+}
+
+let _lastTrayPercent = -2 // sentinel so first update always fires
+let _trayColor = '#7c3aed' // purple = download, orange = conversion
+
+function createStaticTrayIcon() {
+    const iconPath = join(__dirname, '../../resources/icon.png')
+    try {
+        return nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+    } catch {
+        return nativeImage.createEmpty()
+    }
+}
+
+async function updateTrayProgress(percent) {
+    if (!tray) return
+    const rounded = percent !== null ? Math.round(percent) : null
+    if (rounded === _lastTrayPercent) return
+    _lastTrayPercent = rounded
+
+    tray.setToolTip(rounded !== null ? `Gorex — ${rounded}%` : 'Gorex')
+
+    if (rounded !== null && mainWindow && !mainWindow.isDestroyed()) {
+        try {
+            const text = String(rounded)
+            const fontSize = text.length >= 3 ? 12 : text.length === 2 ? 15 : 20
+            const color = _trayColor
+            const dataUrl = await mainWindow.webContents.executeJavaScript(`(()=>{
+                const c=document.createElement('canvas');c.width=c.height=32;
+                const x=c.getContext('2d');
+                x.fillStyle='${color}';
+                if(x.roundRect){x.beginPath();x.roundRect(0,0,32,32,6);x.fill();}
+                else{x.fillRect(0,0,32,32);}
+                x.fillStyle='#ffffff';
+                x.font='bold ${fontSize}px Arial,sans-serif';
+                x.textAlign='center';x.textBaseline='middle';
+                x.fillText('${text}',16,17);
+                return c.toDataURL('image/png');
+            })()`)
+            tray.setImage(nativeImage.createFromDataURL(dataUrl))
+            return
+        } catch (_) {}
+    }
+
+    tray.setImage(createStaticTrayIcon())
+}
+
+function createTray() {
+    tray = new Tray(createStaticTrayIcon())
+    tray.setToolTip('Gorex')
+
+    const buildMenu = () => Menu.buildFromTemplate([
+        {
+            label: 'Показать',
+            click: () => {
+                if (!mainWindow) return
+                mainWindow.show()
+                mainWindow.focus()
+            }
+        },
+        { type: 'separator' },
+        {
+            label: 'Выход',
+            click: () => {
+                isQuitting = true
+                app.quit()
+            }
+        }
+    ])
+
+    tray.setContextMenu(buildMenu())
+
+    tray.on('click', () => {
+        if (!mainWindow) return
+        if (mainWindow.isVisible()) {
+            mainWindow.focus()
+        } else {
+            mainWindow.show()
+            mainWindow.focus()
+        }
+    })
+}
 
 // ─── yt-dlp binary resolver ─────────────────────────────────────────────────────────────
 function getYtdlPath() {
@@ -215,6 +303,17 @@ function createWindow() {
     mainWindow.on('ready-to-show', () => {
         mainWindow.show()
     })
+
+    // Wrap setProgressBar so every progress update also mirrors to the tray tooltip
+    const _origSetProgressBar = mainWindow.setProgressBar.bind(mainWindow)
+    mainWindow.setProgressBar = (progress, opts) => {
+        _origSetProgressBar(progress, opts)
+        if (progress < 0) {
+            updateTrayProgress(null)
+        } else {
+            updateTrayProgress(Math.round(progress * 100))
+        }
+    }
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
         shell.openExternal(details.url)
@@ -336,7 +435,18 @@ app.whenReady().then(async () => {
         else win?.maximize()
     })
     ipcMain.on('window-close', () => {
-        BrowserWindow.getFocusedWindow()?.close()
+        if (!isQuitting && isBackgroundModeEnabled()) {
+            mainWindow?.hide()
+        } else {
+            BrowserWindow.getFocusedWindow()?.close()
+        }
+    })
+
+    ipcMain.handle('set-background-mode', (event, enabled) => {
+        const settings = readAppSettings()
+        settings.backgroundMode = enabled
+        writeAppSettings(settings)
+        return true
     })
     ipcMain.on('open-devtools', () => {
         BrowserWindow.getFocusedWindow()?.webContents.openDevTools()
@@ -804,6 +914,7 @@ app.whenReady().then(async () => {
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
     ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat }) => {
+        _trayColor = '#7c3aed'
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
 
@@ -1108,6 +1219,7 @@ app.whenReady().then(async () => {
                 }
 
                 // Notify renderer download is done, conversion starting
+                _trayColor = '#f97316'
                 event.sender.send('ytdl-exit', { id, code: 0, outputPath: downloadedPath, converting: true })
 
                 const s = conversionSettings || { format: 'av_mp4', encoder: 'x265', encoderSpeed: 'slow', quality: 'medium', fps: 'source', resolution: 'source' }
@@ -1859,6 +1971,7 @@ app.whenReady().then(async () => {
 
     // IPC handler — FFmpeg encoding
     ipcMain.on('run-cli', async (event, { filePath, settings, id, outputMode, customOutputDir, outputName, videoResolution, clipStart, clipEnd }) => {
+        _trayColor = '#f97316'
         const ffmpegPath = getFfmpegPath()
         const fs = require('fs')
         const rawBase = outputName || filePath.split('\\').pop().split('.').slice(0, -1).join('.')
@@ -2158,10 +2271,24 @@ app.whenReady().then(async () => {
     )
 
     createWindow()
+    createTray()
+
+    // Intercept native window close button (Alt+F4, taskbar close etc.)
+    mainWindow.on('close', (e) => {
+        if (!isQuitting && isBackgroundModeEnabled()) {
+            e.preventDefault()
+            mainWindow.hide()
+        }
+    })
 
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow()
+        else mainWindow?.show()
     })
+})
+
+app.on('before-quit', () => {
+    isQuitting = true
 })
 
 app.on('window-all-closed', () => {

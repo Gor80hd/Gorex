@@ -37,7 +37,8 @@ const api = {
     clearAllSettings: () => ipcRenderer.invoke('clear-all-settings'),
     relaunchApp: () => ipcRenderer.invoke('relaunch-app'),
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-    openExternal: (url) => ipcRenderer.invoke('open-external', url)
+    openExternal: (url) => ipcRenderer.invoke('open-external', url),
+    setBackgroundMode: (enabled) => ipcRenderer.invoke('set-background-mode', enabled)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

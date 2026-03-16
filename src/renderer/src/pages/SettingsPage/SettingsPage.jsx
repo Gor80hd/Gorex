@@ -196,6 +196,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     const [appConfig, setAppConfig] = useState({
         defaultOutputDir: '',
         ytdlCookiesFile: '',
+        backgroundMode: true,
     })
 
     // Default encoding settings
@@ -287,6 +288,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
 
     const handleSave = () => {
         onSave(enc, appConfig)
+        window.api.setBackgroundMode(appConfig.backgroundMode !== false)
         setSavedFlash(true)
         setTimeout(() => setSavedFlash(false), 2000)
     }
@@ -502,6 +504,13 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 </span>
                             )}
                         </div>
+                        <SectionHeader icon="bi-app-indicator" title={t('sectionBackgroundMode')} />
+                        <Row label={t('rowBackgroundMode')} hint={t('hintBackgroundMode')}>
+                            <Toggle
+                                value={appConfig.backgroundMode !== false}
+                                onChange={val => updateApp('backgroundMode', val)}
+                            />
+                        </Row>
                         <SectionHeader icon="bi-folder2" title={t('sectionOutputFolder')} />
                         <p className="sp-tab-description">{t('folderDesc')}</p>
                         <div className="sp-folder-widget">
