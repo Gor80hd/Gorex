@@ -108,6 +108,11 @@ const TRANSLATIONS = {
         collapseCodecs: 'Свернуть',
 
 
+        // Settings — Background mode
+        sectionBackgroundMode: 'Фоновый режим',
+        rowBackgroundMode: 'Сворачивать в трей при закрытии',
+        hintBackgroundMode: 'При нажатии на кнопку закрытия приложение скрывается в системный трей вместо выхода. Значок трея показывает прогресс загрузки.',
+
         // Settings — Output folder
         sectionOutputFolder: 'Папка вывода по умолчанию',
         folderDefault: 'папка «Видео» по умолчанию',
@@ -675,6 +680,11 @@ const TRANSLATIONS = {
         expandCodecs:   'Show all codecs',
         collapseCodecs: 'Collapse',
 
+
+        // Settings — Background mode
+        sectionBackgroundMode: 'Background mode',
+        rowBackgroundMode: 'Minimize to tray on close',
+        hintBackgroundMode: 'When the close button is pressed, the app hides to the system tray instead of quitting. The tray icon shows download progress.',
 
         // Settings — Output folder
         sectionOutputFolder: 'Default output folder',
