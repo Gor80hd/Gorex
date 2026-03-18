@@ -38,7 +38,13 @@ const api = {
     relaunchApp: () => ipcRenderer.invoke('relaunch-app'),
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
-    setBackgroundMode: (enabled) => ipcRenderer.invoke('set-background-mode', enabled)
+    setBackgroundMode: (enabled) => ipcRenderer.invoke('set-background-mode', enabled),
+    // Chrome extension integration
+    onExtensionAddToQueue: (callback) => {
+        ipcRenderer.removeAllListeners('extension-add-to-queue')
+        ipcRenderer.on('extension-add-to-queue', (_, data) => callback(data))
+    },
+    extensionUpdateQueue: (queue) => ipcRenderer.send('extension-update-queue', queue),
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

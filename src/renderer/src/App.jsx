@@ -155,7 +155,7 @@ function App() {
 
     const ytdlFetchCancelledRef = useRef(false)
 
-    const handleDownload = async (url, service) => {
+    const handleDownload = async (url, service, extensionOpts = null) => {
         ytdlFetchCancelledRef.current = false
         setIsLoading(true)
         setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: t('loadingStageYtdlp') })
@@ -200,19 +200,21 @@ function App() {
                     const sorted = [...seen.values()].sort((a, b) => (b.height || 0) - (a.height || 0))
                     bestFormatId = sorted[0]?.format_id || ''
                 }
+                // If extension pre-selected a specific format, use it
+                const selectedFmt = extensionOpts?.preselectedFormat || bestFormatId
 
                 return {
                     id: nextIdRef.current++,
                     isYtdlItem: true,
                     ytdlUrl: info.resolvedUrl || url,
                     ytdlFormats: info.formats,
-                    ytdlSelectedFormat: bestFormatId,
+                    ytdlSelectedFormat: selectedFmt,
                     ytdlChapters: info.chapters || [],
                     ytdlDuration: info.duration || 0,
                     ytdlAvailableSubs: info.availableSubs || [],
                     ytdlAvailableAutoSubs: info.availableAutoSubs || [],
-                    clipStart: null,
-                    clipEnd: null,
+                    clipStart: extensionOpts?.clipStart ?? null,
+                    clipEnd: extensionOpts?.clipEnd ?? null,
                     title: info.title,
                     outputName: safeOutputName,
                     thumbnail: info.thumbnailUrl,
@@ -222,6 +224,7 @@ function App() {
                     convertAfterDownload: false,
                     conversionSettings: null,
                     customSettings: null,
+                    ytdlNoAudio: extensionOpts?.audioOnly ?? false,
                 }
             })
             setVideos(prev => [...prev, ...newVideos])
@@ -457,6 +460,44 @@ function App() {
     useEffect(() => {
         window.api.checkForUpdates().then(info => { if (info) setUpdateInfo(info) }).catch(() => {})
     }, [])
+
+    // ─── Chrome extension integration ─────────────────────────────────────────────
+    useEffect(() => {
+        window.api.onExtensionAddToQueue(async (data) => {
+            const { url, formatId, audioOnly, clipStart, clipEnd } = data
+            if (!url) return
+            // Detect service
+            let service = null
+            try {
+                const host = new URL(url).hostname.replace(/^www\./, '')
+                const SERVICE_MAP = {
+                    'youtube.com': { name: 'YouTube', color: '#ff0000' },
+                    'youtu.be': { name: 'YouTube', color: '#ff0000' },
+                    'twitter.com': { name: 'Twitter / X', color: '#ffffff' },
+                    'x.com': { name: 'Twitter / X', color: '#ffffff' },
+                    'instagram.com': { name: 'Instagram', color: '#e1306c' },
+                    'tiktok.com': { name: 'TikTok', color: '#ff0050' },
+                    'vk.com': { name: 'VKontakte', color: '#4a76a8' },
+                    'vkvideo.ru': { name: 'VK Видео', color: '#4a76a8' },
+                    'rutube.ru': { name: 'Rutube', color: '#ff5c00' },
+                }
+                service = SERVICE_MAP[host] || null
+            } catch {}
+            await handleDownload(url, service, { preselectedFormat: formatId, audioOnly, clipStart, clipEnd })
+        })
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Sync queue state to main process so the extension API can report it
+    useEffect(() => {
+        const summary = videos.map(v => ({
+            id: v.id,
+            title: v.title || v.outputName || '',
+            status: v.status,
+            progress: v.progress || 0,
+            url: v.ytdlUrl || null,
+        }))
+        window.api.extensionUpdateQueue(summary)
+    }, [videos])
 
     useEffect(() => {
         window.api.getDefaultOutputDir().then(dir => setDefaultOutputDir(dir))
