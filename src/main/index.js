@@ -71,6 +71,215 @@ function startRendererServer() {
     })
 }
 
+// ─── Extension API server (Chrome extension ↔ Gorex) ──────────────────────────────────────
+// A minimal JSON REST API on http://127.0.0.1:19870 (loopback-only) so the companion
+// Chrome extension can check app status, fetch video formats, and add URLs to the queue.
+// Only chrome-extension:// origins are allowed via CORS – all other origins get a 403.
+
+let extensionQueueState = []   // shadow of renderer queue, updated via IPC
+const EXT_API_PORTS = [19870, 19871, 19872, 19873, 19874, 19875]
+
+function startExtensionApiServer() {
+    const readBody = (req) => new Promise((resolve) => {
+        const chunks = []
+        req.on('data', d => chunks.push(d))
+        req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+        req.on('error', () => resolve(''))
+    })
+
+    const requestHandler = async (req, res) => {
+        const origin = req.headers['origin'] || ''
+        const remoteAddr = req.socket?.remoteAddress || ''
+        const fromLocalhost = remoteAddr === '127.0.0.1' || remoteAddr === '::1' || remoteAddr === '::ffff:127.0.0.1'
+
+        // Allow: chrome-extension origins, localhost origins, or no-origin requests from 127.0.0.1
+        // (no-origin happens in some Chrome dev builds / service-worker first activations)
+        const allowedOrigin = origin.startsWith('chrome-extension://') ? origin :
+                              (origin.startsWith('http://127.0.0.1') || origin.startsWith('http://localhost')) ? origin :
+                              (fromLocalhost && !origin) ? 'http://127.0.0.1' : null
+        if (!allowedOrigin) {
+            res.writeHead(403); res.end(); return
+        }
+        res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+        res.setHeader('Vary', 'Origin')
+
+        if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return }
+
+        const fullUrl = new URL(req.url || '/', 'http://127.0.0.1')
+        const path = fullUrl.pathname
+
+        const json = (data, code = 200) => {
+            const body = JSON.stringify(data)
+            res.writeHead(code, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) })
+            res.end(body)
+        }
+
+        // ── GET /gorex-api/ping ─────────────────────────────────────────────────
+        if (path === '/gorex-api/ping' && req.method === 'GET') {
+            json({ ok: true, version: app.getVersion(), queueSize: extensionQueueState.length })
+            return
+        }
+
+        // ── GET /gorex-api/queue ────────────────────────────────────────────────
+        if (path === '/gorex-api/queue' && req.method === 'GET') {
+            json({ ok: true, queue: extensionQueueState })
+            return
+        }
+
+        // ── GET /gorex-api/formats?url=... ──────────────────────────────────────
+        if (path === '/gorex-api/formats' && req.method === 'GET') {
+            const videoUrl = fullUrl.searchParams.get('url')
+            if (!videoUrl) { json({ error: 'url parameter required' }, 400); return }
+            try {
+                const result = await fetchYtdlFormatsForExtension(videoUrl)
+                json({ ok: true, ...result })
+            } catch (e) {
+                json({ error: e.message }, 500)
+            }
+            return
+        }
+
+        // ── POST /gorex-api/queue/add ────────────────────────────────────────────
+        if (path === '/gorex-api/queue/add' && req.method === 'POST') {
+            let data
+            try { data = JSON.parse(await readBody(req)) } catch { json({ error: 'invalid JSON body' }, 400); return }
+            if (!data || typeof data.url !== 'string' || !data.url.trim()) {
+                json({ error: 'url field required' }, 400); return
+            }
+            if (!mainWindow || mainWindow.isDestroyed()) {
+                json({ error: 'app not ready' }, 503); return
+            }
+            mainWindow.webContents.send('extension-add-to-queue', {
+                url: data.url.trim(),
+                formatId: data.formatId || null,
+                quality: data.quality || 'best',
+                audioOnly: !!data.audioOnly,
+                clipStart: data.clipStart ?? null,
+                clipEnd: data.clipEnd ?? null,
+                downloadThumbnail: !!data.downloadThumbnail,
+            })
+            // Show app window if it's hidden (background mode)
+            if (!mainWindow.isVisible()) {
+                mainWindow.show()
+                mainWindow.focus()
+            }
+            json({ ok: true })
+            return
+        }
+
+        json({ error: 'not found' }, 404)
+    }
+
+    return new Promise((resolve, reject) => {
+        const tryNext = (i) => {
+            const server = createServer((req, res) => {
+                requestHandler(req, res).catch(e => {
+                    try {
+                        res.writeHead(500, { 'Content-Type': 'application/json' })
+                        res.end(JSON.stringify({ error: e.message }))
+                    } catch {}
+                })
+            })
+            server.listen(EXT_API_PORTS[i], '127.0.0.1', () => {
+                console.log('[gorex-ext-api] listening on port', EXT_API_PORTS[i])
+                resolve(EXT_API_PORTS[i])
+            })
+            server.on('error', (err) => {
+                if (err.code === 'EADDRINUSE' && i < EXT_API_PORTS.length - 1) {
+                    tryNext(i + 1)
+                } else {
+                    reject(err)
+                }
+            })
+        }
+        tryNext(0)
+    })
+}
+
+// Lightweight yt-dlp format fetcher for the extension API (no IPC progress events).
+async function fetchYtdlFormatsForExtension(videoUrl) {
+    const fs = require('fs')
+    const ytdlPath = getYtdlPath()
+    if (!fs.existsSync(ytdlPath)) throw new Error(`yt-dlp не найден: ${ytdlPath}`)
+
+    const appCfg = readAppSettings()
+    const cookiesFile = appCfg.ytdlCookiesFile || ''
+    const nodePath = await findNodeJsPath()
+
+    const runDump = (url, extraArgs = []) => new Promise((res) => {
+        const child = spawn(ytdlPath, [
+            '--dump-json', '--no-playlist',
+            '--extractor-args', 'generic:impersonate',
+            ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
+            ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+            ...extraArgs, url,
+        ], { windowsHide: true })
+        let out = '', err = ''
+        child.stdout.on('data', d => { out += d.toString() })
+        child.stderr.on('data', d => { err += d.toString() })
+        child.on('close', code => res({ out, err, code }))
+        child.on('error', e => res({ out: '', err: e.message, code: 1 }))
+    })
+
+    const parseInfo = (raw, origUrl, resolvedUrl) => {
+        const info = JSON.parse(raw.trim())
+        const formats = (info.formats || [])
+            .filter(f => f.vcodec && f.vcodec !== 'none')
+            .map(f => ({
+                format_id: f.format_id,
+                ext: f.ext,
+                height: f.height || null,
+                width: f.width || null,
+                fps: f.fps || null,
+                filesize: f.filesize || f.filesize_approx || null,
+                vcodec: f.vcodec,
+                acodec: f.acodec,
+                tbr: f.tbr || null,
+                hasAudio: !!(f.acodec && f.acodec !== 'none'),
+            }))
+            .sort((a, b) => (b.height || 0) - (a.height || 0))
+
+        const thumbnails = info.thumbnails || []
+        const thumbnailUrl = info.thumbnail ||
+            (thumbnails.length > 0 ? thumbnails[thumbnails.length - 1].url : null)
+
+        return {
+            title: info.title || info.id || 'Видео',
+            thumbnailUrl,
+            duration: info.duration || null,
+            formats,
+            url: origUrl,
+            resolvedUrl: resolvedUrl || null,
+            availableSubs: Object.keys(info.subtitles || {}),
+        }
+    }
+
+    const first = await runDump(videoUrl)
+    if (first.code === 0) return parseInfo(first.out, videoUrl, null)
+
+    if (!first.err.includes('Unsupported URL')) {
+        throw new Error(ytdlFriendlyErr(first.err) || first.err.trim() || 'yt-dlp failed')
+    }
+
+    // Fallback: try to find embedded videos
+    const embeds = await tryExtractAllEmbeddedVideoUrls(videoUrl) || []
+    const params = tryExtractVideoIdFromQueryParams(videoUrl)
+    const candidates = [...embeds, ...params]
+
+    if (!candidates.length) {
+        throw new Error(ytdlFriendlyErr(first.err) || first.err.trim() || 'Unsupported URL')
+    }
+
+    const retries = await Promise.all(
+        candidates.map(u => runDump(u, ['--referer', videoUrl]).then(r => ({ ...r, resolvedUrl: u })))
+    )
+    const ok = retries.find(r => r.code === 0)
+    if (!ok) throw new Error('Не удалось получить форматы видео')
+    return parseInfo(ok.out, videoUrl, ok.resolvedUrl)
+}
+
 // Register custom scheme for local media preview before app is ready.
 // The renderer runs on http://127.0.0.1 so file:// URLs are blocked by Chromium;
 // gorex-media:// tunnels requests through the main process instead.
@@ -2269,6 +2478,14 @@ app.whenReady().then(async () => {
             callback({ requestHeaders: headers })
         }
     )
+
+    // Start the extension API server (Chrome extension integration)
+    startExtensionApiServer().catch(e => console.error('[gorex-ext-api] failed to start:', e))
+
+    // IPC: renderer pushes a summarised queue state so the extension API can report it
+    ipcMain.on('extension-update-queue', (_, queue) => {
+        extensionQueueState = Array.isArray(queue) ? queue : []
+    })
 
     createWindow()
     createTray()

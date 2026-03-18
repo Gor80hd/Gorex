@@ -1,0 +1,73 @@
+{
+  "manifest_version": 3,
+  "name": "Gorex Downloader",
+  "version": "1.0.0",
+  "description": "Скачивайте видео одной кнопкой через приложение Gorex",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "notifications",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:19870/*",
+    "http://127.0.0.1:19871/*",
+    "http://127.0.0.1:19872/*",
+    "http://127.0.0.1:19873/*",
+    "http://127.0.0.1:19874/*",
+    "http://127.0.0.1:19875/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "32":  "icons/icon32.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16":  "icons/icon16.png",
+    "32":  "icons/icon32.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtu.be/*",
+        "*://twitter.com/*",
+        "*://x.com/*",
+        "*://www.instagram.com/*",
+        "*://www.tiktok.com/*",
+        "*://www.reddit.com/*",
+        "*://vimeo.com/*",
+        "*://soundcloud.com/*",
+        "*://www.twitch.tv/*",
+        "*://www.facebook.com/*",
+        "*://fb.watch/*",
+        "*://www.pinterest.com/*",
+        "*://www.tumblr.com/*",
+        "*://www.snapchat.com/*",
+        "*://www.bilibili.com/*",
+        "*://ok.ru/*",
+        "*://vk.com/*",
+        "*://vkvideo.ru/*",
+        "*://rutube.ru/*",
+        "*://www.dailymotion.com/*",
+        "*://bsky.app/*",
+        "*://www.loom.com/*",
+        "*://streamable.com/*"
+      ],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_end"
+    }
+  ]
+}
