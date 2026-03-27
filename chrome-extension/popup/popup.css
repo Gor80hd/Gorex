@@ -165,6 +165,11 @@ body {
     background: var(--accent-dim);
 }
 
+/* ── Quick download bar ───────────────────────────────────────────────────── */
+.quick-dl-bar {
+    padding: 10px 14px 0;
+}
+
 /* ── Main panel ───────────────────────────────────────────────────────────── */
 .main-panel {
     padding: 10px 14px 6px;
@@ -622,6 +627,53 @@ body {
     margin-top: 8px;
     white-space: pre-line;
     animation: fadeSlideIn .2s var(--ease);
+}
+
+/* ── Metadata loading ─────────────────────────────────────────────────────── */
+.meta-loading {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: fadeSlideIn .2s var(--ease);
+}
+
+.meta-loading-bar {
+    height: 2px;
+    background: rgba(255,255,255,.07);
+    border-radius: 1px;
+    overflow: hidden;
+    position: relative;
+}
+
+.meta-loading-fill {
+    position: absolute;
+    left: 0; top: 0; height: 100%;
+    border-radius: 1px;
+}
+
+.meta-loading-fill.indeterminate {
+    width: 40%;
+    background: var(--accent-light);
+    animation: meta-indeterminate 1.4s ease-in-out infinite;
+}
+
+.meta-loading-fill.progress {
+    background: #3ea6ff;
+    transition: width .4s ease;
+}
+
+@keyframes meta-indeterminate {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(350%);  }
+}
+
+.meta-loading-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 /* ── Queue section ────────────────────────────────────────────────────────── */

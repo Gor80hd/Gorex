@@ -17,14 +17,6 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
     }
-    function truncateUrl(url) {
-        try {
-            const u = new URL(url)
-            return u.hostname + (u.pathname !== '/' ? u.pathname : '')
-        } catch {
-            return url && url.length > 50 ? url.slice(0, 50) + '…' : (url || '')
-        }
-    }
     function fmtBytes(b) {
         if (!b) return ''
         if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB'
@@ -70,15 +62,25 @@
         .gorex-overlay-logo { display:flex; align-items:center; gap:7px; font-weight:600; font-size:12px; letter-spacing:.04em; color:rgba(255,255,255,.5); text-transform:uppercase; }
         .gorex-close-btn { background:none; border:none; color:rgba(255,255,255,.3); cursor:pointer; padding:3px; display:flex; align-items:center; border-radius:3px; transition:color .15s,background .15s; }
         .gorex-close-btn:hover { color:rgba(255,255,255,.75); background:rgba(255,255,255,.08); }
-        .gorex-queue-body { padding:8px 0; max-height:180px; overflow-y:auto; display:flex; flex-direction:column; }
+        .gorex-queue-body { padding:8px 0; max-height:220px; overflow-y:auto; display:flex; flex-direction:column; }
         .gorex-queue-body::-webkit-scrollbar { width:3px; }
         .gorex-queue-body::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:2px; }
         .gorex-toast { display:flex; align-items:center; gap:10px; padding:9px 16px; color:#86efac; animation:gorex-fade-in .15s ease; }
         @keyframes gorex-fade-in { from{opacity:0;} to{opacity:1;} }
         .gorex-toast-text { font-size:13px; color:rgba(255,255,255,.8); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .gorex-queue-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 16px; }
+        .gorex-queue-row { display:flex; flex-direction:column; gap:5px; padding:8px 16px; }
+        .gorex-row-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
         .gorex-row-title { flex:1; font-size:13px; color:rgba(255,255,255,.75); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .gorex-row-progress { font-size:12px; font-weight:600; color:#3ea6ff; flex-shrink:0; }
+        .gorex-row-progress { font-size:11px; font-weight:600; color:#3ea6ff; flex-shrink:0; }
+        .gorex-row-meta { font-size:11px; color:#a78bfa; }
+        .gorex-row-bar { height:2px; background:rgba(255,255,255,.07); border-radius:1px; overflow:hidden; position:relative; }
+        .gorex-bar-fill { height:100%; background:#3ea6ff; border-radius:1px; transition:width .4s ease; }
+        .gorex-bar-indeterminate { position:absolute; left:0; top:0; height:100%; width:40%; background:#a78bfa; border-radius:1px; animation:gorex-indeterminate 1.4s ease-in-out infinite; }
+        @keyframes gorex-indeterminate { 0%{transform:translateX(-100%);} 100%{transform:translateX(350%);} }
+        .gorex-bar-pulse { height:100%; width:100%; background:rgba(167,139,250,.35); border-radius:1px; animation:gorex-pulse 2s ease-in-out infinite; }
+        @keyframes gorex-pulse { 0%,100%{opacity:.3;} 50%{opacity:.9;} }
+        .gorex-remove-btn { background:none; border:none; color:rgba(255,255,255,.2); cursor:pointer; font-size:14px; line-height:1; padding:0 0 0 6px; flex-shrink:0; transition:color .15s; }
+        .gorex-remove-btn:hover { color:rgba(255,255,255,.7); }
         .gorex-overlay-footer { padding:9px 16px; border-top:1px solid rgba(255,255,255,.07); }
         .gorex-overlay-footer.hidden { display:none; }
         .gorex-offline-msg { display:flex; align-items:center; gap:7px; font-size:12px; color:#f87171; }
@@ -109,13 +111,13 @@
 
         /* ── Panels ── */
         .grx-panel {
-            display:none; flex-direction:column; position:absolute; top:calc(100% + 6px); left:0;
+            display:none; flex-direction:column; position:absolute; bottom:calc(100% + 6px); left:0;
             z-index:9999; width:340px; background:#1c1c1c; border:1px solid rgba(255,255,255,.1);
             border-radius:4px; box-shadow:0 8px 32px rgba(0,0,0,.75),0 2px 8px rgba(0,0,0,.4);
             overflow:hidden; animation:grx-popup-in .13s cubic-bezier(.2,0,.38,1) both;
             font-family:system-ui,-apple-system,sans-serif; color:#f1f5f9;
         }
-        @keyframes grx-popup-in { from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
+        @keyframes grx-popup-in { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:translateY(0);} }
         #grx-panel-queue { left:auto; right:0; }
         .grx-panel-header { display:flex; align-items:center; justify-content:space-between; padding:13px 18px 11px; border-bottom:1px solid rgba(255,255,255,.07); }
         .grx-panel-title { font-size:11px; font-weight:600; color:rgba(255,255,255,.38); text-transform:uppercase; letter-spacing:.08em; user-select:none; }
@@ -259,10 +261,31 @@
     // Uses Shadow DOM: overlayHost (fixed) → overlayShadow → #gorex-queue-overlay
     // ═══════════════════════════════════════════════════════════════════════════
 
-    let overlay      = null
-    let overlayHost  = null
-    let hideTimer    = null
+    let overlay           = null
+    let overlayHost       = null
+    let hideTimer         = null
+    let hideInnerTimer    = null
     let overlayQueueItems = []
+    const pendingTitles   = new Map()  // urlKey → browser title (set instantly on add)
+
+    // Stable URL key: YouTube uses video ID, other sites use host+path (strips tracking params)
+    function urlKey(url) {
+        if (!url) return null
+        try {
+            const u = new URL(url)
+            const v = u.searchParams.get('v')
+            if (v) return 'yt:' + v   // YouTube watch: stable regardless of &t=, &feature= etc.
+            return u.hostname + u.pathname
+        } catch { return url }
+    }
+
+    function getPageTitle() {
+        // Try YouTube-specific title element first, fallback to document.title
+        const ytTitle = document.querySelector('ytd-watch-metadata h1')?.textContent?.trim()
+                     || document.querySelector('#above-the-fold h1')?.textContent?.trim()
+        if (ytTitle) return ytTitle
+        return document.title.replace(/ [-–|].+$/, '').trim() || document.title
+    }
 
     function getOrCreateOverlay() {
         if (overlay) return overlay
@@ -297,60 +320,194 @@
         document.body.appendChild(overlayHost)
 
         overlay.querySelector('#gorex-close-btn').addEventListener('click', () => {
-            overlay.classList.add('gorex-hidden')
             clearTimeout(hideTimer)
+            clearTimeout(hideInnerTimer)
+            overlay.classList.add('gorex-fade-out')
+            hideInnerTimer = setTimeout(() => {
+                overlay.classList.add('gorex-hidden')
+                overlay.classList.remove('gorex-fade-out')
+                stopOverlayPolling()
+            }, 280)
         })
+
+        // Event delegation for remove buttons (rows are recreated on each poll)
+        overlay.querySelector('#gorex-queue-body').addEventListener('click', (e) => {
+            const btn = e.target.closest('.gorex-remove-btn')
+            if (!btn) return
+            const id = parseInt(btn.dataset.id)
+            overlayQueueItems = overlayQueueItems.filter(i => i.id !== id)
+            updateOverlayBody()
+            if (!isContextAlive()) return
+            chrome.runtime.sendMessage({ type: 'GOREX_REMOVE_FROM_QUEUE', id }).catch?.(() => {})
+        })
+
         return overlay
     }
 
-    function showNotification(msg) {
+    function showOverlay() {
         const el = getOrCreateOverlay()
-        el.classList.remove('gorex-hidden', 'gorex-fade-out')
-        el.classList.add('gorex-slide-in')
-        const body = el.querySelector('#gorex-queue-body')
-        const toast = document.createElement('div')
-        toast.className = 'gorex-toast'
-        toast.innerHTML = `
-            ${BI.check}
-            <span class="gorex-toast-text">${escapeHtml(msg)}</span>
-        `
-        body.appendChild(toast)
-        setTimeout(() => { toast.remove(); updateOverlayBody() }, 5000)
-        resetAutoHide()
+        clearTimeout(hideTimer)
+        clearTimeout(hideInnerTimer)
+        hideTimer = null
+        hideInnerTimer = null
+        if (el.classList.contains('gorex-hidden')) {
+            el.classList.remove('gorex-hidden', 'gorex-fade-out', 'gorex-slide-in')
+            void el.offsetWidth  // force reflow to re-trigger animation
+            el.classList.add('gorex-slide-in')
+        } else {
+            el.classList.remove('gorex-fade-out')  // reverse mid-fade smoothly via CSS transition
+        }
     }
 
     function updateOverlayBody() {
         if (!overlay) return
         const body = overlay.querySelector('#gorex-queue-body')
-        const toasts = body.querySelectorAll('.gorex-toast')
-        body.querySelectorAll('.gorex-queue-row').forEach(r => r.remove())
+
         const active = overlayQueueItems.filter(v =>
-            ['downloading', 'encoding', 'converting', 'downloading-subs'].includes(v.status)
+            ['ready', 'format_select', 'downloading', 'encoding', 'converting', 'downloading_subs', 'downloading-subs'].includes(v.status)
         )
-        active.forEach(item => {
-            const row = document.createElement('div')
-            row.className = 'gorex-queue-row'
-            row.innerHTML = `
-                <span class="gorex-row-title">${escapeHtml(item.title || 'Без названия')}</span>
-                <span class="gorex-row-progress">${Math.round(item.progress || 0)}%</span>
-            `
-            body.appendChild(row)
+
+        // Clean up pendingTitles for finished items
+        overlayQueueItems.forEach(v => {
+            if (v.status === 'done' || v.status === 'error') pendingTitles.delete(urlKey(v.url))
         })
-        if (toasts.length === 0 && active.length === 0) scheduleHide(2000)
+
+        // Stable key: use urlKey (strips tracking params) so pending→real transition matches
+        const rowKey = item => urlKey(item.url) || (item.id != null ? 'i:' + item.id : null)
+
+        // Index existing rows by key
+        const existing = new Map()
+        body.querySelectorAll('.gorex-queue-row[data-key]').forEach(r => existing.set(r.dataset.key, r))
+
+        const activeKeys = new Set()
+
+        active.forEach((item, idx) => {
+            const key       = rowKey(item)
+            const isPending = item._pending === true
+            const progress  = Math.round(item.progress || 0)
+            const title     = item.title || pendingTitles.get(urlKey(item.url)) || item.url || 'Без названия'
+            const barType   = isPending ? 'indeterminate'
+                            : item.status === 'format_select' ? 'pulse' : 'fill'
+            const metaText  = isPending ? 'Получение метаданных...'
+                            : item.status === 'format_select' ? 'В очереди...' : ''
+            const showProg  = !isPending && item.status !== 'format_select'
+            const showDel   = !isPending && item.id != null
+
+            activeKeys.add(key)
+
+            let row = existing.get(key)
+
+            if (row) {
+                // ── Update existing row in-place (no DOM removal = no flicker) ──
+
+                // Title
+                const titleEl = row.querySelector('.gorex-row-title')
+                if (titleEl && titleEl.textContent !== title) titleEl.textContent = title
+
+                // Progress label
+                let progEl = row.querySelector('.gorex-row-progress')
+                if (showProg) {
+                    if (!progEl) {
+                        progEl = document.createElement('span')
+                        progEl.className = 'gorex-row-progress'
+                        row.querySelector('.gorex-row-top').insertBefore(progEl, row.querySelector('.gorex-remove-btn'))
+                    }
+                    progEl.textContent = progress + '%'
+                } else {
+                    progEl?.remove()
+                }
+
+                // Bar
+                const barEl  = row.querySelector('.gorex-row-bar')
+                const barInner = barEl?.firstElementChild
+                if (barType === 'fill') {
+                    if (barInner?.classList.contains('gorex-bar-fill')) {
+                        barInner.style.width = progress + '%'
+                    } else if (barEl) {
+                        barEl.innerHTML = `<div class="gorex-bar-fill" style="width:${progress}%"></div>`
+                    }
+                } else if (barType === 'pulse') {
+                    if (!barInner?.classList.contains('gorex-bar-pulse') && barEl)
+                        barEl.innerHTML = '<div class="gorex-bar-pulse"></div>'
+                } else {
+                    if (!barInner?.classList.contains('gorex-bar-indeterminate') && barEl)
+                        barEl.innerHTML = '<div class="gorex-bar-indeterminate"></div>'
+                }
+
+                // Meta text
+                let metaEl = row.querySelector('.gorex-row-meta')
+                if (metaText) {
+                    if (!metaEl) {
+                        metaEl = document.createElement('span')
+                        metaEl.className = 'gorex-row-meta'
+                        row.appendChild(metaEl)
+                    }
+                    if (metaEl.textContent !== metaText) metaEl.textContent = metaText
+                } else {
+                    metaEl?.remove()
+                }
+
+                // Remove button
+                let delBtn = row.querySelector('.gorex-remove-btn')
+                if (showDel) {
+                    if (!delBtn) {
+                        delBtn = document.createElement('button')
+                        delBtn.className = 'gorex-remove-btn'
+                        delBtn.title = 'Удалить'
+                        delBtn.textContent = '✕'
+                        row.querySelector('.gorex-row-top').appendChild(delBtn)
+                    }
+                    delBtn.dataset.id = item.id
+                } else {
+                    delBtn?.remove()
+                }
+            } else {
+                // ── Create new row ──
+                const barHtml = barType === 'indeterminate'
+                    ? '<div class="gorex-bar-indeterminate"></div>'
+                    : barType === 'pulse'
+                        ? '<div class="gorex-bar-pulse"></div>'
+                        : `<div class="gorex-bar-fill" style="width:${progress}%"></div>`
+                row = document.createElement('div')
+                row.className  = 'gorex-queue-row'
+                row.dataset.key = key
+                row.innerHTML  = `
+                    <div class="gorex-row-top">
+                        <span class="gorex-row-title">${escapeHtml(title)}</span>
+                        ${showProg ? `<span class="gorex-row-progress">${progress}%</span>` : ''}
+                        ${showDel  ? `<button class="gorex-remove-btn" data-id="${item.id}" title="Удалить">✕</button>` : ''}
+                    </div>
+                    <div class="gorex-row-bar">${barHtml}</div>
+                    ${metaText ? `<span class="gorex-row-meta">${metaText}</span>` : ''}
+                `
+            }
+
+            // Ensure correct order
+            const target = body.children[idx]
+            if (target !== row) body.insertBefore(row, target || null)
+        })
+
+        // Remove stale rows
+        existing.forEach((row, key) => { if (!activeKeys.has(key)) row.remove() })
+
+        // Only auto-hide when queue is truly empty
+        if (active.length === 0) scheduleHide(3000)
+        else clearTimeout(hideTimer)
     }
 
-    function resetAutoHide() {
-        clearTimeout(hideTimer)
-        hideTimer = setTimeout(() => {
-            if (overlay) overlay.classList.add('gorex-fade-out')
-            setTimeout(() => overlay?.classList.add('gorex-hidden'), 400)
-        }, 7000)
-    }
     function scheduleHide(delay) {
         clearTimeout(hideTimer)
+        clearTimeout(hideInnerTimer)
         hideTimer = setTimeout(() => {
-            if (overlay) overlay.classList.add('gorex-fade-out')
-            setTimeout(() => overlay?.classList.add('gorex-hidden'), 400)
+            if (!overlay) return
+            overlay.classList.add('gorex-fade-out')
+            hideInnerTimer = setTimeout(() => {
+                if (overlay?.classList.contains('gorex-fade-out')) {
+                    overlay.classList.add('gorex-hidden')
+                    overlay.classList.remove('gorex-fade-out')
+                    stopOverlayPolling()
+                }
+            }, 280)
         }, delay)
     }
 
@@ -373,7 +530,7 @@
                     footer?.classList.remove('hidden')
                 }
             })
-        }, 2500)
+        }, 1500)
     }
     function stopOverlayPolling() {
         if (overlayPollInterval) { clearInterval(overlayPollInterval); overlayPollInterval = null }
@@ -433,11 +590,6 @@
                     ${BI.music}
                     <span>Аудио</span>
                 </button>
-                <button class="grx-icon-btn" data-panel="queue" title="Очередь загрузок">
-                    ${BI.queue}
-                    <span>Очередь</span>
-                    <span class="grx-q-badge" id="grx-q-badge" style="display:none"></span>
-                </button>
             </div>
 
             <!-- ── Video format popup ── -->
@@ -452,11 +604,32 @@
                         Получение форматов…
                     </div>
                 </div>
+                <div class="grx-panel-body-padded" style="border-top:1px solid rgba(255,255,255,.07)">
+                    <div class="grx-trim-block">
+                        <label class="grx-lbl">${BI.scissors} Обрезка</label>
+                        <div class="grx-trim-row">
+                            <span class="grx-trim-lbl">С</span>
+                            <button class="grx-sync-btn" id="grx-v-goto-start" title="Начало (0:00)">⏮</button>
+                            <input type="text" id="grx-v-from" class="grx-time-in" placeholder="0:00">
+                            <button class="grx-sync-btn" id="grx-v-sync-from" title="Текущая позиция">
+                                ${BI.clockwise}
+                            </button>
+                            <span class="grx-trim-lbl">По</span>
+                            <button class="grx-sync-btn" id="grx-v-sync-to" title="Текущая позиция">
+                                ${BI.clockwise}
+                            </button>
+                            <input type="text" id="grx-v-to" class="grx-time-in" placeholder="конец">
+                            <button class="grx-sync-btn" id="grx-v-goto-end" title="Конец видео">
+                                ${BI.end}
+                            </button>
+                        </div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.65);margin-top:4px">
+                        <input type="checkbox" id="grx-convert-cb" style="accent-color:#3ea6ff;width:14px;height:14px;cursor:pointer">
+                        Конвертировать
+                    </label>
+                </div>
                 <div class="grx-panel-footer">
-                    <button id="grx-add-queue" class="grx-btn grx-btn-secondary" disabled>
-                        ${BI.queue}
-                        В очередь
-                    </button>
                     <button id="grx-dl-now" class="grx-btn grx-btn-primary" disabled>
                         ${BI.download}
                         Скачать
@@ -495,23 +668,23 @@
                         <label class="grx-lbl">${BI.scissors} Обрезка</label>
                         <div class="grx-trim-row">
                             <span class="grx-trim-lbl">С</span>
+                            <button class="grx-sync-btn" id="grx-goto-start" title="Начало (0:00)">⏮</button>
                             <input type="text" id="grx-from" class="grx-time-in" placeholder="0:00">
-                            <button class="grx-sync-btn" id="grx-sync-from" title="Текущая позиция видео">
+                            <button class="grx-sync-btn" id="grx-sync-from" title="Текущая позиция">
                                 ${BI.clockwise}
                             </button>
                             <span class="grx-trim-lbl">По</span>
+                            <button class="grx-sync-btn" id="grx-sync-to" title="Текущая позиция">
+                                ${BI.clockwise}
+                            </button>
                             <input type="text" id="grx-to" class="grx-time-in" placeholder="конец">
-                            <button class="grx-sync-btn" id="grx-sync-to" title="Конец видео">
+                            <button class="grx-sync-btn" id="grx-goto-end" title="Конец видео">
                                 ${BI.end}
                             </button>
                         </div>
                     </div>
                 </div>
                 <div class="grx-panel-footer">
-                    <button id="grx-add-queue-audio" class="grx-btn grx-btn-secondary">
-                        ${BI.queue}
-                        В очередь
-                    </button>
                     <button id="grx-dl-audio" class="grx-btn grx-btn-primary">
                         ${BI.download}
                         Скачать
@@ -519,25 +692,19 @@
                 </div>
             </div>
 
-            <!-- ── Queue popup ── -->
-            <div id="grx-panel-queue" class="grx-panel" style="display:none">
-                <div class="grx-panel-header">
-                    <span class="grx-panel-title">Очередь загрузок</span>
-                </div>
-                <div id="grx-queue-list" class="grx-queue-list">
-                    <div class="grx-empty">Очередь пуста</div>
-                </div>
-            </div>
         `
         barShadow.appendChild(bar)
         target.parentNode.insertBefore(barHost, target)
         bindBarEvents(bar)
         startBarQueuePoll()
 
-        // Close panels on outside click
+        // Close panels on outside click (composedPath works across Shadow DOM)
         document.addEventListener('click', (e) => {
             if (!barShadow || !barActivePanel) return
-            if (!barHost.contains(e.target)) {
+            const path = e.composedPath()
+            const onBtn   = path.some(el => el?.classList?.contains?.('grx-icon-btn'))
+            const onPanel = path.some(el => el?.classList?.contains?.('grx-panel'))
+            if (!onBtn && !onPanel) {
                 BSQA('.grx-panel').forEach(p => { p.style.display = 'none' })
                 BSQA('.grx-icon-btn').forEach(b => b.classList.remove('grx-icon-btn-active'))
                 barActivePanel = null
@@ -549,17 +716,39 @@
         bar.querySelectorAll('.grx-icon-btn[data-panel]').forEach(btn =>
             btn.addEventListener('click', () => barTogglePanel(btn.dataset.panel))
         )
-        bar.querySelector('#grx-add-queue')?.addEventListener('click', () => barVideoAction(false))
-        bar.querySelector('#grx-dl-now')?.addEventListener('click', () => barVideoAction(true))
-        bar.querySelector('#grx-add-queue-audio')?.addEventListener('click', () => barAudioAction(false))
-        bar.querySelector('#grx-dl-audio')?.addEventListener('click', () => barAudioAction(true))
+        bar.querySelector('#grx-dl-now')?.addEventListener('click', () => barVideoAction())
+        bar.querySelector('#grx-dl-audio')?.addEventListener('click', () => barAudioAction())
+        // Audio trim buttons
+        bar.querySelector('#grx-goto-start')?.addEventListener('click', () => {
+            if (BS('grx-from')) BS('grx-from').value = '0:00'
+        })
         bar.querySelector('#grx-sync-from')?.addEventListener('click', () => {
             const v = document.querySelector('video')
-            if (v) bar.querySelector('#grx-from').value = fmtTime(Math.floor(v.currentTime))
+            if (v) BS('grx-from').value = fmtTime(Math.floor(v.currentTime))
         })
         bar.querySelector('#grx-sync-to')?.addEventListener('click', () => {
             const v = document.querySelector('video')
-            if (v) bar.querySelector('#grx-to').value = fmtTime(Math.floor(v.duration || 0))
+            if (v) BS('grx-to').value = fmtTime(Math.floor(v.currentTime))
+        })
+        bar.querySelector('#grx-goto-end')?.addEventListener('click', () => {
+            const v = document.querySelector('video')
+            if (v) BS('grx-to').value = fmtTime(Math.floor(v.duration || 0))
+        })
+        // Video trim buttons
+        bar.querySelector('#grx-v-goto-start')?.addEventListener('click', () => {
+            if (BS('grx-v-from')) BS('grx-v-from').value = '0:00'
+        })
+        bar.querySelector('#grx-v-sync-from')?.addEventListener('click', () => {
+            const v = document.querySelector('video')
+            if (v) BS('grx-v-from').value = fmtTime(Math.floor(v.currentTime))
+        })
+        bar.querySelector('#grx-v-sync-to')?.addEventListener('click', () => {
+            const v = document.querySelector('video')
+            if (v) BS('grx-v-to').value = fmtTime(Math.floor(v.currentTime))
+        })
+        bar.querySelector('#grx-v-goto-end')?.addEventListener('click', () => {
+            const v = document.querySelector('video')
+            if (v) BS('grx-v-to').value = fmtTime(Math.floor(v.duration || 0))
         })
     }
 
@@ -663,22 +852,28 @@
             })
         })
 
-        const addBtn = BS('grx-add-queue')
-        const dlBtn  = BS('grx-dl-now')
-        if (addBtn) addBtn.disabled = false
-        if (dlBtn)  dlBtn.disabled  = false
+        const dlBtn = BS('grx-dl-now')
+        if (dlBtn) dlBtn.disabled = false
     }
 
     // ── Video action ────────────────────────────────────────────────────────────
-    async function barVideoAction(_downloadNow) {
+    async function barVideoAction() {
+        const fromStr  = BS('grx-v-from')?.value?.trim()
+        const toStr    = BS('grx-v-to')?.value?.trim()
+        const clipStart = fromStr ? parseTime(fromStr) : null
+        const clipEnd   = toStr   ? parseTime(toStr)   : null
+        const convertAfterDownload = BS('grx-convert-cb')?.checked ?? false
         await barQuickAdd({
             audioOnly: false,
             ...(barSelectedFid ? { formatId: barSelectedFid } : {}),
+            clipStart,
+            clipEnd,
+            convertAfterDownload,
         }, 'grx-video-status')
     }
 
     // ── Audio action ────────────────────────────────────────────────────────────
-    async function barAudioAction(_downloadNow) {
+    async function barAudioAction() {
         const ext      = BS('grx-ext')?.value   || 'mp3'
         const aq       = BS('grx-aq')?.value    || '2'
         const fromStr  = BS('grx-from')?.value?.trim()
@@ -691,8 +886,17 @@
     // ── Common add-to-queue ────────────────────────────────────────────────────
     async function barQuickAdd(opts, statusId) {
         const url      = location.href
+        const title    = getPageTitle()
         const statusEl = statusId ? BS(statusId) : null
         const allBtns  = BSQA('button')
+
+        // Immediately show overlay with browser title before API responds
+        pendingTitles.set(urlKey(url), title)
+        overlayQueueItems = overlayQueueItems.filter(i => i.url !== url)
+        overlayQueueItems.push({ url, title, status: 'ready', progress: 0, _pending: true })
+        showOverlay()
+        updateOverlayBody()
+        startOverlayPolling()
 
         allBtns.forEach(b => { b.disabled = true })
         if (statusEl) {
@@ -712,11 +916,18 @@
                 )
             })
             if (statusEl) {
-                statusEl.innerHTML = `${BI.check} Добавлено в очередь`
+                statusEl.innerHTML = `${BI.check} Добавлено`
                 statusEl.className = 'grx-status grx-status-ok'
             }
-            setTimeout(() => barTogglePanel('queue'), 800)
+            // Close the current panel — queue is shown in overlay
+            BSQA('.grx-panel').forEach(p => { p.style.display = 'none' })
+            BSQA('.grx-icon-btn').forEach(b => b.classList.remove('grx-icon-btn-active'))
+            barActivePanel = null
         } catch (e) {
+            // Remove the optimistic item on failure
+            overlayQueueItems = overlayQueueItems.filter(i => i.url !== url)
+            pendingTitles.delete(urlKey(url))
+            updateOverlayBody()
             const msg = e.message?.includes('OFFLINE') ? 'Gorex не запущен' : (e.message || 'Ошибка')
             if (statusEl) {
                 statusEl.innerHTML = `${BI.x} ${escapeHtml(msg)}`
@@ -725,14 +936,12 @@
         } finally {
             allBtns.forEach(b => { b.disabled = false })
             if (!barFormatsCache) {
-                const addBtn = BS('grx-add-queue')
-                const dlBtn  = BS('grx-dl-now')
-                if (addBtn) addBtn.disabled = true
-                if (dlBtn)  dlBtn.disabled  = true
+                const dlBtn = BS('grx-dl-now')
+                if (dlBtn) dlBtn.disabled = true
             }
             setTimeout(() => {
                 if (statusEl) { statusEl.innerHTML = ''; statusEl.className = 'grx-status' }
-            }, 4000)
+            }, 3000)
         }
     }
 
@@ -751,19 +960,7 @@
         try {
             chrome.runtime.sendMessage({ type: 'GOREX_GET_QUEUE' }, resp => {
                 if (chrome.runtime.lastError) return
-                const queue  = resp?.ok ? (resp.data?.queue || []) : []
-                barLastQueue = queue
-                const active = queue.filter(v =>
-                    ['downloading','encoding','converting','downloading-subs'].includes(v.status)
-                ).length
-                const badge = BS('grx-q-badge')
-                if (badge) {
-                    const count = active || queue.length
-                    badge.textContent  = count || ''
-                    badge.style.display = count ? 'inline-flex' : 'none'
-                    badge.style.background = active ? '#3ea6ff' : 'rgba(255,255,255,.18)'
-                }
-                if (barActivePanel === 'queue') barRenderQueuePanel(queue)
+                barLastQueue = resp?.ok ? (resp.data?.queue || []) : []
             })
         } catch { stopBarQueuePoll() }
     }
@@ -853,10 +1050,17 @@
 
     chrome.runtime.onMessage.addListener((msg) => {
         if (msg.type === 'GOREX_QUEUED') {
-            const label = msg.title
-                ? (msg.title.length > 50 ? msg.title.slice(0, 50) + '…' : msg.title)
-                : truncateUrl(msg.url)
-            showNotification(`Добавлено: ${label}`)
+            // Save browser title immediately so overlay shows it before Gorex responds
+            const title = msg.title || getPageTitle()
+            if (msg.url) pendingTitles.set(urlKey(msg.url), title)
+
+            // Add optimistic item if not already in queue (e.g. added via popup)
+            if (msg.url && !overlayQueueItems.find(i => i.url === msg.url)) {
+                overlayQueueItems.push({ url: msg.url, title, status: 'ready', progress: 0, _pending: true })
+            }
+
+            showOverlay()
+            updateOverlayBody()
             startOverlayPolling()
         }
     })

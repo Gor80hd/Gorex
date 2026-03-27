@@ -149,6 +149,22 @@
                             </label>
                         </div>
 
+                        <!-- Convert -->
+                        <div class="option-row">
+                            <span class="option-label">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <polyline points="1 20 1 14 7 14"/>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
+                                Конвертировать
+                            </span>
+                            <label class="toggle toggle-sm">
+                                <input type="checkbox" id="convert-cb">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
                     </div>
 
                     <!-- Fallback quick download -->
@@ -164,15 +180,7 @@
 
                     <!-- Action buttons -->
                     <div id="action-buttons" class="panel-actions hidden">
-                        <button id="add-queue-btn" class="btn btn-secondary" onclick="addToQueue()">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-                                <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-                                <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                            </svg>
-                            В очередь
-                        </button>
-                        <button id="download-now-btn" class="btn btn-primary" onclick="downloadNow()">
+                        <button id="download-now-btn" class="btn btn-primary btn-full" onclick="downloadNow()">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                 <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -213,15 +221,7 @@
 
                     <!-- Action buttons -->
                     <div class="panel-actions">
-                        <button id="audio-queue-btn" class="btn btn-secondary" onclick="addToQueueAudio()">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-                                <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-                                <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                            </svg>
-                            В очередь
-                        </button>
-                        <button id="audio-dl-btn" class="btn btn-primary" onclick="downloadNowAudio()">
+                        <button id="audio-dl-btn" class="btn btn-primary btn-full" onclick="downloadNowAudio()">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                 <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -239,19 +239,18 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5">
                 <polyline points="20 6 9 17 4 12"/>
             </svg>
-            <span>Добавлено в Gorex</span>
+            <span>Добавлено в очередь</span>
         </div>
         <div id="error-msg" class="error-msg hidden"></div>
 
-    </div>
-
-    <!-- Queue section -->
-    <div id="queue-section" class="queue-section hidden">
-        <div class="queue-header">
-            <span class="section-title">Очередь</span>
-            <button class="btn btn-ghost btn-sm" onclick="openGorexApp()">Открыть приложение →</button>
+        <!-- Metadata loading status -->
+        <div id="meta-loading" class="meta-loading hidden">
+            <div class="meta-loading-bar">
+                <div id="meta-loading-fill" class="meta-loading-fill"></div>
+            </div>
+            <span id="meta-loading-text" class="meta-loading-text">Gorex получает метаданные...</span>
         </div>
-        <div id="queue-list" class="queue-list"></div>
+
     </div>
 
     <script src="popup.js"></script>

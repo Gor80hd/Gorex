@@ -44,6 +44,10 @@ const api = {
         ipcRenderer.removeAllListeners('extension-add-to-queue')
         ipcRenderer.on('extension-add-to-queue', (_, data) => callback(data))
     },
+    onExtensionRemoveFromQueue: (callback) => {
+        ipcRenderer.removeAllListeners('extension-remove-from-queue')
+        ipcRenderer.on('extension-remove-from-queue', (_, data) => callback(data))
+    },
     extensionUpdateQueue: (queue) => ipcRenderer.send('extension-update-queue', queue),
 }
 

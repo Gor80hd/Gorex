@@ -53,6 +53,7 @@ function App() {
     const [showCliConsole, setShowCliConsole] = useState(false)
     const [ytdlFetchError, setYtdlFetchError] = useState(null)
     const videosRef = useRef([])
+    const pendingAutoStartRef = useRef(false)
 
     // Wire the module-level IPC emitter to the React state setter
     useEffect(() => {
@@ -95,6 +96,15 @@ function App() {
     const listDragCounter = useRef(0)
 
     useEffect(() => { videosRef.current = videos }, [videos])
+
+    // Auto-start encoding when extension adds a video with autoStart flag
+    useEffect(() => {
+        if (!pendingAutoStartRef.current) return
+        if (videos.length === 0) return
+        if (isEncoding) return
+        pendingAutoStartRef.current = false
+        startEncoding()
+    }, [videos]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAndAddVideos = async (paths, downloadService = false) => {
         if (!paths || paths.length === 0) return
@@ -221,10 +231,11 @@ function App() {
                     status: 'format_select',
                     progress: 0,
                     downloadService: service,
-                    convertAfterDownload: false,
-                    conversionSettings: null,
+                    convertAfterDownload: extensionOpts?.convertAfterDownload ?? false,
+                    conversionSettings: extensionOpts?.convertAfterDownload ? selectedSettings : null,
                     customSettings: null,
                     ytdlNoAudio: extensionOpts?.audioOnly ?? false,
+                    ytdlAudioFormat: appSettings?.defaultAudioFormat || 'wav',
                 }
             })
             setVideos(prev => [...prev, ...newVideos])
@@ -276,6 +287,7 @@ function App() {
                 ytdlAutoSubs:     opts.autoSubs,
                 ytdlSubLangs:     opts.subLangs,
                 ytdlSubFormat:    opts.subFormat,
+                ytdlAudioFormat:  opts.audioFormat,
             } : v
         ))
     }
@@ -440,6 +452,7 @@ function App() {
                     autoSubs:     v.ytdlAutoSubs     ?? false,
                     subLangs:     v.ytdlSubLangs     ?? 'all',
                     subFormat:    v.ytdlSubFormat    ?? 'srt',
+                    audioFormat:  v.ytdlAudioFormat  ?? 'best',
                 })
             } else {
                 window.api.runCli({
@@ -464,7 +477,7 @@ function App() {
     // ─── Chrome extension integration ─────────────────────────────────────────────
     useEffect(() => {
         window.api.onExtensionAddToQueue(async (data) => {
-            const { url, formatId, audioOnly, clipStart, clipEnd } = data
+            const { url, formatId, audioOnly, clipStart, clipEnd, convertAfterDownload } = data
             if (!url) return
             // Detect service
             let service = null
@@ -483,7 +496,15 @@ function App() {
                 }
                 service = SERVICE_MAP[host] || null
             } catch {}
-            await handleDownload(url, service, { preselectedFormat: formatId, audioOnly, clipStart, clipEnd })
+            pendingAutoStartRef.current = true
+            await handleDownload(url, service, { preselectedFormat: formatId, audioOnly, clipStart, clipEnd, convertAfterDownload })
+        })
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ─── Extension: remove queue item ─────────────────────────────────────────────
+    useEffect(() => {
+        window.api.onExtensionRemoveFromQueue((data) => {
+            if (data?.id != null) handleRemoveVideo(data.id)
         })
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

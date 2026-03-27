@@ -120,6 +120,11 @@ const TRANSLATIONS = {
         folderResetTitle: 'Сбросить к папке Видео',
         folderDesc: 'Папка, куда по умолчанию сохраняются все выходные файлы. Можно переопределить для каждого задания отдельно в списке.',
 
+        // Settings — download defaults
+        sectionDownloadDefaults: 'Загрузка аудио',
+        rowDefaultAudioFormat: 'Формат аудио по умолчанию',
+        hintDefaultAudioFormat: 'Формат файла при загрузке только аудио',
+
         // Settings — yt-dlp
         sectionYtdlCookies: 'Cookies для YouTube',
         ytdlGuideIntro: 'Cookies позволяют yt-dlp скачивать видео 18+ и обходить блокировку «подтвердите, что вы не бот» на YouTube.',
@@ -455,6 +460,15 @@ const TRANSLATIONS = {
         subFormatBest: 'Нативный (без конвертации)',
         audioOnlyGroup: 'Только аудио',
         bestAudioLabel: 'Лучшее аудио (bestaudio)',
+        vspAudioFileFormat: 'Формат аудио',
+        vspHintAudioFileFormat: 'Сохранить как аудиофайл в выбранном формате',
+        audioFmtBest: 'Оригинальный (без перекодирования)',
+        audioFmtMp3: 'MP3',
+        audioFmtM4a: 'M4A (AAC)',
+        audioFmtFlac: 'FLAC (без потерь)',
+        audioFmtOpus: 'Opus',
+        audioFmtWav: 'WAV',
+        audioFmtOgg: 'OGG (Vorbis)',
 
         // TimeRangeSelector
         trsFullVideo: 'Полное видео',
@@ -692,6 +706,11 @@ const TRANSLATIONS = {
         folderChange: 'Change',
         folderResetTitle: 'Reset to Videos folder',
         folderDesc: 'Default folder for all output files. Can be overridden per task in the list.',
+
+        // Settings — download defaults
+        sectionDownloadDefaults: 'Audio download',
+        rowDefaultAudioFormat: 'Default audio format',
+        hintDefaultAudioFormat: 'Output file format when downloading audio only',
 
         // Settings — yt-dlp
         sectionYtdlCookies: 'Cookies for YouTube',
@@ -1028,6 +1047,15 @@ const TRANSLATIONS = {
         subFormatBest: 'Native (no conversion)',
         audioOnlyGroup: 'Audio only',
         bestAudioLabel: 'Best audio (bestaudio)',
+        vspAudioFileFormat: 'Audio format',
+        vspHintAudioFileFormat: 'Save as an audio file in the selected format',
+        audioFmtBest: 'Original (no re-encoding)',
+        audioFmtMp3: 'MP3',
+        audioFmtM4a: 'M4A (AAC)',
+        audioFmtFlac: 'FLAC (lossless)',
+        audioFmtOpus: 'Opus',
+        audioFmtWav: 'WAV',
+        audioFmtOgg: 'OGG (Vorbis)',
 
         // TimeRangeSelector
         trsFullVideo: 'Full video',

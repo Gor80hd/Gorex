@@ -155,6 +155,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         apiPost('/gorex-api/queue/add', msg.payload)
             .then(() => {
                 updateBadge(true)
+                // Notify the active tab's content script so the overlay appears
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0]?.id) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            type: 'GOREX_QUEUED',
+                            url: msg.payload.url,
+                            title: tabs[0].title || '',
+                        }).catch(() => {})
+                    }
+                })
                 sendResponse({ ok: true })
             })
             .catch(e => {
@@ -166,6 +176,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'GOREX_GET_QUEUE') {
         apiGet('/gorex-api/queue')
             .then(data => sendResponse({ ok: true, data }))
+            .catch(e => sendResponse({ ok: false, error: e.message }))
+        return true
+    }
+    if (msg.type === 'GOREX_REMOVE_FROM_QUEUE') {
+        apiPost('/gorex-api/queue/remove', { id: msg.id })
+            .then(() => sendResponse({ ok: true }))
             .catch(e => sendResponse({ ok: false, error: e.message }))
         return true
     }

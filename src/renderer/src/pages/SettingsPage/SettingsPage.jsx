@@ -197,6 +197,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
         defaultOutputDir: '',
         ytdlCookiesFile: '',
         backgroundMode: true,
+        defaultAudioFormat: 'wav',
     })
 
     // Default encoding settings
@@ -818,6 +819,23 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 value={!!enc.optimizeMP4}
                                 onChange={v => updateEnc('optimizeMP4', v)}
                                 disabled={enc.format !== 'av_mp4'}
+                            />
+                        </Row>
+
+                        <SectionHeader icon="bi-cloud-arrow-down" title={t('sectionDownloadDefaults')} />
+                        <Row label={t('rowDefaultAudioFormat')} hint={t('hintDefaultAudioFormat')}>
+                            <GsSelect
+                                value={appConfig.defaultAudioFormat || 'wav'}
+                                options={[
+                                    { value: 'best',   label: t('audioFmtBest') },
+                                    { value: 'mp3',    label: t('audioFmtMp3') },
+                                    { value: 'm4a',    label: t('audioFmtM4a') },
+                                    { value: 'flac',   label: t('audioFmtFlac') },
+                                    { value: 'opus',   label: t('audioFmtOpus') },
+                                    { value: 'wav',    label: t('audioFmtWav') },
+                                    { value: 'vorbis', label: t('audioFmtOgg') },
+                                ]}
+                                onChange={v => updateApp('defaultAudioFormat', v)}
                             />
                         </Row>
                     </div>

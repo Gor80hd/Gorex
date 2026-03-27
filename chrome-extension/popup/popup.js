@@ -39,10 +39,10 @@ let currentUrl        = ''
 let currentFormats    = []
 let selectedFormatId  = null
 let appOnline         = false
-let queuePollTimer    = null
 let formatsLoaded     = false
 let selectedAudioFmt  = 'mp3'
 let selectedAudioKbps = '192'
+let metaStatusTimer   = null
 
 const $ = id => document.getElementById(id)
 
@@ -87,8 +87,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         })
     })
 
+    // Close open panel on outside click (capture phase — fires before inline onclick)
+    window.addEventListener('click', (e) => {
+        const openPanel = document.querySelector('.action-panel.open')
+        if (!openPanel) return
+        if (e.target.closest('.action-tab') || openPanel.contains(e.target)) return
+        document.querySelectorAll('.action-panel').forEach(p => p.classList.remove('open'))
+        document.querySelectorAll('.action-tab').forEach(t => t.classList.remove('active'))
+    }, true)
+
     await checkAppStatus()
-    startQueuePoll()
 })
 
 // ── URL bar ────────────────────────────────────────────────────────────────────
@@ -233,18 +241,17 @@ async function loadFormats() {
 
 // ── Download actions ───────────────────────────────────────────────────────────
 async function quickDownload()      { await doSend({ quality: 'best',  audioOnly: false }) }
-async function addToQueue()         { await doSend({ queue: true,       audioOnly: false }) }
 async function downloadNow()        { await doSend({ queue: false,      audioOnly: false }) }
-async function addToQueueAudio()    { await doSend({ queue: true,       audioOnly: true  }) }
 async function downloadNowAudio()   { await doSend({ queue: false,      audioOnly: true  }) }
 
 async function doSend(extra = {}) {
     $('error-msg').classList.add('hidden')
     $('success-msg').classList.add('hidden')
 
-    const audioOnly         = extra.audioOnly === true
-    const thumbnailDownload = !audioOnly && $('thumbnail-cb').checked
-    const trimEnabled       = !audioOnly && $('trim-enable-cb').checked
+    const audioOnly            = extra.audioOnly === true
+    const thumbnailDownload    = !audioOnly && $('thumbnail-cb').checked
+    const convertAfterDownload = !audioOnly && $('convert-cb').checked
+    const trimEnabled          = !audioOnly && $('trim-enable-cb').checked
 
     let clipStart = null, clipEnd = null
     if (trimEnabled) {
@@ -253,20 +260,21 @@ async function doSend(extra = {}) {
     }
 
     const payload = {
-        url:               currentUrl,
-        formatId:          audioOnly ? null : (selectedFormatId || null),
+        url:                  currentUrl,
+        formatId:             audioOnly ? null : (selectedFormatId || null),
         audioOnly,
-        audioFormat:       audioOnly ? selectedAudioFmt  : undefined,
-        audioBitrate:      audioOnly ? selectedAudioKbps : undefined,
+        audioFormat:          audioOnly ? selectedAudioFmt  : undefined,
+        audioBitrate:         audioOnly ? selectedAudioKbps : undefined,
         clipStart,
         clipEnd,
-        downloadThumbnail: thumbnailDownload,
+        downloadThumbnail:    thumbnailDownload,
+        convertAfterDownload,
         ...extra,
     }
 
     const btns = audioOnly
-        ? [$('audio-queue-btn'),  $('audio-dl-btn')]
-        : [$('add-queue-btn'),    $('download-now-btn'), $('quick-download-btn')]
+        ? [$('audio-dl-btn')]
+        : [$('download-now-btn'), $('quick-download-btn')]
     btns.forEach(b => b && (b.disabled = true))
 
     const resp = await bgMessage({ type: 'GOREX_ADD_TO_QUEUE', payload })
@@ -275,7 +283,7 @@ async function doSend(extra = {}) {
     if (resp?.ok) {
         $('success-msg').classList.remove('hidden')
         setTimeout(() => $('success-msg').classList.add('hidden'), 3000)
-        refreshQueue()
+        startMetaStatusPoll()
     } else {
         const errMsg = resp?.error === 'APP_OFFLINE'
             ? 'Приложение Gorex не запущено'
@@ -284,47 +292,62 @@ async function doSend(extra = {}) {
     }
 }
 
-// ── Queue ──────────────────────────────────────────────────────────────────────
-async function refreshQueue() {
-    const resp = await bgMessage({ type: 'GOREX_GET_QUEUE' })
-    if (!resp?.ok) return
-    renderQueue(resp.data?.queue || [])
+// ── Metadata status polling (shown in popup after adding) ──────────────────────
+function startMetaStatusPoll() {
+    if (metaStatusTimer) clearInterval(metaStatusTimer)
+
+    const metaEl = $('meta-loading')
+    const textEl = $('meta-loading-text')
+    const fillEl = $('meta-loading-fill')
+
+    metaEl.classList.remove('hidden')
+    fillEl.className   = 'meta-loading-fill indeterminate'
+    textEl.textContent = 'Gorex получает метаданные...'
+
+    let attempts = 0
+    let notFoundStreak = 0
+    metaStatusTimer = setInterval(async () => {
+        attempts++
+        if (attempts > 20) { stopMetaStatus(); return }
+
+        const resp  = await bgMessage({ type: 'GOREX_GET_QUEUE' })
+        const queue = resp?.data?.queue || []
+        const item  = queue.find(i => i.url === currentUrl)
+
+        if (!item) {
+            notFoundStreak++
+            if (notFoundStreak >= 3) stopMetaStatus()
+            return
+        }
+        notFoundStreak = 0
+
+        const { status, progress = 0 } = item
+
+        if (status === 'ready') {
+            textEl.textContent = 'Gorex получает метаданные...'
+            fillEl.className   = 'meta-loading-fill indeterminate'
+        } else if (status === 'format_select') {
+            textEl.textContent = 'В очереди...'
+            fillEl.className   = 'meta-loading-fill indeterminate'
+        } else if (['downloading', 'converting', 'encoding', 'downloading_subs'].includes(status)) {
+            const pct = Math.round(progress)
+            textEl.textContent = `Загрузка: ${pct}%`
+            fillEl.className   = 'meta-loading-fill progress'
+            fillEl.style.width = pct + '%'
+        } else if (status === 'done') {
+            textEl.textContent = 'Готово!'
+            fillEl.className   = 'meta-loading-fill progress'
+            fillEl.style.width = '100%'
+            stopMetaStatus(2000)
+        } else if (status === 'error') {
+            stopMetaStatus()
+        }
+    }, 1500)
 }
 
-function renderQueue(queue) {
-    if (!queue.length) {
-        $('queue-section').classList.add('hidden')
-        return
-    }
-    $('queue-section').classList.remove('hidden')
-    const list = $('queue-list')
-    list.innerHTML = ''
-    queue.forEach(item => {
-        const el = document.createElement('div')
-        el.className = 'queue-item'
-        const statusLabel = {
-            ready:            'Готов',
-            format_select:    'Выбор',
-            downloading:      `${item.progress || 0}%`,
-            downloading_subs: 'Субт.',
-            converting:       `${item.progress || 0}%`,
-            encoding:         `${item.progress || 0}%`,
-            done:             '✓',
-            error:            'Ошибка',
-        }[item.status] || item.status
-
-        el.innerHTML = `
-            <div class="queue-item-title" title="${escapeHtml(item.title || item.url || '')}">${escapeHtml(item.title || item.url || 'Без названия')}</div>
-            <span class="queue-status ${item.status}">${escapeHtml(statusLabel)}</span>
-        `
-        list.appendChild(el)
-    })
-}
-
-function startQueuePoll() {
-    if (queuePollTimer) clearInterval(queuePollTimer)
-    refreshQueue()
-    queuePollTimer = setInterval(refreshQueue, 3000)
+function stopMetaStatus(delay = 0) {
+    if (metaStatusTimer) { clearInterval(metaStatusTimer); metaStatusTimer = null }
+    setTimeout(() => $('meta-loading')?.classList.add('hidden'), delay)
 }
 
 // ── Open app ───────────────────────────────────────────────────────────────────
