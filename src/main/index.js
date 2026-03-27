@@ -159,12 +159,19 @@ function startExtensionApiServer() {
                 clipStart: data.clipStart ?? null,
                 clipEnd: data.clipEnd ?? null,
                 downloadThumbnail: !!data.downloadThumbnail,
+                convertAfterDownload: !!data.convertAfterDownload,
             })
-            // Show app window if it's hidden (background mode)
-            if (!mainWindow.isVisible()) {
-                mainWindow.show()
-                mainWindow.focus()
-            }
+            json({ ok: true })
+            return
+        }
+
+        // ── POST /gorex-api/queue/remove ─────────────────────────────────────────
+        if (path === '/gorex-api/queue/remove' && req.method === 'POST') {
+            let data
+            try { data = JSON.parse(await readBody(req)) } catch { json({ error: 'invalid JSON body' }, 400); return }
+            if (data?.id == null) { json({ error: 'id field required' }, 400); return }
+            if (!mainWindow || mainWindow.isDestroyed()) { json({ error: 'app not ready' }, 503); return }
+            mainWindow.webContents.send('extension-remove-from-queue', { id: data.id })
             json({ ok: true })
             return
         }
@@ -1122,7 +1129,7 @@ app.whenReady().then(async () => {
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
-    ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat }) => {
+    ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat, audioFormat }) => {
         _trayColor = '#7c3aed'
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
@@ -1183,13 +1190,22 @@ app.whenReady().then(async () => {
             '-f', fmtArg,
             '-o', outputTemplate,
             '--no-playlist',
-            '--merge-output-format', 'mp4',
+            ...(!isAudioOnlyFmt ? ['--merge-output-format', 'mp4'] : []),
             '--newline',
             '--extractor-args', 'generic:impersonate',
             ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
             ...(cookiesFile ? ['--cookies', cookiesFile] : []),
             ...(require('fs').existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
         ]
+
+        // Audio extraction args for audio-only mode
+        if (isAudioOnlyFmt) {
+            ytdlArgs.push('--extract-audio')
+            if (audioFormat && audioFormat !== 'best') {
+                ytdlArgs.push('--audio-format', audioFormat)
+                if (audioFormat === 'mp3') ytdlArgs.push('--audio-quality', '0')
+            }
+        }
 
         if (hasClip) {
             const fromTs = secToTimestamp(clipStart ?? 0)
@@ -1291,6 +1307,10 @@ app.whenReady().then(async () => {
             // yt-dlp ≥ 2023 uses [ffmpeg] prefix; older builds used [Merger]
             const mergeMatch = str.match(/\[(?:Merger|ffmpeg)\] Merging formats into "(.+)"/)
             if (mergeMatch) trackPath(mergeMatch[1].trim())
+
+            // Track --extract-audio output file (overrides the source audio file path)
+            const extractMatch = str.match(/\[ExtractAudio\] Destination:\s+(.+)/)
+            if (extractMatch) trackPath(extractMatch[1].trim())
 
             const alreadyMatch = str.match(/\[download\] (.+) has already been downloaded/)
             if (alreadyMatch) trackPath(alreadyMatch[1].trim())

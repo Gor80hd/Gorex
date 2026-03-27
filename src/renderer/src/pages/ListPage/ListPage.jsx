@@ -173,6 +173,17 @@ function buildYtdlFormatGroups(formats, t) {
     return groups
 }
 
+// Returns the effective format value: uses selectedFormat if it exists in groups,
+// otherwise falls back to the first video format or 'bestaudio'.
+function resolveYtdlFormat(selectedFormat, groups) {
+    if (!groups || !groups.length) return 'bestaudio'
+    const allValues = groups.flatMap(g => g.options.map(o => o.value))
+    if (selectedFormat && allValues.includes(selectedFormat)) return selectedFormat
+    // First video format (second group, first option), or bestaudio
+    const videoOptions = groups[1]?.options
+    return videoOptions?.length ? videoOptions[0].value : 'bestaudio'
+}
+
 // ─── Transformation tags helper ────────────────────────────────────────────────
 const ENCODER_SHORT = {
     x264: 'H.264', x264_10bit: 'H.264 10b',
@@ -814,6 +825,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             return 'all'
         })(),
         _ytdlSubFormat:     video.ytdlSubFormat      ?? 'srt',
+        _ytdlAudioFormat:   video.ytdlAudioFormat    ?? 'best',
     }))
     const [activeTab, setActiveTab] = useState(isYtdl ? 'download' : 'video')
 
@@ -891,10 +903,11 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                     autoSubs:     !!draft._ytdlDownloadSubs && (isAllLangs || isAutoLang),
                     subLangs:     langCode,
                     subFormat:    draft._ytdlSubFormat  || 'srt',
+                    audioFormat:  draft._ytdlAudioFormat || 'best',
                 })
             }
             // Strip internal flags before persisting as conversionSettings
-            const { _convertAfterDownload: _, _ytdlNoAudio: __, _ytdlDownloadSubs: ___, _ytdlAutoSubs: ____, _ytdlSubLangs: _____, _ytdlSubFormat: ______, ...cleanDraft } = draft
+            const { _convertAfterDownload: _, _ytdlNoAudio: __, _ytdlDownloadSubs: ___, _ytdlAutoSubs: ____, _ytdlSubLangs: _____, _ytdlSubFormat: ______, _ytdlAudioFormat: _______, ...cleanDraft } = draft
             onSave(video.id, cleanDraft)
         } else {
             onSave(video.id, draft)
@@ -909,7 +922,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
         : false
 
     const ytdlFormatGroups = isYtdl ? buildYtdlFormatGroups(video.ytdlFormats) : []
-    const selectedYtdlFmt = isYtdl ? (video.ytdlSelectedFormat || '') : ''
+    const selectedYtdlFmt = isYtdl ? resolveYtdlFormat(video.ytdlSelectedFormat, ytdlFormatGroups) : ''
 
     // Build grouped subtitle language options from what this video actually has.
     // Manual subs: ytdlAvailableSubs (real subtitles added by humans).
@@ -973,7 +986,10 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                 {/* ── Header ── */}
                 <div className="vsp-header">
                     <div className="vsp-header-info">
-                        <img className="vsp-thumb" src={video.thumbnail} alt="" />
+                        {video.thumbnail
+                            ? <img className="vsp-thumb" src={video.thumbnail} alt="" />
+                            : <div className="vsp-thumb vsp-thumb--placeholder"><i className="bi bi-film"></i></div>
+                        }
                         <div className="vsp-title-block">
                             <span className="vsp-title">{video.title}</span>
                             <span className="vsp-subtitle">
@@ -1017,13 +1033,30 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
 
                                 {/* ── Audio options ── */}
                                 <VspSectionHeader icon="bi-volume-mute" title={t('vspAudioOptions')} />
-                                <VspRow label={t('vspNoAudio')} hint={t('vspHintNoAudio')}>
-                                    <VspToggle
-                                        value={!!draft._ytdlNoAudio}
-                                        onChange={v => setDraft(prev => ({ ...prev, _ytdlNoAudio: v }))}
-                                        disabled={selectedYtdlFmt === 'bestaudio'}
-                                    />
-                                </VspRow>
+                                {selectedYtdlFmt === 'bestaudio' ? (
+                                    <VspRow label={t('vspAudioFileFormat')} hint={t('vspHintAudioFileFormat')}>
+                                        <PanelSelect
+                                            value={draft._ytdlAudioFormat || 'best'}
+                                            options={[
+                                                { value: 'best',  label: t('audioFmtBest') },
+                                                { value: 'mp3',   label: t('audioFmtMp3') },
+                                                { value: 'm4a',   label: t('audioFmtM4a') },
+                                                { value: 'flac',  label: t('audioFmtFlac') },
+                                                { value: 'opus',  label: t('audioFmtOpus') },
+                                                { value: 'wav',   label: t('audioFmtWav') },
+                                                { value: 'vorbis',label: t('audioFmtOgg') },
+                                            ]}
+                                            onChange={v => setDraft(prev => ({ ...prev, _ytdlAudioFormat: v }))}
+                                        />
+                                    </VspRow>
+                                ) : (
+                                    <VspRow label={t('vspNoAudio')} hint={t('vspHintNoAudio')}>
+                                        <VspToggle
+                                            value={!!draft._ytdlNoAudio}
+                                            onChange={v => setDraft(prev => ({ ...prev, _ytdlNoAudio: v }))}
+                                        />
+                                    </VspRow>
+                                )}
 
                                 <VspSectionHeader icon="bi-arrow-repeat" title={t('vspConvertAfterDl')} />
                                 <VspRow label={t('vspConvertFile')} hint={t('vspHintConvertFile')}>
@@ -1814,14 +1847,6 @@ function ListPage({
                         >
                             <i className="bi bi-clipboard" />
                         </button>
-                        <button
-                            className="list-url-btn"
-                            onClick={handleAddUrl}
-                            disabled={!addUrlTrimmed || isAddingUrl || !addUrlValid || isEncoding}
-                            title={t('addToQueueTitle')}
-                        >
-                            {isAddingUrl ? <span className="list-url-spinner" /> : <i className="bi bi-cloud-arrow-down-fill" />}
-                        </button>
                     </div>
                     <button
                         className="add-button"
@@ -1872,7 +1897,10 @@ function ListPage({
                             onClick={() => !isEncoding && !isActive && setEditingVideoId(v.id)}
                         >
                             <div className="video-thumbnail">
-                                <img src={v.thumbnail} alt="Thumbnail" />
+                                {v.thumbnail
+                                    ? <img src={v.thumbnail} alt="Thumbnail" />
+                                    : <div className="video-thumb-placeholder"><i className="bi bi-film"></i></div>
+                                }
                                 {isActive && (
                                     <div className="encoding-overlay">
                                         <div className="spinner"></div>
@@ -1928,8 +1956,13 @@ function ListPage({
                                 {/* ── yt-dlp inline controls ── */}
                                 {v.isYtdlItem && v.status !== 'done' && ((
                                     () => {
-                                        const selFmt = (v.ytdlFormats || []).find(f => f.format_id === v.ytdlSelectedFormat)
+                                        const inlineGroups = buildYtdlFormatGroups(v.ytdlFormats, t)
+                                        const resolvedFmt = resolveYtdlFormat(v.ytdlSelectedFormat, inlineGroups)
+                                        const selFmt = (v.ytdlFormats || []).find(f => f.format_id === resolvedFmt)
                                         const fmtTags = selFmt ? buildFormatTags(selFmt) : []
+                                        const convTags = v.convertAfterDownload
+                                            ? getTransformTags(v, v.conversionSettings || settings, t)
+                                            : []
                                         return (
                                             <div className="ytdl-controls">
                                                 <div className="ytdl-format-row">
@@ -1938,8 +1971,8 @@ function ListPage({
                                                     <span onClick={e => e.stopPropagation()}>
                                                         <GsSelect
                                                             className="ytdl-format-gs"
-                                                            groups={buildYtdlFormatGroups(v.ytdlFormats, t)}
-                                                            value={v.ytdlSelectedFormat || ''}
+                                                            groups={inlineGroups}
+                                                            value={resolvedFmt}
                                                             onChange={val => onYtdlFormatChange(v.id, val)}
                                                             disabled={isEncoding}
                                                             direction="down"
@@ -1954,13 +1987,23 @@ function ListPage({
                                                     </span>
                                                     <span className="ytdl-label">{t('ytdlConvertLabel')}</span>
                                                 </div>
-                                                {fmtTags.length > 0 && (
+                                                {(fmtTags.length > 0 || convTags.length > 0) && (
                                                     <span className="ytdl-fmt-tags">
-                                                        {fmtTags.map(t => (
-                                                            <span key={t.key} className={`vtag transform-tag ${t.cls}`}>
-                                                                <i className={`bi ${t.icon}`}></i>{t.label}
+                                                        {fmtTags.map(tag => (
+                                                            <span key={tag.key} className={`vtag transform-tag ${tag.cls}`}>
+                                                                <i className={`bi ${tag.icon}`}></i>{tag.label}
                                                             </span>
                                                         ))}
+                                                        {convTags.length > 0 && (
+                                                            <>
+                                                                <span className="vtag-arrow"><i className="bi bi-arrow-right-short"></i></span>
+                                                                {convTags.map(tag => (
+                                                                    <span key={tag.key} className={`vtag transform-tag ${tag.cls}`}>
+                                                                        <i className={`bi ${tag.icon}`}></i>{tag.label}
+                                                                    </span>
+                                                                ))}
+                                                            </>
+                                                        )}
                                                     </span>
                                                 )}
                                             </div>
@@ -1968,8 +2011,8 @@ function ListPage({
                                     }
                                 )())}
 
-                                {/* ── conversion transform tags (non-ytdl, or ytdl with convert) ── */}
-                                {(!v.isYtdlItem || v.convertAfterDownload) && (() => {
+                                {/* ── conversion transform tags (non-ytdl only; ytdl case is handled inside ytdl-controls) ── */}
+                                {(!v.isYtdlItem || (v.isYtdlItem && v.convertAfterDownload && v.status === 'done')) && (() => {
                                     const effectiveSettings = v.isYtdlItem
                                         ? (v.conversionSettings || settings)
                                         : (v.customSettings || settings)
@@ -1977,7 +2020,7 @@ function ListPage({
                                     if (!transformTags.length) return null
                                     return (
                                         <div className="video-transform-tags">
-                                            <span className="vtag-arrow"><i className="bi bi-arrow-down-short"></i></span>
+                                            <span className="vtag-arrow"><i className="bi bi-arrow-right-short"></i></span>
                                             {transformTags.map(t => (
                                                 <span key={t.key} className={`vtag transform-tag ${t.cls}`}>
                                                     <i className={`bi ${t.icon}`}></i>{t.label}

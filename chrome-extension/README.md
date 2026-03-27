@@ -65,7 +65,7 @@ chrome-extension/
 
 ## Требования
 
-- Gorex v2.0.0+ (с поддержкой Extension API)
+- Gorex v2.1.0+ (с поддержкой Extension API)
 - Google Chrome 116+ (Manifest V3)
 
 ## Безопасность

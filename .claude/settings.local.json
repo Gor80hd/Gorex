@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /e/Sites/Gorex -maxdepth 2 -name .cursor* -o -name .github -type d)"
+    ]
+  }
+}
