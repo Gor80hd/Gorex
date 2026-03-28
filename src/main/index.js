@@ -453,6 +453,183 @@ function getFfmpegPath() {
     return join(dirname(process.execPath), 'resources', 'ytdl', bin)
 }
 
+// ─── ffprobe binary resolver (same dir as ffmpeg) ───────────────────────────────────────
+function getFfprobePath() {
+    const bin = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe'
+    if (is.dev) {
+        return join(app.getAppPath(), 'resources', 'ytdl', bin)
+    }
+    return join(dirname(process.execPath), 'resources', 'ytdl', bin)
+}
+
+// ─── SponsorBlock: keyframe-aligned manual cutting ──────────────────────────────────────
+// Reads the container packet index (no frame decoding) and returns a sorted array of
+// keyframe timestamps in seconds for the first video stream.
+async function getVideoKeyframes(filePath) {
+    const ffprobePath = getFfprobePath()
+    return new Promise((resolve) => {
+        const child = spawn(ffprobePath, [
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'packet=pts_time,flags',
+            '-of', 'csv=p=0',
+            filePath
+        ], { windowsHide: true })
+        let out = ''
+        child.stdout.on('data', d => { out += d.toString() })
+        child.on('close', () => {
+            const kfs = []
+            for (const line of out.split('\n')) {
+                const parts = line.trim().split(',')
+                if (parts.length >= 2 && parts[1] && parts[1][0] === 'K' && parts[0] !== 'N/A') {
+                    const t = parseFloat(parts[0])
+                    if (!isNaN(t)) kfs.push(t)
+                }
+            }
+            kfs.sort((a, b) => a - b)
+            resolve(kfs)
+        })
+        child.on('error', () => resolve([]))
+    })
+}
+
+// Nearest keyframe at or before `time` (for segment end — don't overshoot into sponsor).
+function kfSnapDown(time, keyframes) {
+    if (!keyframes.length) return time
+    let best = keyframes[0]
+    for (const kf of keyframes) {
+        if (kf <= time + 0.001) best = kf
+        else break
+    }
+    return best
+}
+
+
+// Cuts chapters marked as "[SponsorBlock]: …" from a downloaded video at keyframe
+// boundaries using a two-step FFmpeg pass (segment cut → concat). Replaces filePath
+// in-place. Returns filePath unchanged if nothing to cut or on any error.
+async function cutSponsorBlockSegments({ filePath, id, ytdlDuration, eventSender }) {
+    const fs = require('fs')
+    const os = require('os')
+    const { join: pj, dirname: pdn, basename: pbn, extname: pen } = require('path')
+    const fluentFfmpeg = require('fluent-ffmpeg')
+
+    // Signal renderer: scanning keyframes
+    eventSender.send('ytdl-progress', { id, progress: 0, sponsorBlockProbePhase: true })
+
+    // Read chapters + duration from file via fluent-ffmpeg (path already configured)
+    const meta = await new Promise((res) => {
+        fluentFfmpeg.ffprobe(filePath, ['-show_chapters'], (err, data) => res(err ? null : data))
+    })
+    if (!meta) return filePath
+
+    const chapters = meta.chapters || []
+    const duration = parseFloat(meta.format?.duration || ytdlDuration || 0)
+
+    console.log('[sponsorblock-cut] chapters from ffprobe:', JSON.stringify(chapters.map(ch => ({ title: ch.tags?.title || ch['TAG:title'], start: ch.start_time, end: ch.end_time }))))
+
+    const sponsorRanges = chapters
+        .filter(ch => (ch.tags?.title || ch['TAG:title'] || '').startsWith('[SponsorBlock]:'))
+        .map(ch => ({ start: parseFloat(ch.start_time), end: parseFloat(ch.end_time) }))
+        .filter(r => !isNaN(r.start) && !isNaN(r.end) && r.end > r.start)
+        .sort((a, b) => a.start - b.start)
+
+    console.log('[sponsorblock-cut] sponsorRanges:', JSON.stringify(sponsorRanges))
+
+    if (!sponsorRanges.length) return filePath
+
+    // Get all keyframe timestamps from the container index
+    const keyframes = await getVideoKeyframes(filePath)
+
+    // Build kept segments by inverting sponsor ranges
+    const keptSegments = []
+    let cursor = 0
+    for (const range of sponsorRanges) {
+        if (range.start > cursor + 0.1) keptSegments.push({ start: cursor, end: range.start })
+        cursor = range.end
+    }
+    if (cursor < duration - 0.1) keptSegments.push({ start: cursor, end: duration })
+    if (!keptSegments.length) return filePath
+
+    // Snap segment starts DOWN to the nearest keyframe — FFmpeg -ss seeks to keyframe at or
+    // before the specified time, so snapping down keeps the seek exact and avoids freeze
+    // frames. A brief overlap with the sponsor tail may appear (up to one keyframe interval)
+    // but no legitimate content is lost. Ends use exact time; -t stops cleanly at any frame.
+    const snapped = keptSegments.map(seg => ({
+        start: seg.start <= 0.05 ? 0 : (keyframes.length ? kfSnapDown(seg.start, keyframes) : seg.start),
+        // null end = copy to EOF (last segment)
+        end:   seg.end >= duration - 0.1 ? null : seg.end
+    })).filter(seg => seg.end === null || seg.end > seg.start + 0.05)
+    if (!snapped.length) return filePath
+
+    eventSender.send('ytdl-progress', { id, progress: 0, sponsorBlockPhase: true })
+
+    const ffmpegPath = getFfmpegPath()
+    const tempId = `gorex_sb_${id}_${Date.now()}`
+    const tempDir = os.tmpdir()
+    const ext = pen(filePath)
+    const segPaths = []
+
+    try {
+        // ── Pass 1: cut individual keyframe-aligned segments ──────────────────────
+        for (let i = 0; i < snapped.length; i++) {
+            const seg = snapped[i]
+            const segPath = pj(tempDir, `${tempId}_seg${i}${ext}`)
+            segPaths.push(segPath)
+
+            await new Promise((resolve, reject) => {
+                const args = ['-y', '-ss', String(seg.start)]
+                if (seg.end !== null) args.push('-t', String(seg.end - seg.start))
+                args.push('-i', filePath, '-c', 'copy', '-avoid_negative_ts', 'make_zero', segPath)
+                const ff = spawn(ffmpegPath, args, { windowsHide: true })
+                ff.on('close', code => code === 0 ? resolve() : reject(new Error(`seg ${i} exit ${code}`)))
+                ff.on('error', reject)
+            })
+
+            const segProgress = ((i + 1) / snapped.length) * 50
+            eventSender.send('ytdl-progress', { id, progress: segProgress, sponsorBlockPhase: true })
+        }
+
+        // ── Pass 2: concat segments into final file ───────────────────────────────
+        const concatPath = pj(tempDir, `${tempId}_concat.txt`)
+        const keptDuration = snapped.reduce((acc, seg) => acc + ((seg.end ?? duration) - seg.start), 0)
+        const listContent = segPaths
+            .map(p => `file '${p.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`)
+            .join('\n')
+        fs.writeFileSync(concatPath, listContent, 'utf8')
+
+        const outPath = pj(pdn(filePath), pbn(filePath, ext) + `_sbcut${ext}`)
+        await new Promise((resolve, reject) => {
+            const args = ['-y', '-f', 'concat', '-safe', '0', '-i', concatPath, '-c', 'copy', outPath]
+            const ff = spawn(ffmpegPath, args, { windowsHide: true })
+            ff.stderr.on('data', d => {
+                const m = d.toString().match(/time=(\d+):(\d+):([\d.]+)/)
+                if (m && keptDuration > 0) {
+                    const secs = parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3])
+                    const progress = 50 + Math.min(49, (secs / keptDuration) * 49)
+                    eventSender.send('ytdl-progress', { id, progress, sponsorBlockPhase: true })
+                }
+            })
+            ff.on('close', code => code === 0 ? resolve() : reject(new Error(`concat exit ${code}`)))
+            ff.on('error', reject)
+        })
+
+        try { fs.unlinkSync(concatPath) } catch {}
+
+        // Replace original with the cut version
+        try { fs.unlinkSync(filePath) } catch {}
+        fs.renameSync(outPath, filePath)
+
+        return filePath
+    } catch (err) {
+        console.error('[sponsorblock-cut] error:', err.message)
+        try { fs.unlinkSync(pj(pdn(filePath), pbn(filePath, ext) + `_sbcut${ext}`)) } catch {}
+        return filePath
+    } finally {
+        for (const p of segPaths) { try { fs.unlinkSync(p) } catch {} }
+    }
+}
+
 // ─── Node.js path for yt-dlp --js-runtimes on YouTube ───────────────────────────────────
 // Newer yt-dlp versions require a JS runtime to solve YouTube's n-signature challenge.
 // Priority: 1) bundled node.exe in resources/ytdl/  2) system Node.js from PATH
@@ -1129,7 +1306,7 @@ app.whenReady().then(async () => {
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
-    ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat, audioFormat }) => {
+    ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat, audioFormat, sponsorBlock, sponsorBlockCats }) => {
         _trayColor = '#7c3aed'
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
@@ -1215,6 +1392,18 @@ app.whenReady().then(async () => {
             // to probe keyframes before downloading begins, which blocks all progress output.
         }
 
+        // SponsorBlock: remove marked segments via ffmpeg post-processing after download.
+        // Download runs at full speed; ffmpeg cuts the file once it's fully saved.
+        if (sponsorBlock && !isAudioOnlyFmt) {
+            const cats = Array.isArray(sponsorBlockCats) && sponsorBlockCats.length
+                ? sponsorBlockCats.join(',')
+                : 'sponsor'
+            // Mark sponsor segments as chapters (instead of removing them here).
+            // Actual removal happens after download via cutSponsorBlockSegments(),
+            // which snaps cut points to keyframe boundaries for clean, freeze-free cuts.
+            ytdlArgs.push('--sponsorblock-mark', cats)
+        }
+
         if (downloadSubs || autoSubs) {
             // Subtitles are downloaded in a SEPARATE second pass (--skip-download)
             // after the video is fully saved. This prevents yt-dlp from aborting
@@ -1269,8 +1458,8 @@ app.whenReady().then(async () => {
                 return
             }
             // ffmpeg time-based progress: frame= 55 fps=0.0 ... time=00:00:02.04 ...
-            // Emitted on stderr when yt-dlp uses --download-sections (pipes through ffmpeg)
-            if (fromStderr && clipDuration && str.includes('time=')) {
+            // Emitted on stderr during --download-sections
+            if (fromStderr && str.includes('time=') && clipDuration) {
                 const timeMatch = str.match(/time=(\d+):(\d+):([\d.]+)/)
                 if (timeMatch) {
                     const secs = parseInt(timeMatch[1], 10) * 3600
@@ -1356,7 +1545,21 @@ app.whenReady().then(async () => {
 
             // Before passing to FFmpeg, verify the file actually has a video stream.
             // yt-dlp may have left an audio-only temp file (e.g. .f251.webm) if the
-            // merger message format wasn’t recognised or the selected format is audio-only.
+            // merger message format wasn't recognised or the selected format is audio-only.
+
+            // ── SponsorBlock: keyframe-aligned cutting ────────────────────────────
+            if (sponsorBlock && !isAudioOnlyFmt && downloadedPath && fs.existsSync(downloadedPath)) {
+                try {
+                    downloadedPath = await cutSponsorBlockSegments({
+                        filePath: downloadedPath,
+                        id,
+                        ytdlDuration,
+                        eventSender: event.sender,
+                    })
+                } catch (err) {
+                    console.error('[sponsorblock-cut] unhandled error:', err.message)
+                }
+            }
 
             // ── Subtitle second pass ──────────────────────────────────────────────
             // Run a separate yt-dlp invocation with --skip-download to fetch only

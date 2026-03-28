@@ -2260,3 +2260,50 @@ $dur: 0.5s;
     font-size: 0.72rem;
     max-width: 165px;
 }
+
+// ── SponsorBlock category pills ────────────────────────────────────────────────
+.sb-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 0 4px;
+}
+
+.sb-cat {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    user-select: none;
+
+    .app-wrapper.dark & {
+        border-color: rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.35);
+        background: transparent;
+
+        &.active {
+            background: rgba(var(--accent-rgb), 0.18);
+            border-color: rgba(var(--accent-rgb), 0.55);
+            color: rgba(255, 255, 255, 0.85);
+        }
+        &:hover { border-color: rgba(255, 255, 255, 0.3); color: rgba(255, 255, 255, 0.55); }
+        &.active:hover { opacity: 0.8; }
+    }
+
+    .app-wrapper.light & {
+        border-color: rgba(0, 0, 0, 0.14);
+        color: rgba(0, 0, 0, 0.35);
+        background: transparent;
+
+        &.active {
+            background: rgba(var(--accent-rgb), 0.12);
+            border-color: rgba(var(--accent-rgb), 0.45);
+            color: rgba(0, 0, 0, 0.8);
+        }
+        &:hover { border-color: rgba(0, 0, 0, 0.3); color: rgba(0, 0, 0, 0.55); }
+        &.active:hover { opacity: 0.8; }
+    }
+}

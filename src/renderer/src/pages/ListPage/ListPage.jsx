@@ -824,8 +824,10 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             if (autos.length > 0) return `auto:${autos[0]}`
             return 'all'
         })(),
-        _ytdlSubFormat:     video.ytdlSubFormat      ?? 'srt',
-        _ytdlAudioFormat:   video.ytdlAudioFormat    ?? 'best',
+        _ytdlSubFormat:          video.ytdlSubFormat          ?? 'srt',
+        _ytdlAudioFormat:        video.ytdlAudioFormat        ?? 'best',
+        _ytdlSponsorBlock:       video.ytdlSponsorBlock       ?? false,
+        _ytdlSponsorBlockCats:   video.ytdlSponsorBlockCats   ?? ['sponsor'],
     }))
     const [activeTab, setActiveTab] = useState(isYtdl ? 'download' : 'video')
 
@@ -898,16 +900,18 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                 const isAutoLang = !isAllLangs && rawLang.startsWith('auto:')
                 const langCode = isAutoLang ? rawLang.slice(5) : rawLang
                 onYtdlOptionsChange(video.id, {
-                    noAudio:      !!draft._ytdlNoAudio,
-                    downloadSubs: !!draft._ytdlDownloadSubs && (isAllLangs || !isAutoLang),
-                    autoSubs:     !!draft._ytdlDownloadSubs && (isAllLangs || isAutoLang),
-                    subLangs:     langCode,
-                    subFormat:    draft._ytdlSubFormat  || 'srt',
-                    audioFormat:  draft._ytdlAudioFormat || 'best',
+                    noAudio:            !!draft._ytdlNoAudio,
+                    downloadSubs:       !!draft._ytdlDownloadSubs && (isAllLangs || !isAutoLang),
+                    autoSubs:           !!draft._ytdlDownloadSubs && (isAllLangs || isAutoLang),
+                    subLangs:           langCode,
+                    subFormat:          draft._ytdlSubFormat  || 'srt',
+                    audioFormat:        draft._ytdlAudioFormat || 'best',
+                    sponsorBlock:       !!draft._ytdlSponsorBlock,
+                    sponsorBlockCats:   draft._ytdlSponsorBlockCats?.length ? draft._ytdlSponsorBlockCats : ['sponsor'],
                 })
             }
             // Strip internal flags before persisting as conversionSettings
-            const { _convertAfterDownload: _, _ytdlNoAudio: __, _ytdlDownloadSubs: ___, _ytdlAutoSubs: ____, _ytdlSubLangs: _____, _ytdlSubFormat: ______, _ytdlAudioFormat: _______, ...cleanDraft } = draft
+            const { _convertAfterDownload: _, _ytdlNoAudio: __, _ytdlDownloadSubs: ___, _ytdlAutoSubs: ____, _ytdlSubLangs: _____, _ytdlSubFormat: ______, _ytdlAudioFormat: _______, _ytdlSponsorBlock: ________, _ytdlSponsorBlockCats: _________, ...cleanDraft } = draft
             onSave(video.id, cleanDraft)
         } else {
             onSave(video.id, draft)
@@ -1120,6 +1124,49 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                             />
                                         </VspRow>
                                     </>
+                                )}
+
+                                {/* ── SponsorBlock ── */}
+                                <VspSectionHeader icon="bi-skip-forward-fill" title={t('vspSponsorBlockSection')} />
+                                <VspRow label={t('vspSponsorBlockEnable')} hint={t('vspHintSponsorBlockEnable')}>
+                                    <VspToggle
+                                        value={!!draft._ytdlSponsorBlock}
+                                        onChange={v => setDraft(prev => ({ ...prev, _ytdlSponsorBlock: v }))}
+                                    />
+                                </VspRow>
+                                {draft._ytdlSponsorBlock && (
+                                    <VspRow label={t('vspSponsorBlockCats')} hint={t('vspHintSponsorBlockCats')}>
+                                        <div className="sb-cats">
+                                            {[
+                                                { id: 'sponsor',        labelKey: 'sbCatSponsor' },
+                                                { id: 'intro',          labelKey: 'sbCatIntro' },
+                                                { id: 'outro',          labelKey: 'sbCatOutro' },
+                                                { id: 'selfpromo',      labelKey: 'sbCatSelfPromo' },
+                                                { id: 'preview',        labelKey: 'sbCatPreview' },
+                                                { id: 'filler',         labelKey: 'sbCatFiller' },
+                                                { id: 'interaction',    labelKey: 'sbCatInteraction' },
+                                                { id: 'music_offtopic', labelKey: 'sbCatMusicOfftopic' },
+                                            ].map(cat => {
+                                                const cats = draft._ytdlSponsorBlockCats ?? ['sponsor']
+                                                const active = cats.includes(cat.id)
+                                                return (
+                                                    <button
+                                                        key={cat.id}
+                                                        type="button"
+                                                        className={`sb-cat${active ? ' active' : ''}`}
+                                                        onClick={() => {
+                                                            const next = active
+                                                                ? cats.filter(c => c !== cat.id)
+                                                                : [...cats, cat.id]
+                                                            setDraft(prev => ({ ...prev, _ytdlSponsorBlockCats: next.length ? next : [cat.id] }))
+                                                        }}
+                                                    >
+                                                        {t(cat.labelKey)}
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    </VspRow>
                                 )}
 
                                 {/* ── Time range clip ── */}
@@ -1877,7 +1924,7 @@ function ListPage({
             >
                 <div className={`video-list-scroll ${isDraggingOnList ? 'blurred' : ''}`}>
                     {videos.map(v => {
-                        const isActive = ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status)
+                        const isActive = ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status)
                         const unknownHost = (!v.downloadService && v.isYtdlItem && v.ytdlUrl)
                             ? (() => { try { return new URL(v.ytdlUrl).hostname } catch { return null } })()
                             : null
@@ -2032,18 +2079,20 @@ function ListPage({
                                 <div className="video-progress">
                                     <div className="progress-bar-bg">
                                         <div
-                                            className={`progress-bar-fill${v.status === 'downloading' || v.status === 'downloading-subs' ? ' progress-bar-fill--download' : v.status === 'converting' ? ' progress-bar-fill--convert' : ''}`}
+                                            className={`progress-bar-fill${v.status === 'downloading' || v.status === 'downloading-subs' || v.status === 'probing-keyframes' || v.status === 'cutting-sponsors' ? ' progress-bar-fill--download' : v.status === 'converting' ? ' progress-bar-fill--convert' : ''}`}
                                             style={{ width: `${v.progress}%` }}
                                         ></div>
                                     </div>
                                     <span className="progress-text">
                                         {v.status === 'downloading' ? `↓ ${v.progress.toFixed(1)}%` :
                                          v.status === 'downloading-subs' ? `↓ CC ${v.progress.toFixed(1)}%` :
+                                         v.status === 'probing-keyframes' ? `◎ KF` :
+                                         v.status === 'cutting-sponsors' ? `✂ SB ${v.progress.toFixed(1)}%` :
                                          v.status === 'converting' ? `⚙ ${v.progress.toFixed(1)}%` :
                                          `${v.progress.toFixed(1)}%`}
                                     </span>
                                 </div>
-                                {(v.status === 'encoding' || v.status === 'downloading' || v.status === 'downloading-subs' || v.status === 'converting') && v.startTime && (
+                                {(v.status === 'encoding' || v.status === 'downloading' || v.status === 'downloading-subs' || v.status === 'probing-keyframes' || v.status === 'cutting-sponsors' || v.status === 'converting') && v.startTime && (
                                     <div className="video-time-info">
                                         <span className="vtime elapsed">
                                             <i className="bi bi-clock-history"></i>
@@ -2097,7 +2146,7 @@ function ListPage({
                                         )
                                     })()
                                 }
-                                {v.status !== 'encoding' && v.status !== 'downloading' && v.status !== 'downloading-subs' && v.status !== 'converting' && !isEncoding && (
+                                {v.status !== 'encoding' && v.status !== 'downloading' && v.status !== 'downloading-subs' && v.status !== 'probing-keyframes' && v.status !== 'cutting-sponsors' && v.status !== 'converting' && !isEncoding && (
                                     <button
                                         className="delete-video-btn"
                                         onClick={e => { e.stopPropagation(); onRemoveVideo(v.id) }}

@@ -282,12 +282,14 @@ function App() {
     const handleYtdlOptionsChange = (id, opts) => {
         setVideos(prev => prev.map(v =>
             v.id === id ? { ...v,
-                ytdlNoAudio:      opts.noAudio,
-                ytdlDownloadSubs: opts.downloadSubs,
-                ytdlAutoSubs:     opts.autoSubs,
-                ytdlSubLangs:     opts.subLangs,
-                ytdlSubFormat:    opts.subFormat,
-                ytdlAudioFormat:  opts.audioFormat,
+                ytdlNoAudio:          opts.noAudio,
+                ytdlDownloadSubs:     opts.downloadSubs,
+                ytdlAutoSubs:         opts.autoSubs,
+                ytdlSubLangs:         opts.subLangs,
+                ytdlSubFormat:        opts.subFormat,
+                ytdlAudioFormat:      opts.audioFormat,
+                ytdlSponsorBlock:     opts.sponsorBlock,
+                ytdlSponsorBlockCats: opts.sponsorBlockCats,
             } : v
         ))
     }
@@ -340,7 +342,7 @@ function App() {
     const handleStop = () => {
         // Record all active job IDs so their cli-exit/ytdl-exit/progress events are ignored
         videosRef.current
-            .filter(v => ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status))
+            .filter(v => ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status))
             .forEach(v => stoppedJobsRef.current.add(v.id))
         window.api.stopAll()
         setIsEncoding(false)
@@ -348,7 +350,7 @@ function App() {
         setEncodingStartTime(null)
         progressStateRef.current.clear()
         setVideos(prev => prev.map(v =>
-            ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status)
+            ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status)
                 ? { ...v, status: v.isYtdlItem ? 'format_select' : 'ready', progress: 0, startTime: null, endTime: null }
                 : v
         ))
@@ -447,12 +449,14 @@ function App() {
                     clipStart: v.clipStart ?? null,
                     clipEnd: v.clipEnd ?? null,
                     ytdlDuration: v.ytdlDuration ?? null,
-                    noAudio:      v.ytdlNoAudio      ?? false,
-                    downloadSubs: v.ytdlDownloadSubs ?? false,
-                    autoSubs:     v.ytdlAutoSubs     ?? false,
-                    subLangs:     v.ytdlSubLangs     ?? 'all',
-                    subFormat:    v.ytdlSubFormat    ?? 'srt',
-                    audioFormat:  v.ytdlAudioFormat  ?? 'best',
+                    noAudio:            v.ytdlNoAudio          ?? false,
+                    downloadSubs:       v.ytdlDownloadSubs     ?? false,
+                    autoSubs:           v.ytdlAutoSubs         ?? false,
+                    subLangs:           v.ytdlSubLangs         ?? 'all',
+                    subFormat:          v.ytdlSubFormat        ?? 'srt',
+                    audioFormat:        v.ytdlAudioFormat      ?? 'best',
+                    sponsorBlock:       v.ytdlSponsorBlock     ?? false,
+                    sponsorBlockCats:   v.ytdlSponsorBlockCats ?? ['sponsor'],
                 })
             } else {
                 window.api.runCli({
@@ -557,11 +561,15 @@ function App() {
             ))
         })
 
-        window.api.onYtdlProgress(({ id, progress, subsPhase }) => {
+        window.api.onYtdlProgress(({ id, progress, subsPhase, sponsorBlockPhase, sponsorBlockProbePhase }) => {
             if (stoppedJobsRef.current.has(id)) return
+            const newStatus = subsPhase ? 'downloading-subs'
+                : sponsorBlockProbePhase ? 'probing-keyframes'
+                : sponsorBlockPhase ? 'cutting-sponsors'
+                : 'downloading'
             setVideos(prev => prev.map(v =>
                 v.id === id
-                    ? { ...v, progress, status: subsPhase ? 'downloading-subs' : 'downloading', startTime: v.startTime ?? Date.now() }
+                    ? { ...v, progress, status: newStatus, startTime: v.startTime ?? Date.now() }
                     : v
             ))
         })
@@ -582,7 +590,7 @@ function App() {
                         ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
                         : v
                     )
-                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status))) {
+                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status))) {
                         setIsEncoding(false)
                         setEncodingStartTime(null)
                     }
@@ -603,7 +611,7 @@ function App() {
                     ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
                     : v
                 )
-                if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'converting'].includes(v.status))) {
+                if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status))) {
                     setIsEncoding(false)
                     setEncodingStartTime(null)
                 }
