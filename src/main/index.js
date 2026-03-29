@@ -930,7 +930,7 @@ app.whenReady().then(async () => {
     // Returns the default output directory respecting persisted settings.
     ipcMain.handle('get-default-output-dir', () => {
         const s = readAppSettings()
-        return s.defaultOutputDir || app.getPath('videos')
+        return s.defaultOutputDir || s.outputDir || app.getPath('videos')
     })
 
     ipcMain.handle('open-temp-folder', async () => {

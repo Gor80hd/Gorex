@@ -181,7 +181,7 @@ function SectionHeader({ icon, title }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave, initialTab }) {
+function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave, onOutputDirChange, initialTab }) {
     const { t, lang, setLang } = useLanguage()
     const [activeSection, setActiveSection] = useState(initialTab || 'app')
     const [savedFlash, setSavedFlash] = useState(false)
@@ -193,11 +193,17 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     }))
 
     // App-level config (output folder)
-    const [appConfig, setAppConfig] = useState({
-        defaultOutputDir: '',
-        ytdlCookiesFile: '',
-        backgroundMode: true,
-        defaultAudioFormat: 'wav',
+    const [appConfig, setAppConfig] = useState(() => {
+        try {
+            const s = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
+            return {
+                defaultOutputDir: s.defaultOutputDir || '',
+                ytdlCookiesFile: s.ytdlCookiesFile || '',
+                backgroundMode: s.backgroundMode !== false,
+                defaultAudioFormat: s.defaultAudioFormat || 'wav',
+            }
+        } catch {}
+        return { defaultOutputDir: '', ytdlCookiesFile: '', backgroundMode: true, defaultAudioFormat: 'wav' }
     })
 
     // Default encoding settings
@@ -307,11 +313,13 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
         if (dir) {
             updateApp('defaultOutputDir', dir)
             setResolvedOutputDir(dir)
+            onOutputDirChange?.(dir)
         }
     }
 
-    const handleResetOutputDir = () => {
+    const handleResetOutputDir = async () => {
         updateApp('defaultOutputDir', '')
+        await onOutputDirChange?.('')
         window.api.getDefaultOutputDir().then(dir => setResolvedOutputDir(dir))
     }
 

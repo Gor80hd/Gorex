@@ -80,14 +80,15 @@ function App() {
     })
     const [isLoading, setIsLoading] = useState(false)
     const [loadingMessage, setLoadingMessage] = useState(null)
+    const [customOutputDir, setCustomOutputDir] = useState('')
     const [outputMode, setOutputMode] = useState('default')
-    const [customOutputDir, setCustomOutputDir] = useState(() => {
+    // User-configured folder (from settings/onboarding) OR system Videos fallback
+    const [defaultOutputDir, setDefaultOutputDir] = useState(() => {
         try {
             const s = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
             return s.defaultOutputDir || s.defaultCustomOutputDir || ''
         } catch { return '' }
     })
-    const [defaultOutputDir, setDefaultOutputDir] = useState('')
     const [appSettings, setAppSettings] = useState(null)
     const [gpuVendor, setGpuVendor] = useState('unknown')
     const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gorex-onboarding-done'))
@@ -375,13 +376,29 @@ function App() {
         setSelectedSettings(encodingSettings)
         // Persist app config (renderer-side)
         localStorage.setItem('gorex-app-config', JSON.stringify(appConfig))
-        // Apply output dir to current session
-        if (appConfig.defaultOutputDir) setCustomOutputDir(appConfig.defaultOutputDir)
+        // User-set folder becomes the new default; fall back to system Videos if cleared
+        if (appConfig.defaultOutputDir) {
+            setDefaultOutputDir(appConfig.defaultOutputDir)
+        } else {
+            window.api.getDefaultOutputDir().then(dir => setDefaultOutputDir(dir))
+        }
         // Persist to file (main process reads CLI path from here)
         await window.api.saveAppSettings(appConfig)
         setAppSettings(appConfig)
-        // Refresh default output dir
-        window.api.getDefaultOutputDir().then(dir => setDefaultOutputDir(dir))
+    }
+
+    const handleOutputDirChange = async (dir) => {
+        const existing = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
+        const updated = { ...existing, defaultOutputDir: dir || '' }
+        localStorage.setItem('gorex-app-config', JSON.stringify(updated))
+        await window.api.saveAppSettings(updated)
+        setAppSettings(prev => ({ ...(prev || {}), defaultOutputDir: dir || '' }))
+        if (dir) {
+            setDefaultOutputDir(dir)
+        } else {
+            // After save completes, main process will now return system Videos
+            window.api.getDefaultOutputDir().then(d => setDefaultOutputDir(d))
+        }
     }
 
     const handleOutputModeChange = async (mode) => {
@@ -534,7 +551,8 @@ function App() {
     }, [videos])
 
     useEffect(() => {
-        window.api.getDefaultOutputDir().then(dir => setDefaultOutputDir(dir))
+        // Fall back to system Videos only if user hasn't configured a folder
+        window.api.getDefaultOutputDir().then(dir => setDefaultOutputDir(prev => prev || dir))
         window.api.getAppSettings().then(s => { if (s) setAppSettings(s) })
         window.api.getGpuInfo().then(info => {
             if (info && info.vendor) {
@@ -655,6 +673,7 @@ function App() {
                         onBack={() => setView(videos.length > 0 ? 'list' : 'source')}
                         appSettings={appSettings}
                         onSave={handleSaveSettings}
+                        onOutputDirChange={handleOutputDirChange}
                         initialTab={settingsInitialTab}
                     />
                 )
@@ -874,7 +893,32 @@ function App() {
             {showOnboarding && (
                 <OnboardingScreen
                     theme={theme}
-                    onDone={() => {
+                    themeMode={themeMode}
+                    accentTheme={accentTheme}
+                    onThemeModeChange={handleSetThemeMode}
+                    onAccentThemeChange={handleSetAccentTheme}
+                    onDone={(settings) => {
+                        if (settings) {
+                            const newAppSettings = {
+                                defaultOutputDir: settings.outputDir || '',
+                                backgroundMode: settings.backgroundMode !== false,
+                            }
+                            window.api.saveAppSettings(newAppSettings)
+                            window.api.setBackgroundMode(newAppSettings.backgroundMode)
+                            setAppSettings(prev => ({ ...(prev || {}), ...newAppSettings }))
+                            // Sync outputDir to localStorage and session state
+                            const existingConfig = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
+                            localStorage.setItem('gorex-app-config', JSON.stringify({ ...existingConfig, ...newAppSettings }))
+                            if (settings.outputDir) {
+                                setDefaultOutputDir(settings.outputDir)
+                            }
+                            if (settings.encoder) {
+                                const cur = JSON.parse(localStorage.getItem('gorex-default-settings') || '{}')
+                                const updated = { ...cur, encoder: settings.encoder }
+                                localStorage.setItem('gorex-default-settings', JSON.stringify(updated))
+                                setSelectedSettings(prev => ({ ...prev, encoder: settings.encoder }))
+                            }
+                        }
                         localStorage.setItem('gorex-onboarding-done', '1')
                         setShowOnboarding(false)
                     }}
