@@ -73,13 +73,14 @@ function FaviconImg({ url, className }) {
     )
 }
 
-function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave, onDrop, onDownload }) {
+function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave, onDrop, onDownload, isLoading }) {
     const [url, setUrl] = useState('')
     const [isDownloading, setIsDownloading] = useState(false)
     const [dlError, setDlError] = useState('')
     const [dlHint, setDlHint] = useState('')
     const { t } = useLanguage()
     const inputRef = useRef(null)
+    const downloadIdRef = useRef(0)
     const [ctxMenu, setCtxMenu] = useState(null) // { x, y }
 
     const trimmed = url.trim()
@@ -158,13 +159,14 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
     }, [])
 
     const handleDownload = async () => {
-        if (!trimmed || isDownloading) return
+        if (!trimmed || (isDownloading && isLoading)) return
+        const myId = ++downloadIdRef.current
         setDlError('')
         setDlHint('')
         setIsDownloading(true)
         try {
             await onDownload(trimmed, service)
-            setUrl('')
+            if (downloadIdRef.current === myId) setUrl('')
         } catch (err) {
             setDlError(err?.message || t('dlErrorDefault'))
         } finally {
@@ -183,7 +185,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
     }
 
     let iconEl
-    if (isDownloading) {
+    if (isDownloading && isLoading) {
         iconEl = <span className="dl-spinner" />
     } else if (isUrl) {
         iconEl = <FaviconImg url={trimmed} />
@@ -207,7 +209,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                             onChange={handleChange}
                             onKeyDown={handleKeyDown}
                             onContextMenu={handleContextMenu}
-                            disabled={isDownloading}
+                            disabled={isDownloading && isLoading}
                             spellCheck={false}
                         />
                         {service && <span className="dl-service-label">{service.name}</span>}
@@ -216,7 +218,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                             onClick={handlePasteBtn}
                             title={t('dlPasteTip')}
                             tabIndex={-1}
-                            disabled={isDownloading}
+                            disabled={isDownloading && isLoading}
                             type="button"
                         >
                             <i className="bi bi-clipboard" />
@@ -224,9 +226,9 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                         <button
                             className="dl-btn"
                             onClick={handleDownload}
-                            disabled={!trimmed || isDownloading || !isUrl}
+                            disabled={!trimmed || (isDownloading && isLoading) || !isUrl}
                         >
-                            {isDownloading
+                            {isDownloading && isLoading
                                 ? <span className="dl-spinner" />
                                 : <><i className="bi bi-cloud-arrow-down-fill" /><span>{t('dlDownload')}</span></>
                             }

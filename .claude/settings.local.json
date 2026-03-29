@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /e/Sites/Gorex -maxdepth 2 -name .cursor* -o -name .github -type d)"
+      "Bash(find /e/Sites/Gorex -maxdepth 2 -name .cursor* -o -name .github -type d)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

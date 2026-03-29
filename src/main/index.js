@@ -347,6 +347,7 @@ let tray = null
 let isQuitting = false
 let ytdlFetchActiveChildren = new Set()
 let ytdlFetchCancelled = false
+let videoDataCancelled = false
 
 // ─── Tray helpers ────────────────────────────────────────────────────────────
 function isBackgroundModeEnabled() {
@@ -1156,7 +1157,12 @@ app.whenReady().then(async () => {
             ytdlFetchActiveChildren.add(child)
             let out = '', err = ''
             child.stdout.on('data', d => { out += d.toString() })
-            child.stderr.on('data', d => { err += d.toString(); console.error('[ytdl-get-formats stderr]', d.toString().trimEnd()) })
+            child.stderr.on('data', d => {
+                const str = d.toString()
+                err += str
+                console.error('[ytdl-get-formats stderr]', str.trimEnd())
+                try { event.sender.send('ytdl-output', { id: null, data: str }) } catch {}
+            })
             child.on('close', code => { ytdlFetchActiveChildren.delete(child); res({ out, err, code }) })
             child.on('error', e => { ytdlFetchActiveChildren.delete(child); res({ out: '', err: e.message, code: 1 }) })
         })
@@ -1750,6 +1756,7 @@ app.whenReady().then(async () => {
     })
 
     ipcMain.handle('get-video-data', async (event, filePaths) => {
+        videoDataCancelled = false
         const ffmpeg = require('fluent-ffmpeg')
         const results = []
 
@@ -1758,6 +1765,7 @@ app.whenReady().then(async () => {
         if (!require('fs').existsSync(thumbDir)) require('fs').mkdirSync(thumbDir)
 
         for (const [index, filePath] of filePaths.entries()) {
+            if (videoDataCancelled) break
             try {
                 const metadata = await new Promise((resolve, reject) => {
                     ffmpeg.ffprobe(filePath, (err, data) => {
@@ -1858,8 +1866,11 @@ app.whenReady().then(async () => {
                 console.error(`Failed to process ${filePath}:`, err)
             }
         }
+        if (videoDataCancelled) return null
         return results
     })
+
+    ipcMain.on('cancel-video-data', () => { videoDataCancelled = true })
 
     // ── FFmpeg argument builder ───────────────────────────────────────────────────
     const FORMAT_EXT = {

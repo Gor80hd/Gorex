@@ -109,8 +109,10 @@ function App() {
     const loadAndAddVideos = async (paths, downloadService = false) => {
         if (!paths || paths.length === 0) return
         setIsLoading(true)
+        setLoadingMessage({ type: 'videodata' })
         try {
             const data = await window.api.getVideoData(paths)
+            if (data === null) return // cancelled
             const newVideos = data.map(v => ({
                 ...v,
                 id: nextIdRef.current++,
@@ -130,7 +132,14 @@ function App() {
             console.error('Failed to load video data:', err)
         } finally {
             setIsLoading(false)
+            setLoadingMessage(null)
         }
+    }
+
+    const handleVideoDataCancel = () => {
+        window.api.cancelVideoData()
+        setIsLoading(false)
+        setLoadingMessage(null)
     }
 
     const handleSelectFiles = async () => {
@@ -695,6 +704,7 @@ function App() {
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={handleDrop}
                         onDownload={handleDownload}
+                        isLoading={isLoading}
                     />
                 )
         }
@@ -758,8 +768,8 @@ function App() {
                         <div className="loading-bar-track">
                             <div className="loading-bar-fill"></div>
                         </div>
-                        {loadingMessage?.title === t('loadingFetchingFormats') && (
-                            <button className="loading-cancel-btn" onClick={handleDownloadCancel}>
+                        {(loadingMessage?.title === t('loadingFetchingFormats') || loadingMessage?.type === 'videodata') && (
+                            <button className="loading-cancel-btn" onClick={loadingMessage?.type === 'videodata' ? handleVideoDataCancel : handleDownloadCancel}>
                                 {t('loadingCancel')}
                             </button>
                         )}
