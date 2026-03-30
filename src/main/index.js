@@ -724,6 +724,9 @@ function createWindow() {
 app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.akhmatyarov.gorex')
 
+    // Renderer loads from localhost — HTTP cache only accumulates junk, disable it
+    session.defaultSession.clearCache()
+
     // Handle gorex-media:// requests – serves local video files with Range support
     // so the renderer <video> element can seek through files.
     protocol.handle('gorex-media', async (request) => {
