@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('api', {
     getDefaultInstallDir: ()      => ipcRenderer.invoke('get-default-install-dir'),
     browseDir:          ()        => ipcRenderer.invoke('browse-dir'),
     getDiskSpace:       (p)       => ipcRenderer.invoke('get-disk-space', p),
+    checkAlreadyInstalled: ()    => ipcRenderer.invoke('check-already-installed'),
+
+    uninstallExisting:  (opts)    => ipcRenderer.invoke('uninstall-existing', opts),
 
     install:            (opts)    => ipcRenderer.send('install', opts),
     onInstallProgress:  (cb)      => {

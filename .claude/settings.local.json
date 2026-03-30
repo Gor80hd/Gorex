@@ -3,7 +3,10 @@
     "allow": [
       "Bash(find /e/Sites/Gorex -maxdepth 2 -name .cursor* -o -name .github -type d)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''build'''', {}\\), indent=2\\)\\)\")",
+      "Bash(head -10 grep -rn \"Function.*isUpdated\\\\|Var.*isUpdated\\\\|!define.*isUpdated\\\\|!macro.*isUpdated\" e:/Sites/Gorex/node_modules/app-builder-lib/templates/nsis/)",
+      "Bash(node -e \":*)"
     ]
   }
 }

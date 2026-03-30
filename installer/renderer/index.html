@@ -566,6 +566,82 @@ h2 {
     animation: logIn 0.2s var(--ease) both;
 }
 
+/* ── Already-installed warning ───────────────────────────────────────────── */
+.warn-banner {
+    width: 100%;
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: rgba(251, 191, 36, 0.95);
+    background: rgba(251, 191, 36, 0.07);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    text-align: left;
+    margin-bottom: 6px;
+    line-height: 1.5;
+    animation: logIn 0.2s var(--ease) both;
+}
+.warn-banner strong { font-weight: 600; opacity: 0.85; }
+
+/* ── Already-installed step (s5) ─────────────────────────────────────────── */
+.exist-path {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--card2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 7px 14px;
+    margin-bottom: 12px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.exist-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 12px;
+}
+.exist-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 16px;
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s;
+    text-align: left;
+    width: 100%;
+    color: inherit;
+    font-family: inherit;
+}
+.exist-card:hover       { border-color: rgba(255,255,255,0.2); background: var(--card2); }
+.exist-card.accent      { border-color: var(--accentBdr); }
+.exist-card.accent:hover{ border-color: var(--accent); background: var(--accentLo); }
+.exist-card-icon {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+}
+.exist-icon-remove { background: rgba(239,68,68,0.1); color: rgba(239,68,68,0.85); }
+.exist-icon-update { background: var(--accentLo); color: var(--accent); }
+.exist-card-title  { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.exist-card-desc   { font-size: 11.5px; color: var(--muted); }
+.exist-result {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.exist-result.ok  { color: rgba(134,239,172,0.95); background: rgba(34,197,94,0.07); border: 1px solid rgba(34,197,94,0.2); }
+.exist-result.err { color: rgba(252,165,165,0.95); background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); }
+
 </style>
 </head>
 <body>
@@ -613,7 +689,7 @@ h2 {
             </div>
             <div class="btn-row">
                 <button class="btn-ghost" onclick="cancelInstall()">Cancel</button>
-                <button class="btn-primary" onclick="navigate(2)">Install &nbsp;→</button>
+                <button class="btn-primary" id="s1InstallBtn" onclick="goToInstall()">Install &nbsp;→</button>
             </div>
         </div>
 
@@ -645,6 +721,7 @@ h2 {
                     <span class="opt-label">Create a Start Menu shortcut</span>
                 </label>
             </div>
+            <div id="alreadyWarn"></div>
             <div id="stepError"></div>
             <div class="btn-row">
                 <button class="btn-ghost" onclick="navigate(1, true)">← Back</button>
@@ -693,6 +770,36 @@ h2 {
             </div>
         </div>
 
+        <!-- Step 5: Already installed -->
+        <div class="step" id="s5">
+            <h2 id="existHeading">Already installed</h2>
+            <p class="subtitle">An existing installation was found on this computer.</p>
+            <div class="exist-path" id="existPath"></div>
+
+            <div class="exist-cards" id="existCards">
+                <button class="exist-card" onclick="doUninstall()">
+                    <div class="exist-card-icon exist-icon-remove">✕</div>
+                    <div>
+                        <div class="exist-card-title">Uninstall</div>
+                        <div class="exist-card-desc">Remove Gorex from your computer</div>
+                    </div>
+                </button>
+                <button class="exist-card accent" onclick="doReinstall()">
+                    <div class="exist-card-icon exist-icon-update">↑</div>
+                    <div>
+                        <div class="exist-card-title">Update / Reinstall</div>
+                        <div class="exist-card-desc">Install the new version to the same folder</div>
+                    </div>
+                </button>
+            </div>
+
+            <div id="existResult"></div>
+
+            <div class="btn-row" id="existBtnRow">
+                <button class="btn-ghost" onclick="navigate(1, true)">← Back</button>
+            </div>
+        </div>
+
     </div><!-- /content -->
 </div><!-- /app -->
 
@@ -701,6 +808,7 @@ h2 {
 
 let currentStep = 1
 let installPath = ''
+let existingInstallInfo = null
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -709,6 +817,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Disk space is loaded lazily when the user reaches step 2
     document.getElementById('pathInput').addEventListener('input', e => {
         updateDiskInfo(e.target.value)
+        checkExistingInstall()
     })
 })
 
@@ -746,7 +855,10 @@ function navigate(n, backwards = false) {
         if (backwards) next.classList.add('enter-bwd')
         currentStep = n
         // Lazy-load disk info the first time the user reaches step 2
-        if (n === 2) updateDiskInfo(document.getElementById('pathInput').value)
+        if (n === 2) {
+            updateDiskInfo(document.getElementById('pathInput').value)
+            checkExistingInstall()
+        }
         // clean up animation-direction helper class
         setTimeout(() => next.classList.remove('enter-bwd'), 400)
     }, 255)
@@ -768,6 +880,70 @@ async function updateDiskInfo(dir) {
     }
 }
 
+// ── Route from welcome screen ─────────────────────────────────────────────────
+async function goToInstall() {
+    const btn = document.getElementById('s1InstallBtn')
+    btn.disabled = true
+    try {
+        existingInstallInfo = await window.api.checkAlreadyInstalled()
+        if (existingInstallInfo?.location) {
+            // Reset s5 to initial state (in case user went back and tries again)
+            document.getElementById('existCards').style.display  = 'flex'
+            document.getElementById('existBtnRow').style.display = 'flex'
+            document.getElementById('existResult').innerHTML      = ''
+            document.getElementById('existHeading').textContent  = 'Already installed'
+            const ver = existingInstallInfo.version ? `  —  v${existingInstallInfo.version}` : ''
+            document.getElementById('existPath').textContent = existingInstallInfo.location + ver
+            navigate(5)
+        } else {
+            navigate(2)
+        }
+    } finally {
+        btn.disabled = false
+    }
+}
+
+// ── Already-installed actions ──────────────────────────────────────────────────
+function doReinstall() {
+    const dest = existingInstallInfo?.location
+    if (!dest) { navigate(2); return }
+    installPath = dest
+    document.getElementById('donePath').textContent     = dest
+    document.getElementById('progressTitle').textContent = 'Updating…'
+    navigate(3)
+    setTimeout(() => window.api.install({ destDir: dest, createDesktopShortcut: true, createStartMenuShortcut: true }), 500)
+}
+
+async function doUninstall() {
+    const result = await window.api.uninstallExisting({ location: existingInstallInfo?.location })
+    if (!result.success) {
+        document.getElementById('existResult').innerHTML =
+            `<div class="exist-result err">${result.error ?? 'Uninstaller not found.'}</div>`
+        return
+    }
+    window.api.closeWindow()
+}
+
+// ── Check for existing Gorex installation ─────────────────────────────────────
+async function checkExistingInstall() {
+    const banner = document.getElementById('alreadyWarn')
+    if (!banner) return
+    banner.innerHTML = ''
+    try {
+        const info = await window.api.checkAlreadyInstalled()
+        if (!info || !info.location) return
+        const normalize = p => p.replace(/[/\\]+$/, '').toLowerCase()
+        const currentDest = document.getElementById('pathInput').value.trim()
+        const ver = info.version ? ` (v${info.version})` : ''
+        const isSamePath = normalize(info.location) === normalize(currentDest)
+        if (isSamePath) {
+            banner.innerHTML = `<div class="warn-banner">⚠&nbsp; Gorex ${ver} is already installed in this folder. Proceeding will overwrite the existing installation.</div>`
+        } else {
+            banner.innerHTML = `<div class="warn-banner">⚠&nbsp; Gorex is already installed at:<br><strong>${info.location}</strong>${ver}<br>Installing here will create a separate copy. Uninstall the existing version first.</div>`
+        }
+    } catch { /* ignore */ }
+}
+
 // ── Browse ─────────────────────────────────────────────────────────────────────
 async function browse() {
     const result = await window.api.browseDir()
@@ -781,6 +957,7 @@ async function browse() {
 
 // ── Start install ──────────────────────────────────────────────────────────────
 function startInstall() {
+    document.getElementById('progressTitle').textContent = 'Installing…'
     const dest = document.getElementById('pathInput').value.trim()
     if (!dest) { showError('Please choose an installation folder.'); return }
 

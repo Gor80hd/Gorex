@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
-const { execSync, execFileSync, exec } = require('child_process')
+const { execSync, exec } = require('child_process')
 
 let win
 
@@ -68,6 +68,71 @@ ipcMain.handle('get-disk-space', (_event, dirPath) => new Promise((resolve) => {
         resolve({ free: null })
     }
 }))
+
+// ── Check for existing installation ─────────────────────────────────────────
+ipcMain.handle('check-already-installed', () => {
+    // 1. Registry check (HKCU then HKLM)
+    const regFound = (() => {
+        const hives = ['HKCU', 'HKLM']
+        for (const hive of hives) {
+            try {
+                const out = execSync(
+                    `reg query "${hive}\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex" /v InstallLocation`,
+                    { timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }
+                ).toString()
+                const m = out.match(/InstallLocation\s+REG_SZ\s+(.+)/)
+                if (m) {
+                    const location = m[1].trim()
+                    // try to get version too
+                    let version = null
+                    try {
+                        const vOut = execSync(
+                            `reg query "${hive}\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Gorex" /v DisplayVersion`,
+                            { timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }
+                        ).toString()
+                        const vm = vOut.match(/DisplayVersion\s+REG_SZ\s+(.+)/)
+                        if (vm) version = vm[1].trim()
+                    } catch { /* version is optional */ }
+                    return { location, version }
+                }
+            } catch { /* key not found in this hive */ }
+        }
+        return null
+    })()
+    if (regFound) return regFound
+
+    // 2. Filesystem fallback — scan common install locations for Gorex.exe
+    const localAppData  = process.env.LOCALAPPDATA  ?? path.join(os.homedir(), 'AppData', 'Local')
+    const programFiles  = process.env.ProgramFiles   ?? 'C:\\Program Files'
+    const programFiles86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+    const appData       = process.env.APPDATA        ?? path.join(os.homedir(), 'AppData', 'Roaming')
+
+    const candidates = [
+        path.join(localAppData,   'Programs', 'Gorex'),
+        path.join(programFiles,   'Gorex'),
+        path.join(programFiles86, 'Gorex'),
+        path.join(appData,        'Gorex'),
+    ]
+    for (const dir of candidates) {
+        try {
+            if (fs.existsSync(path.join(dir, 'Gorex.exe'))) {
+                return { location: dir, version: null }
+            }
+        } catch { /* skip */ }
+    }
+
+    return null
+})
+
+// ── Uninstall existing installation ──────────────────────────────────────────
+ipcMain.handle('uninstall-existing', (_event, { location }) => {
+    const vbs = path.join(location ?? '', 'Uninstall Gorex.vbs')
+    if (!fs.existsSync(vbs)) {
+        return { success: false, error: `Uninstaller not found at:\n${vbs}` }
+    }
+    exec(`wscript.exe "${vbs}"`)
+    return { success: true }
+})
 
 // ── Install ────────────────────────────────────────────────────────────────────
 ipcMain.on('install', (event, { destDir, createDesktopShortcut = true, createStartMenuShortcut = true }) => {
@@ -186,15 +251,6 @@ ipcMain.on('launch-app', (_event, { destDir }) => {
 function isAdmin() {
     try {
         execSync('net session', { stdio: 'ignore' })
-        return true
-    } catch {
-        return false
-    }
-}
-
-function canWriteDir(dirPath) {
-    try {
-        fs.accessSync(dirPath, fs.constants.W_OK)
         return true
     } catch {
         return false
