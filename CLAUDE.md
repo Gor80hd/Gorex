@@ -59,7 +59,7 @@ IPC listeners for streaming events are registered at **module level** in `App.js
 
 ### Chrome Extension
 
-Located in `chrome-extension/`. Separate MV3 extension — not bundled with the Electron app. Communicates with the running desktop app via the Extension API server on loopback. Injects download buttons on 25+ video platforms via content scripts. Requires Gorex v2.1.0+ to be running.
+Located in `chrome-extension/`. Separate MV3 extension — not bundled with the Electron app. Communicates with the running desktop app via the Extension API server on loopback. Injects download buttons on 25+ video platforms via content scripts. Requires Gorex v2.2.0+ to be running.
 
 ### Key files
 

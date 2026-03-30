@@ -1837,6 +1837,7 @@ app.whenReady().then(async () => {
                     })
                     const thumbData = require('fs').readFileSync(thumbPath)
                     thumbBase64 = `data:image/jpeg;base64,${thumbData.toString('base64')}`
+                    require('fs').unlinkSync(thumbPath)
                 } catch (thumbErr) {
                     console.warn(`Thumbnail failed for ${filePath}:`, thumbErr.message)
                 }
