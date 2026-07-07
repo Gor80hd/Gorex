@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLanguage } from '../../i18n'
+import {
+    getDefaultEncoderSpeed as resolveDefaultEncoderSpeed,
+    normalizeEncoderSettings as normalizeSettingsForEncoder,
+} from './settingsNormalization.mjs'
 import './GlobalSettings.scss'
 
 // ─── RF quality tables per encoder ────────────────────────────────────────────
@@ -171,6 +175,108 @@ export const ENCODER_PRESETS = {
     flv1:         [],
 }
 
+export function getDefaultEncoderSpeed(encoder, fallback = 'medium') {
+    return resolveDefaultEncoderSpeed(encoder, ENCODER_PRESETS, fallback)
+}
+
+export function normalizeEncoderSettings(settings, fallback = 'medium') {
+    return normalizeSettingsForEncoder(settings, ENCODER_PRESETS, fallback)
+}
+
+export const VIDEO_FORMAT_OPTIONS = [
+    { value: 'av_mp4',  label: 'MP4' },
+    { value: 'av_mkv',  label: 'MKV' },
+    { value: 'av_webm', label: 'WebM' },
+    { value: 'av_mov',  label: 'MOV' },
+    { value: 'av_avi',  label: 'AVI' },
+    { value: 'av_ts',   label: 'MPEG-TS' },
+    { value: 'av_flv',  label: 'FLV' },
+    { value: 'av_ogg',  label: 'OGG' },
+    { value: 'av_3gp',  label: '3GP' },
+]
+
+export const AUDIO_FORMAT_OPTIONS = [
+    { value: 'audio_mp3',  label: 'MP3' },
+    { value: 'audio_m4a',  label: 'M4A / AAC' },
+    { value: 'audio_flac', label: 'FLAC' },
+    { value: 'audio_wav',  label: 'WAV' },
+    { value: 'audio_opus', label: 'Opus' },
+    { value: 'audio_ogg',  label: 'Ogg Vorbis' },
+]
+
+export const AUDIO_ONLY_FORMAT_DEFAULTS = {
+    audio_mp3:  { audioCodec: 'mp3' },
+    audio_m4a:  { audioCodec: 'av_aac' },
+    audio_flac: { audioCodec: 'flac16' },
+    audio_wav:  { audioCodec: 'pcm_s16le' },
+    audio_opus: { audioCodec: 'opus' },
+    audio_ogg:  { audioCodec: 'vorbis' },
+}
+
+export const AUDIO_ONLY_FORMATS = new Set(Object.keys(AUDIO_ONLY_FORMAT_DEFAULTS))
+
+export const AUDIO_ONLY_COMPATIBLE_CODECS = {
+    audio_mp3:  new Set(['mp3', 'copy', 'copy:mp3']),
+    audio_m4a:  new Set(['av_aac', 'fdk_aac', 'fdk_haac', 'alac', 'copy', 'copy:aac']),
+    audio_flac: new Set(['flac16', 'flac24', 'copy']),
+    audio_wav:  new Set(['pcm_s16le', 'pcm_s24le', 'pcm_f32le', 'copy']),
+    audio_opus: new Set(['opus', 'copy']),
+    audio_ogg:  new Set(['vorbis', 'opus', 'flac16', 'flac24', 'copy']),
+}
+
+export const GLOBAL_AUDIO_CODEC_OPTIONS = [
+    { value: 'av_aac',    label: 'AAC' },
+    { value: 'mp3',       label: 'MP3' },
+    { value: 'opus',      label: 'Opus' },
+    { value: 'vorbis',    label: 'Vorbis' },
+    { value: 'flac16',    label: 'FLAC 16-bit' },
+    { value: 'flac24',    label: 'FLAC 24-bit' },
+    { value: 'alac',      label: 'ALAC' },
+    { value: 'pcm_s16le', label: 'PCM 16-bit' },
+    { value: 'pcm_s24le', label: 'PCM 24-bit' },
+    { value: 'pcm_f32le', label: 'PCM Float' },
+    { value: 'copy',      label: 'Passthru' },
+]
+
+export const AUDIO_BITRATE_OPTIONS = [
+    { value: '64',  label: '64 kbps' },
+    { value: '96',  label: '96 kbps' },
+    { value: '128', label: '128 kbps' },
+    { value: '160', label: '160 kbps' },
+    { value: '192', label: '192 kbps' },
+    { value: '256', label: '256 kbps' },
+    { value: '320', label: '320 kbps' },
+]
+
+export const AUDIO_SAMPLE_RATE_OPTIONS = [
+    { value: 'auto',  label: 'Auto' },
+    { value: '22.05', label: '22.05 kHz' },
+    { value: '32',    label: '32 kHz' },
+    { value: '44.1',  label: '44.1 kHz' },
+    { value: '48',    label: '48 kHz' },
+    { value: '96',    label: '96 kHz' },
+]
+
+export function isAudioOnlyOutputFormat(format) {
+    return AUDIO_ONLY_FORMATS.has(format)
+}
+
+export function getAudioFormatDefaults(format) {
+    return AUDIO_ONLY_FORMAT_DEFAULTS[format] || null
+}
+
+export function isAudioCodecCompatibleWithFormat(format, codec) {
+    if (!isAudioOnlyOutputFormat(format)) return true
+    const allowed = AUDIO_ONLY_COMPATIBLE_CODECS[format]
+    return !allowed || allowed.has(codec || '')
+}
+
+export function getFormatOptionGroups(t) {
+    return [
+        { label: t ? t('formatGroupVideo') : 'Video', options: VIDEO_FORMAT_OPTIONS },
+        { label: t ? t('formatGroupAudio') : 'Audio', options: AUDIO_FORMAT_OPTIONS },
+    ]
+}
 // ─── Default settings ──────────────────────────────────────────────────────────
 export const DEFAULT_SETTINGS = {
     // Video
@@ -222,7 +328,7 @@ const GPU_ENCODER_MAP = {
 }
 
 export function getDefaultSettingsForGpu(vendor) {
-    return { ...DEFAULT_SETTINGS, ...(GPU_ENCODER_MAP[vendor] || {}) }
+    return normalizeEncoderSettings({ ...DEFAULT_SETTINGS, ...(GPU_ENCODER_MAP[vendor] || {}) })
 }
 
 export function getStoredGpuVendor() {
@@ -234,25 +340,20 @@ export function saveGpuVendor(vendor) {
 }
 
 // ─── Default settings initializer (respects saved GPU vendor) ─────────────────
-const NVENC_ENCODERS = new Set(['nvenc_h264', 'nvenc_h265', 'nvenc_av1'])
-const NVENC_LEGACY_SPEED_MAP = {
-    default: 'p4', hp: 'p2', hq: 'p5', bd: 'p4', ll: 'p2', llhq: 'p4', llhp: 'p1',
-}
-
 export function initDefaultSettings() {
     try {
         const saved = localStorage.getItem('gorex-default-settings')
         if (saved) {
             const parsed = JSON.parse(saved)
-            if (NVENC_ENCODERS.has(parsed.encoder) && NVENC_LEGACY_SPEED_MAP[parsed.encoderSpeed]) {
-                parsed.encoderSpeed = NVENC_LEGACY_SPEED_MAP[parsed.encoderSpeed]
-                localStorage.setItem('gorex-default-settings', JSON.stringify(parsed))
+            const stored = normalizeEncoderSettings(parsed)
+            if (stored.encoderSpeed !== parsed.encoderSpeed) {
+                localStorage.setItem('gorex-default-settings', JSON.stringify(stored))
             }
-            return { ...DEFAULT_SETTINGS, ...parsed }
+            return normalizeEncoderSettings({ ...DEFAULT_SETTINGS, ...stored })
         }
     } catch {}
     const vendor = getStoredGpuVendor()
-    return vendor ? getDefaultSettingsForGpu(vendor) : { ...DEFAULT_SETTINGS }
+    return vendor ? getDefaultSettingsForGpu(vendor) : normalizeEncoderSettings({ ...DEFAULT_SETTINGS })
 }
 
 // ─── Encoder groups ────────────────────────────────────────────────────────────
@@ -682,10 +783,28 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
     const speedPresets = ENCODER_PRESETS[settings.encoder] ?? []
     const resOptions = getResolutionOptions(videos, t)
     const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', showMoreCodecs, t)
+    const audioOnly = isAudioOnlyOutputFormat(settings.format)
+    const isAudioPassthru = (settings.audioCodec || 'av_aac').startsWith('copy')
 
     const update = (key, value) => onChange({ ...settings, [key]: value })
 
     const handleFormatChange = (fmt) => {
+        const audioDefaults = getAudioFormatDefaults(fmt)
+        if (audioDefaults) {
+            onChange({
+                ...settings,
+                format: fmt,
+                ...audioDefaults,
+                noAudio: false,
+                subtitleMode: 'none',
+                subtitleBurn: false,
+                subtitleExternalFile: '',
+                alphaChannel: false,
+                hwDecoding: 'none',
+                multiPass: false,
+            })
+            return
+        }
         const patch = { format: fmt }
         if (fmt === 'av_webm') {
             if (!WEBM_COMPATIBLE_ENCODERS.has(settings.encoder)) {
@@ -727,9 +846,10 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                 patch.encoderSpeed = speeds?.find(s => s.value === 'slow')?.value
                     ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? 'slow'
             }
-            if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_avi' || fmt === 'av_ts') {
+            if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_avi' || fmt === 'av_ts' || fmt === 'av_flv' || fmt === 'av_3gp') {
                 const audioCodec = settings.audioCodec || 'av_aac'
-                if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                const containerUnsafeAudio = new Set(['vorbis', 'opus', 'flac16', 'flac24', 'pcm_s16le', 'pcm_s24le', 'pcm_f32le', 'alac', 'wmav2'])
+                if ((WEBM_COMPATIBLE_AUDIO.has(audioCodec) || containerUnsafeAudio.has(audioCodec)) && !audioCodec.startsWith('copy')) {
                     patch.audioCodec = 'av_aac'
                 }
             }
@@ -748,9 +868,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
     }
 
     const handleEncoderChange = (enc) => {
-        const speeds = ENCODER_PRESETS[enc] ?? []
-        const mid = speeds[Math.floor(speeds.length / 2)]?.value ?? 'medium'
-        onChange({ ...settings, encoder: enc, encoderSpeed: mid })
+        onChange(normalizeEncoderSettings({ ...settings, encoder: enc }))
     }
 
     const qualityPresets = [
@@ -772,7 +890,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
 
     return (
         <>
-            <div className="global-settings">
+            <div className={`global-settings${audioOnly ? ' global-settings--audio-only' : ''}`}>
 
                 {/* ── Format ── */}
                 <div className="gs-card gs-card--format">
@@ -784,21 +902,56 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
                     {/* Format dropdown */}
                     <GsSelect
                         value={settings.format}
-                        options={[
-                            { value: 'av_mp4',  label: 'MP4' },
-                            { value: 'av_mkv',  label: 'MKV' },
-                            { value: 'av_webm', label: 'WebM' },
-                            { value: 'av_mov',  label: 'MOV' },
-                            { value: 'av_avi',  label: 'AVI' },
-                            { value: 'av_ts',   label: 'MPEG-TS' },
-                            { value: 'av_flv',  label: 'FLV' },
-                            { value: 'av_ogg',  label: 'OGG' },
-                            { value: 'av_3gp',  label: '3GP' },
-                        ]}
+                        groups={getFormatOptionGroups(t)}
                         onChange={handleFormatChange}
                         disabled={disabled}
                     />
                 </div>
+                {audioOnly && (
+                    <>
+                        <div className="gs-card gs-card--audio-codec">
+                            <div className="gs-card-header">
+                                <i className="bi bi-music-note-beamed gs-icon"></i>
+                                <span className="gs-card-label">{t('rowAudioCodec')}</span>
+                            </div>
+                            <GsSelect
+                                value={settings.audioCodec || 'av_aac'}
+                                options={GLOBAL_AUDIO_CODEC_OPTIONS.map(o => ({
+                                    ...o,
+                                    disabled: !isAudioCodecCompatibleWithFormat(settings.format, o.value),
+                                }))}
+                                onChange={v => update('audioCodec', v)}
+                                disabled={disabled}
+                            />
+                        </div>
+                        {!isAudioPassthru && (
+                            <div className="gs-card gs-card--audio-bitrate">
+                                <div className="gs-card-header">
+                                    <i className="bi bi-speaker gs-icon"></i>
+                                    <span className="gs-card-label">{t('rowBitrate')}</span>
+                                </div>
+                                <GsSelect
+                                    value={settings.audioBitrate || '160'}
+                                    options={AUDIO_BITRATE_OPTIONS}
+                                    onChange={v => update('audioBitrate', v)}
+                                    disabled={disabled}
+                                />
+                            </div>
+                        )}
+                        <div className="gs-card gs-card--audio-sample-rate">
+                            <div className="gs-card-header">
+                                <i className="bi bi-soundwave gs-icon"></i>
+                                <span className="gs-card-label">{t('rowSampleRate')}</span>
+                            </div>
+                            <GsSelect
+                                value={settings.audioSampleRate || 'auto'}
+                                options={AUDIO_SAMPLE_RATE_OPTIONS.map(o => o.value === 'auto' ? { ...o, label: t('srAuto') } : o)}
+                                onChange={v => update('audioSampleRate', v)}
+                                disabled={disabled}
+                            />
+                        </div>
+                    </>
+                )}
 
 
                 {/* ── Resolution ── */}

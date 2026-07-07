@@ -225,7 +225,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
                         </button>
                         <button
                             className="dl-btn"
-                            onClick={handleDownload}
+                            onClick={() => handleDownload()}
                             disabled={!trimmed || (isDownloading && isLoading) || !isUrl}
                         >
                             {isDownloading && isLoading

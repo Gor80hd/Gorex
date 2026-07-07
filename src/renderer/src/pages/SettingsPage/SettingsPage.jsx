@@ -12,6 +12,7 @@ import {
     ENCODER_DISABLED_FORMATS,
     NO_CRF_ENCODERS,
     ALPHA_CAPABLE_ENCODERS,
+    normalizeEncoderSettings,
 } from '../../components/GlobalSettings/GlobalSettings'
 import { useLanguage } from '../../i18n'
 import './SettingsPage.scss'
@@ -117,6 +118,7 @@ const TABS_IDS = [
     { id: 'subtitles', icon: 'bi-badge-cc' },
     { id: 'filters',   icon: 'bi-sliders' },
     { id: 'hdr',       icon: 'bi-stars' },
+    { id: 'updates',   icon: 'bi-arrow-repeat' },
     { id: 'other',     icon: 'bi-three-dots' },
 ]
 
@@ -180,8 +182,89 @@ function SectionHeader({ icon, title }) {
     )
 }
 
+const YTDL_UPDATE_STAGE_KEYS = {
+    preparing: 'ytdlUpdateStagePreparing',
+    connecting: 'ytdlUpdateStageConnecting',
+    downloading: 'ytdlUpdateStageDownloading',
+    downloaded: 'ytdlUpdateStageDownloaded',
+    verifying: 'ytdlUpdateStageVerifying',
+    installing: 'ytdlUpdateStageInstalling',
+    done: 'ytdlUpdateStageDone',
+    error: 'ytdlUpdateStageError',
+}
+
+const createYtdlUpdateState = (overrides = {}) => ({
+    status: 'idle',
+    message: '',
+    stageMessage: '',
+    progress: null,
+    receivedBytes: 0,
+    totalBytes: null,
+    ...overrides,
+})
+
+const createGorexUpdateState = (overrides = {}) => ({
+    status: 'idle',
+    message: '',
+    currentVersion: '',
+    latestVersion: '',
+    downloadUrl: '',
+    ...overrides,
+})
+
+const cleanYtdlUpdateError = (message) => {
+    const text = String(message || '')
+        .replace(/^Error invoking remote method 'update-ytdl':\s*/i, '')
+        .replace(/^Error:\s*/i, '')
+        .trim()
+
+    if (/net::ERR_CONNECTION_RESET/i.test(text)) {
+        return 'Соединение с GitHub было сброшено. Проверьте сеть или попробуйте позже.'
+    }
+    if (/net::ERR_INTERNET_DISCONNECTED|ENOTFOUND|EAI_AGAIN/i.test(text)) {
+        return 'Нет соединения с GitHub. Проверьте интернет и попробуйте позже.'
+    }
+    if (/net::ERR_TIMED_OUT|timeout/i.test(text)) {
+        return 'GitHub не ответил вовремя. Попробуйте обновить yt-dlp позже.'
+    }
+
+    return text
+}
+
+const cleanGorexUpdateError = (message) => {
+    const text = String(message || '')
+        .replace(/^Error invoking remote method 'check-for-updates':\s*/i, '')
+        .replace(/^Error:\s*/i, '')
+        .trim()
+
+    if (/net::ERR_CONNECTION_RESET/i.test(text)) {
+        return 'Соединение с GitHub было сброшено. Проверьте сеть или попробуйте позже.'
+    }
+    if (/net::ERR_INTERNET_DISCONNECTED|ENOTFOUND|EAI_AGAIN/i.test(text)) {
+        return 'Нет соединения с GitHub. Проверьте интернет и попробуйте позже.'
+    }
+    if (/net::ERR_TIMED_OUT|timeout/i.test(text)) {
+        return 'GitHub не ответил вовремя. Попробуйте проверить обновления позже.'
+    }
+
+    return text
+}
+
+const formatUpdateBytes = (bytes) => {
+    const value = Number(bytes)
+    if (!Number.isFinite(value) || value <= 0) return ''
+    const units = ['B', 'KB', 'MB', 'GB']
+    let size = value
+    let unit = 0
+    while (size >= 1024 && unit < units.length - 1) {
+        size /= 1024
+        unit += 1
+    }
+    return `${size >= 10 || unit === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unit]}`
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
-function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave, onOutputDirChange, initialTab }) {
+function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave, onOutputDirChange, initialTab, ytdlTool, onUpdateYtdl, onRefreshYtdl, twitchTool, onUpdateTwitch, onRefreshTwitch }) {
     const { t, lang, setLang } = useLanguage()
     const [activeSection, setActiveSection] = useState(initialTab || 'app')
     const [savedFlash, setSavedFlash] = useState(false)
@@ -189,7 +272,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
 
     const TABS = TABS_IDS.map(tab => ({
         ...tab,
-        label: t({ app: 'tabApp', video: 'tabVideo', audio: 'tabAudio', subtitles: 'tabSubtitles', filters: 'tabFilters', hdr: 'tabHdr', other: 'tabOther' }[tab.id]),
+        label: t({ app: 'tabApp', video: 'tabVideo', audio: 'tabAudio', subtitles: 'tabSubtitles', filters: 'tabFilters', hdr: 'tabHdr', updates: 'tabUpdates', other: 'tabOther' }[tab.id]),
     }))
 
     // App-level config (output folder)
@@ -199,11 +282,14 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
             return {
                 defaultOutputDir: s.defaultOutputDir || '',
                 ytdlCookiesFile: s.ytdlCookiesFile || '',
+                ytdlManagedCookiesFile: s.ytdlManagedCookiesFile || '',
+                ytdlCookiesMode: s.ytdlCookiesMode || 'auto',
+                ytdlAuthLastExportAt: s.ytdlAuthLastExportAt || '',
                 backgroundMode: s.backgroundMode !== false,
                 defaultAudioFormat: s.defaultAudioFormat || 'wav',
             }
         } catch {}
-        return { defaultOutputDir: '', ytdlCookiesFile: '', backgroundMode: true, defaultAudioFormat: 'wav' }
+        return { defaultOutputDir: '', ytdlCookiesFile: '', ytdlManagedCookiesFile: '', ytdlCookiesMode: 'auto', ytdlAuthLastExportAt: '', backgroundMode: true, defaultAudioFormat: 'wav' }
     })
 
     // Default encoding settings
@@ -213,6 +299,12 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     const [cliStatus, setCliStatus] = useState('checking') // 'checking' | 'ok' | 'error'
     const [cliVersion, setCliVersion] = useState('')
     const [cliPath, setCliPath] = useState('')
+    const [ytdlInfo, setYtdlInfo] = useState(null)
+    const [ytdlUpdateState, setYtdlUpdateState] = useState(() => createYtdlUpdateState())
+    const [gorexUpdateState, setGorexUpdateState] = useState(() => createGorexUpdateState())
+    const [youtubeAuthStatus, setYoutubeAuthStatus] = useState(null)
+    const [youtubeAuthBusy, setYoutubeAuthBusy] = useState(false)
+    const [youtubeAuthError, setYoutubeAuthError] = useState('')
 
     // Resolved output dir (actual system path shown in UI)
     const [resolvedOutputDir, setResolvedOutputDir] = useState('')
@@ -225,7 +317,9 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     // Sync appConfig when prop arrives from IPC
     useEffect(() => {
         if (appSettings) {
-            setAppConfig(prev => ({ ...prev, ...appSettings }))
+            const cleanAppSettings = { ...appSettings }
+            delete cleanAppSettings.ytdlDeepFormatSearch
+            setAppConfig(prev => ({ ...prev, ...cleanAppSettings }))
         }
     }, [appSettings])
 
@@ -290,11 +384,82 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
         setTimeout(() => { isScrollingRef.current = false }, 600)
     }, [])
 
+    useEffect(() => {
+        if (initialTab) scrollToSection(initialTab)
+    }, [initialTab, scrollToSection])
+
+    const refreshYoutubeAuthStatus = useCallback(async () => {
+        try {
+            const status = await window.api.getYoutubeAuthStatus()
+            setYoutubeAuthStatus(status)
+            if (status?.managedCookiesFile || status?.lastExportAt) {
+                setAppConfig(prev => ({
+                    ...prev,
+                    ytdlManagedCookiesFile: status.managedCookiesFile || prev.ytdlManagedCookiesFile || '',
+                    ytdlCookiesMode: status.cookiesMode || prev.ytdlCookiesMode || 'auto',
+                    ytdlAuthLastExportAt: status.lastExportAt || prev.ytdlAuthLastExportAt || '',
+                }))
+            }
+        } catch (err) {
+            setYoutubeAuthError(err?.message || t('dlErrorDefault'))
+        }
+    }, [t])
+
+    useEffect(() => {
+        refreshYoutubeAuthStatus()
+    }, [refreshYoutubeAuthStatus])
+
     const updateEnc = (key, val) => setEnc(prev => ({ ...prev, [key]: val }))
     const updateApp = (key, val) => setAppConfig(prev => ({ ...prev, [key]: val }))
+    const getYtdlUpdateStageText = useCallback((stage) => {
+        return t(YTDL_UPDATE_STAGE_KEYS[stage] || 'ytdlUpdateChecking')
+    }, [t])
+
+    const refreshYtdlInfo = useCallback(async () => {
+        try {
+            const info = await window.api.getYtdlInfo()
+            setYtdlInfo(info)
+        } catch {
+            setYtdlInfo({ found: false, version: null, source: 'bundled' })
+        }
+    }, [])
+
+    useEffect(() => {
+        refreshYtdlInfo()
+    }, [refreshYtdlInfo])
+
+    useEffect(() => {
+        if (ytdlTool) return
+        if (!window.api.onYtdlUpdateProgress) return
+        window.api.onYtdlUpdateProgress((payload = {}) => {
+            setYtdlUpdateState(prev => {
+                const isError = payload.stage === 'error'
+                const isDone = payload.stage === 'done'
+                const hasPercent = Object.prototype.hasOwnProperty.call(payload, 'percent')
+                const progress = isError
+                    ? prev.progress
+                    : hasPercent
+                        ? Number.isFinite(payload.percent)
+                            ? Math.max(0, Math.min(100, payload.percent))
+                            : null
+                        : prev.progress
+
+                return {
+                    ...prev,
+                    status: isError ? 'error' : (isDone ? 'ok' : 'updating'),
+                    stageMessage: isError ? prev.stageMessage : getYtdlUpdateStageText(payload.stage),
+                    progress,
+                    receivedBytes: payload.receivedBytes ?? prev.receivedBytes,
+                    totalBytes: payload.totalBytes ?? prev.totalBytes,
+                }
+            })
+        })
+    }, [getYtdlUpdateStageText, ytdlTool])
 
     const handleSave = () => {
-        onSave(enc, appConfig)
+        const normalizedEnc = normalizeEncoderSettings(enc)
+        setEnc(normalizedEnc)
+        onSave(normalizedEnc, appConfig)
         window.api.setBackgroundMode(appConfig.backgroundMode !== false)
         setSavedFlash(true)
         setTimeout(() => setSavedFlash(false), 2000)
@@ -330,6 +495,127 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
 
     const handleClearCookiesFile = () => updateApp('ytdlCookiesFile', '')
 
+    const handleCheckGorexUpdates = async () => {
+        setGorexUpdateState(prev => createGorexUpdateState({
+            ...prev,
+            status: 'checking',
+            message: t('gorexUpdateChecking'),
+        }))
+        try {
+            const result = await window.api.checkForUpdates({ manual: true })
+            if (result?.ok === false) {
+                throw new Error(result.error || t('dlErrorDefault'))
+            }
+            const currentVersion = result?.currentVersion || gorexUpdateState.currentVersion || ''
+            const latestVersion = result?.latestVersion || currentVersion
+            if (result?.updateAvailable) {
+                setGorexUpdateState(createGorexUpdateState({
+                    status: 'update-available',
+                    message: t('gorexUpdateAvailableManual').replace('{v}', latestVersion),
+                    currentVersion,
+                    latestVersion,
+                    downloadUrl: result.downloadUrl || 'https://github.com/Gor80hd/Gorex/releases/latest',
+                }))
+            } else {
+                setGorexUpdateState(createGorexUpdateState({
+                    status: 'ok',
+                    message: t('gorexUpdateLatest').replace('{v}', latestVersion || currentVersion),
+                    currentVersion,
+                    latestVersion,
+                    downloadUrl: result?.downloadUrl || '',
+                }))
+            }
+        } catch (err) {
+            const errorText = cleanGorexUpdateError(err?.message) || t('dlErrorDefault')
+            setGorexUpdateState(prev => ({
+                ...prev,
+                status: 'error',
+                message: `${t('gorexUpdateFailed')}: ${errorText}`,
+            }))
+        }
+    }
+
+    const handleOpenGorexRelease = () => {
+        const url = gorexUpdateState.downloadUrl || 'https://github.com/Gor80hd/Gorex/releases/latest'
+        window.api.openExternal(url)
+    }
+
+    const handleYoutubeLogin = async () => {
+        setYoutubeAuthBusy(true)
+        setYoutubeAuthError('')
+        try {
+            await window.api.openYoutubeLoginWindow()
+            await refreshYoutubeAuthStatus()
+        } catch (err) {
+            setYoutubeAuthError(err?.message || t('dlErrorDefault'))
+        } finally {
+            setYoutubeAuthBusy(false)
+        }
+    }
+
+    const handleExportYoutubeCookies = async () => {
+        setYoutubeAuthBusy(true)
+        setYoutubeAuthError('')
+        try {
+            const status = await window.api.exportYoutubeCookies()
+            setYoutubeAuthStatus(status)
+            setAppConfig(prev => ({
+                ...prev,
+                ytdlManagedCookiesFile: status?.managedCookiesFile || prev.ytdlManagedCookiesFile || '',
+                ytdlCookiesMode: 'auto',
+                ytdlAuthLastExportAt: status?.lastExportAt || new Date().toISOString(),
+            }))
+        } catch (err) {
+            setYoutubeAuthError(err?.message || t('dlErrorDefault'))
+        } finally {
+            setYoutubeAuthBusy(false)
+        }
+    }
+
+    const handleClearYoutubeAuth = async () => {
+        setYoutubeAuthBusy(true)
+        setYoutubeAuthError('')
+        try {
+            const status = await window.api.clearYoutubeAuth()
+            setYoutubeAuthStatus(status)
+            setAppConfig(prev => ({ ...prev, ytdlManagedCookiesFile: '', ytdlAuthLastExportAt: '' }))
+        } catch (err) {
+            setYoutubeAuthError(err?.message || t('dlErrorDefault'))
+        } finally {
+            setYoutubeAuthBusy(false)
+        }
+    }
+
+    const handleUpdateYtdl = async () => {
+        setYtdlUpdateState(createYtdlUpdateState({
+            status: 'updating',
+            stageMessage: t('ytdlUpdateStagePreparing'),
+            progress: 0,
+        }))
+        try {
+            const result = await window.api.updateYtdl()
+            if (result?.ok === false) {
+                throw new Error(result.error || t('dlErrorDefault'))
+            }
+            const info = result?.info || result
+            setYtdlInfo(info)
+            setYtdlUpdateState(createYtdlUpdateState({
+                status: 'ok',
+                message: t('ytdlUpdateSuccess'),
+                stageMessage: t('ytdlUpdateStageDone'),
+                progress: 100,
+            }))
+        } catch (err) {
+            const errorText = cleanYtdlUpdateError(err?.message) || t('dlErrorDefault')
+            setYtdlUpdateState(prev => ({
+                ...prev,
+                status: 'error',
+                message: `${t('ytdlUpdateFailed')}: ${errorText}`,
+                stageMessage: prev.stageMessage || t('ytdlUpdateStageError'),
+            }))
+        }
+    }
+
     const handleOpenTemp = () => {
         window.api.openTempFolder()
     }
@@ -347,6 +633,60 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     const speedPresets = ENCODER_PRESETS[enc.encoder] ?? []
     const isHWEncoder = ['nvenc', 'qsv', 'vce', 'mf'].some(p => (enc.encoder || '').startsWith(p))
     const isPassthru = (enc.audioCodec || 'av_aac').startsWith('copy')
+    const effectiveYtdlInfo = ytdlTool?.info || ytdlInfo
+    const effectiveYtdlUpdateState = ytdlTool ? {
+        status: ytdlTool.status === 'up-to-date' ? 'ok' : ytdlTool.status,
+        progress: ytdlTool.progress,
+        receivedBytes: ytdlTool.receivedBytes || 0,
+        totalBytes: ytdlTool.totalBytes || 0,
+        message: ytdlTool.message || '',
+        stageMessage: ytdlTool.stageMessage || '',
+    } : ytdlUpdateState
+    const ytdlVersionText = !effectiveYtdlInfo
+        ? t('ytdlUpdateChecking')
+        : effectiveYtdlInfo.found
+            ? `yt-dlp ${effectiveYtdlInfo.version || t('ytdlToolVersionUnknown')}`
+            : t('ytdlUpdateNotFound')
+    const ytdlSourceText = effectiveYtdlInfo?.source === 'user' ? t('ytdlToolSourceUpdated') : t('ytdlToolSourceBundled')
+    const ytdlUpdateProgress = Number.isFinite(effectiveYtdlUpdateState.progress)
+        ? Math.round(Math.max(0, Math.min(100, effectiveYtdlUpdateState.progress)))
+        : null
+    const ytdlUpdateBytesText = effectiveYtdlUpdateState.receivedBytes > 0
+        ? effectiveYtdlUpdateState.totalBytes
+            ? `${formatUpdateBytes(effectiveYtdlUpdateState.receivedBytes)} / ${formatUpdateBytes(effectiveYtdlUpdateState.totalBytes)}`
+            : formatUpdateBytes(effectiveYtdlUpdateState.receivedBytes)
+        : ''
+    const showYtdlUpdateProgress = effectiveYtdlUpdateState.status === 'updating' || effectiveYtdlUpdateState.progress !== null
+    const ytdlUpdateIndeterminate = effectiveYtdlUpdateState.status === 'updating' && ytdlUpdateProgress === null
+    const effectiveTwitchInfo = twitchTool?.info || null
+    const effectiveTwitchUpdateState = twitchTool ? {
+        status: twitchTool.status === 'up-to-date' ? 'ok' : twitchTool.status,
+        progress: twitchTool.progress,
+        receivedBytes: twitchTool.receivedBytes || 0,
+        totalBytes: twitchTool.totalBytes || 0,
+        message: twitchTool.message || '',
+        stageMessage: twitchTool.stageMessage || '',
+    } : createYtdlUpdateState()
+    const twitchVersionText = !effectiveTwitchInfo
+        ? t('ytdlUpdateChecking')
+        : effectiveTwitchInfo.found
+            ? `TwitchDownloaderCLI ${effectiveTwitchInfo.version || t('twitchToolVersionUnknown')}`
+            : t('twitchUpdateNotFound')
+    const twitchSourceText = effectiveTwitchInfo?.source === 'user' ? t('twitchToolSourceUpdated') : t('twitchToolSourceBundled')
+    const twitchUpdateProgress = Number.isFinite(effectiveTwitchUpdateState.progress)
+        ? Math.round(Math.max(0, Math.min(100, effectiveTwitchUpdateState.progress)))
+        : null
+    const twitchUpdateBytesText = effectiveTwitchUpdateState.receivedBytes > 0
+        ? effectiveTwitchUpdateState.totalBytes
+            ? `${formatUpdateBytes(effectiveTwitchUpdateState.receivedBytes)} / ${formatUpdateBytes(effectiveTwitchUpdateState.totalBytes)}`
+            : formatUpdateBytes(effectiveTwitchUpdateState.receivedBytes)
+        : ''
+    const showTwitchUpdateProgress = effectiveTwitchUpdateState.status === 'updating' || effectiveTwitchUpdateState.progress !== null
+    const twitchUpdateIndeterminate = effectiveTwitchUpdateState.status === 'updating' && twitchUpdateProgress === null
+    const gorexVersionTag = gorexUpdateState.currentVersion
+        ? t('gorexUpdateCurrentTag').replace('{v}', gorexUpdateState.currentVersion)
+        : t('gorexUpdateManualTag')
+    const gorexUpdateAvailable = gorexUpdateState.status === 'update-available' && !!gorexUpdateState.downloadUrl
 
     const sectionRef = (id) => (el) => { sectionRefs.current[id] = el }
 
@@ -615,9 +955,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                     }))
                                 }))}
                                 onChange={v => {
-                                    const speeds = ENCODER_PRESETS[v] ?? []
-                                    const mid = speeds[Math.floor(speeds.length / 2)]?.value ?? 'medium'
-                                    setEnc(prev => ({ ...prev, encoder: v, encoderSpeed: mid }))
+                                    setEnc(prev => normalizeEncoderSettings({ ...prev, encoder: v }))
                                 }}
                             />
                         </Row>
@@ -1011,6 +1349,130 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                         </Row>
                     </div>
 
+                    {/* ══ UPDATES ══ */}
+                    <div className="sp-section" data-section="updates" ref={sectionRef('updates')}>
+                        <SectionHeader icon="bi-arrow-repeat" title={t('sectionGorexUpdates')} />
+                        <div className="sp-ytdl-tool">
+                            <div className="sp-folder-widget">
+                                <div className="sp-folder-widget__info">
+                                    <span className="sp-folder-widget__path">{t('gorexUpdateTitle')}</span>
+                                    <span className="sp-folder-widget__tag">{gorexVersionTag}</span>
+                                </div>
+                                <div className="sp-folder-widget__actions">
+                                    <button
+                                        className={`sp-folder-widget__browse${gorexUpdateState.status === 'checking' ? ' is-loading' : ''}`}
+                                        onClick={handleCheckGorexUpdates}
+                                        disabled={gorexUpdateState.status === 'checking'}
+                                    >
+                                        <i className="bi bi-arrow-repeat"></i>
+                                        {gorexUpdateState.status === 'checking' ? t('gorexUpdateChecking') : t('gorexUpdateButton')}
+                                    </button>
+                                    {gorexUpdateAvailable && (
+                                        <button className="sp-folder-widget__browse" onClick={handleOpenGorexRelease}>
+                                            <i className="bi bi-box-arrow-up-right"></i>
+                                            {t('gorexUpdateOpenRelease')}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            {gorexUpdateState.message && (
+                                <div className={`sp-ytdl-update-msg ${gorexUpdateState.status}`}>
+                                    {gorexUpdateState.message}
+                                </div>
+                            )}
+                        </div>
+
+                        <SectionHeader icon="bi-cloud-arrow-down" title={t('sectionYtdlTools')} />
+                        <div className="sp-ytdl-tool">
+                            <div className="sp-folder-widget">
+                                <div className="sp-folder-widget__info">
+                                    <span className="sp-folder-widget__path">
+                                        {ytdlVersionText}
+                                    </span>
+                                    <span className="sp-folder-widget__tag">
+                                        {ytdlSourceText}
+                                    </span>
+                                </div>
+                                <div className="sp-folder-widget__actions">
+                                    <button
+                                        className={`sp-folder-widget__browse${effectiveYtdlUpdateState.status === 'updating' ? ' is-loading' : ''}`}
+                                        onClick={onUpdateYtdl || handleUpdateYtdl}
+                                        disabled={effectiveYtdlUpdateState.status === 'updating'}
+                                    >
+                                        <i className="bi bi-arrow-repeat"></i>
+                                        {effectiveYtdlUpdateState.status === 'updating' ? t('ytdlUpdateChecking') : t('ytdlUpdateButton')}
+                                    </button>
+                                </div>
+                            </div>
+                            {effectiveYtdlUpdateState.message && (
+                                <div className={`sp-ytdl-update-msg ${effectiveYtdlUpdateState.status}`}>
+                                    {effectiveYtdlUpdateState.message}
+                                </div>
+                            )}
+                            {showYtdlUpdateProgress && (
+                                <div className={`sp-ytdl-update-progress ${effectiveYtdlUpdateState.status}${ytdlUpdateIndeterminate ? ' is-indeterminate' : ''}`}>
+                                    <div className="sp-ytdl-update-progress__meta">
+                                        <span>{effectiveYtdlUpdateState.stageMessage || t('ytdlUpdateChecking')}</span>
+                                        <span>
+                                            {ytdlUpdateProgress !== null ? `${ytdlUpdateProgress}%` : t('ytdlUpdateProgressUnknown')}
+                                            {ytdlUpdateBytesText ? ` · ${ytdlUpdateBytesText}` : ''}
+                                        </span>
+                                    </div>
+                                    <div className="sp-ytdl-update-progress__track">
+                                        <div
+                                            className="sp-ytdl-update-progress__fill"
+                                            style={{ width: `${ytdlUpdateProgress ?? 35}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="sp-ytdl-tool sp-ytdl-tool--twitch">
+                            <div className="sp-folder-widget">
+                                <div className="sp-folder-widget__info">
+                                    <span className="sp-folder-widget__path">
+                                        {twitchVersionText}
+                                    </span>
+                                    <span className="sp-folder-widget__tag">
+                                        {twitchSourceText}
+                                    </span>
+                                </div>
+                                <div className="sp-folder-widget__actions">
+                                    <button
+                                        className={`sp-folder-widget__browse${effectiveTwitchUpdateState.status === 'updating' ? ' is-loading' : ''}`}
+                                        onClick={onUpdateTwitch || onRefreshTwitch}
+                                        disabled={effectiveTwitchUpdateState.status === 'updating' || (!onUpdateTwitch && !onRefreshTwitch)}
+                                    >
+                                        <i className="bi bi-arrow-repeat"></i>
+                                        {effectiveTwitchUpdateState.status === 'updating' ? t('ytdlUpdateChecking') : t('twitchUpdateButton')}
+                                    </button>
+                                </div>
+                            </div>
+                            {effectiveTwitchUpdateState.message && (
+                                <div className={`sp-ytdl-update-msg ${effectiveTwitchUpdateState.status}`}>
+                                    {effectiveTwitchUpdateState.message}
+                                </div>
+                            )}
+                            {showTwitchUpdateProgress && (
+                                <div className={`sp-ytdl-update-progress ${effectiveTwitchUpdateState.status}${twitchUpdateIndeterminate ? ' is-indeterminate' : ''}`}>
+                                    <div className="sp-ytdl-update-progress__meta">
+                                        <span>{effectiveTwitchUpdateState.stageMessage || t('ytdlUpdateChecking')}</span>
+                                        <span>
+                                            {twitchUpdateProgress !== null ? `${twitchUpdateProgress}%` : t('ytdlUpdateProgressUnknown')}
+                                            {twitchUpdateBytesText ? ` · ${twitchUpdateBytesText}` : ''}
+                                        </span>
+                                    </div>
+                                    <div className="sp-ytdl-update-progress__track">
+                                        <div
+                                            className="sp-ytdl-update-progress__fill"
+                                            style={{ width: `${twitchUpdateProgress ?? 35}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     {/* ══ OTHER ══ */}
                     <div className="sp-section" data-section="other" ref={sectionRef('other')}>
                         <SectionHeader icon="bi-folder-symlink" title={t('sectionTempFiles')} />
@@ -1045,6 +1507,49 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                 <li>{t('ytdlGuideStep2')}</li>
                                 <li>{t('ytdlGuideStep3')}</li>
                             </ol>
+                        </div>
+                        <div className="sp-youtube-auth">
+                            <div className="sp-youtube-auth__status">
+                                <span className={`sp-youtube-auth__dot${youtubeAuthStatus?.signedIn ? ' is-on' : ''}`}></span>
+                                <div>
+                                    <span className="sp-youtube-auth__title">
+                                        {youtubeAuthStatus?.signedIn ? t('youtubeAuthConnected') : t('youtubeAuthNotConnected')}
+                                    </span>
+                                    <span className="sp-youtube-auth__meta">
+                                        {youtubeAuthStatus?.lastExportAt || appConfig.ytdlAuthLastExportAt
+                                            ? `${t('youtubeAuthLastExport')}: ${new Date(youtubeAuthStatus?.lastExportAt || appConfig.ytdlAuthLastExportAt).toLocaleString()}`
+                                            : t('youtubeAuthNoExport')}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="sp-youtube-auth__mode">
+                                <button
+                                    type="button"
+                                    className={appConfig.ytdlCookiesMode !== 'off' ? 'active' : ''}
+                                    onClick={() => updateApp('ytdlCookiesMode', 'auto')}
+                                >
+                                    {t('youtubeAuthAutoMode')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className={appConfig.ytdlCookiesMode === 'off' ? 'active' : ''}
+                                    onClick={() => updateApp('ytdlCookiesMode', 'off')}
+                                >
+                                    {t('youtubeAuthOffMode')}
+                                </button>
+                            </div>
+                            <div className="sp-youtube-auth__actions">
+                                <button type="button" onClick={handleYoutubeLogin} disabled={youtubeAuthBusy}>
+                                    <i className="bi bi-google"></i>{t('youtubeAuthLogin')}
+                                </button>
+                                <button type="button" onClick={handleExportYoutubeCookies} disabled={youtubeAuthBusy}>
+                                    <i className="bi bi-file-earmark-lock"></i>{t('youtubeAuthExport')}
+                                </button>
+                                <button type="button" onClick={handleClearYoutubeAuth} disabled={youtubeAuthBusy}>
+                                    <i className="bi bi-trash3"></i>{t('youtubeAuthClear')}
+                                </button>
+                            </div>
+                            {youtubeAuthError && <div className="sp-youtube-auth__error">{youtubeAuthError}</div>}
                         </div>
                         <div className="sp-ytdl-file">
                             <div className="sp-folder-widget">

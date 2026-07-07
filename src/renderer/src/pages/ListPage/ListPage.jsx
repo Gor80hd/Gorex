@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import './ListPage.scss'
-import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, ENCODER_GROUPS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS, NO_CRF_ENCODERS, ALPHA_CAPABLE_ENCODERS } from '../../components/GlobalSettings/GlobalSettings'
+import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, ENCODER_GROUPS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS, NO_CRF_ENCODERS, ALPHA_CAPABLE_ENCODERS, getAudioFormatDefaults, getFormatOptionGroups, isAudioOnlyOutputFormat, isAudioCodecCompatibleWithFormat, normalizeEncoderSettings } from '../../components/GlobalSettings/GlobalSettings'
 import { useLanguage } from '../../i18n'
 
 const EIGHT_BIT_ONLY_ENCODERS = new Set([
@@ -23,6 +23,7 @@ const SERVICE_MAP = {
     'vimeo.com':       { name: 'Vimeo',        icon: 'bi-vimeo',            color: '#1ab7ea' },
     'soundcloud.com':  { name: 'SoundCloud',   icon: 'bi-soundcloud',       color: '#ff5500' },
     'twitch.tv':       { name: 'Twitch',       icon: 'bi-twitch',           color: '#9146ff' },
+    'clips.twitch.tv': { name: 'Twitch',       icon: 'bi-twitch',           color: '#9146ff' },
     'facebook.com':    { name: 'Facebook',     icon: 'bi-facebook',         color: '#1877f2' },
     'fb.watch':        { name: 'Facebook',     icon: 'bi-facebook',         color: '#1877f2' },
     'tiktok.com':      { name: 'TikTok',       icon: 'bi-tiktok',           svgPath: 'M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.84 1.55V6.79a4.85 4.85 0 0 1-1.07-.1z', color: '#ff0050' },
@@ -53,6 +54,21 @@ function detectService(raw) {
 }
 function isValidUrl(raw) {
     try { new URL(raw); return true } catch { return false }
+}
+
+function isDownloadVideo(video) {
+    return !!(video?.isYtdlItem || video?.isTwitchItem)
+}
+
+function getTwitchVideoKey(video) {
+    return String(video?.id || video?.url || video?.title || '')
+}
+
+function formatTwitchPublishedAt(value) {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    return date.toLocaleDateString()
 }
 
 // ISO 639-1 / common BCP-47 code → human-readable name
@@ -150,6 +166,37 @@ function buildFormatTags(f, t) {
     return tags
 }
 
+function buildTwitchQualityGroups(video, t) {
+    const sourceLabel = t ? t('qualitySource') : 'Source'
+    const raw = Array.isArray(video?.twitchQualityOptions) ? video.twitchQualityOptions : []
+    const options = raw.length ? raw : [{ value: 'Source', label: sourceLabel, source: true }]
+    return [{
+        label: t ? t('availableFormats') : 'Available formats',
+        options: options.map(option => ({
+            value: option.value,
+            label: option.source && option.label === 'Source' ? sourceLabel : option.label,
+            tags: option.height ? [
+                { key: 'res', icon: 'bi-aspect-ratio', label: `${option.height}p`, cls: 'tr-res' },
+                ...(option.fps ? [{ key: 'fps', icon: 'bi-camera-video', label: `${option.fps}fps`, cls: 'tr-fps' }] : []),
+            ] : [],
+        })),
+    }]
+}
+
+function resolveTwitchQuality(value, groups) {
+    const options = groups.flatMap(group => group.options || [])
+    if (options.some(option => option.value === value)) return value
+    return options[0]?.value || 'Source'
+}
+
+function getTwitchQualityLabel(value, groups) {
+    for (const group of groups) {
+        const found = (group.options || []).find(option => option.value === value)
+        if (found) return found.label
+    }
+    return value || ''
+}
+
 function buildYtdlFormatGroups(formats, t) {
     const groups = []
 
@@ -204,23 +251,25 @@ const ENCODER_SHORT = {
     h263p: 'H.263+', h263: 'H.263',
     flv1: 'FLV1',
 }
-const FORMAT_LABEL = { av_mp4: 'MP4', av_mkv: 'MKV', av_webm: 'WebM', av_mov: 'MOV', av_avi: 'AVI', av_ts: 'TS', av_flv: 'FLV', av_ogg: 'OGG', av_3gp: '3GP' }
+const FORMAT_LABEL = { av_mp4: 'MP4', av_mkv: 'MKV', av_webm: 'WebM', av_mov: 'MOV', av_avi: 'AVI', av_ts: 'TS', av_flv: 'FLV', av_ogg: 'OGG', av_3gp: '3GP', audio_mp3: 'MP3', audio_m4a: 'M4A', audio_flac: 'FLAC', audio_wav: 'WAV', audio_opus: 'Opus', audio_ogg: 'Ogg' }
 const RES_LABEL = { '4k': '4K', '1440p': '1440p', '1080p': '1080p', '720p': '720p', '480p': '480p' }
 
 function getTransformTags(video, s, t) {
     const tags = []
     if (!s) return tags
+    const audioOnly = isAudioOnlyOutputFormat(s.format)
     // Format
-    if (s.format && FORMAT_LABEL[s.format]) tags.push({ key: 'fmt',   icon: 'bi-file-earmark-play', label: FORMAT_LABEL[s.format], cls: 'tr-fmt' })
+    if (s.format && FORMAT_LABEL[s.format]) tags.push({ key: 'fmt',   icon: audioOnly ? 'bi-file-earmark-music' : 'bi-file-earmark-play', label: FORMAT_LABEL[s.format], cls: 'tr-fmt' })
     // Encoder
-    if (s.encoder) tags.push({ key: 'enc',   icon: 'bi-cpu',              label: ENCODER_SHORT[s.encoder] || s.encoder, cls: 'tr-enc' })
+    if (!audioOnly && s.encoder) tags.push({ key: 'enc',   icon: 'bi-cpu',              label: ENCODER_SHORT[s.encoder] || s.encoder, cls: 'tr-enc' })
     // Resolution
-    if (s.resolution && s.resolution !== 'source') tags.push({ key: 'res',   icon: 'bi-aspect-ratio',     label: '\u2192 ' + (RES_LABEL[s.resolution] || s.resolution), cls: 'tr-res' })
+    if (!audioOnly && s.resolution && s.resolution !== 'source') tags.push({ key: 'res',   icon: 'bi-aspect-ratio',     label: '\u2192 ' + (RES_LABEL[s.resolution] || s.resolution), cls: 'tr-res' })
     // FPS
-    if (s.fps && s.fps !== 'source') tags.push({ key: 'fps',   icon: 'bi-camera-video',     label: '\u2192 ' + s.fps + ' fps', cls: 'tr-fps' })
+    if (!audioOnly && s.fps && s.fps !== 'source') tags.push({ key: 'fps',   icon: 'bi-camera-video',     label: '\u2192 ' + s.fps + ' fps', cls: 'tr-fps' })
     // Audio codec
     const audioShort = (s.audioCodec || 'av_aac').replace('av_', '').replace('fdk_', '').toUpperCase().replace('COPY:', '').replace('COPY', 'Passthru')
     tags.push({ key: 'aud',   icon: 'bi-music-note',        label: audioShort, cls: 'tr-aud' })
+    if (audioOnly) return tags
     // Filters
     if (s.grayscale)                       tags.push({ key: 'gray',  icon: 'bi-circle-half',      label: t ? t('filterTagGrayscale') : 'B&W',    cls: 'tr-filter' })
     if (s.rotate && s.rotate !== '0')      tags.push({ key: 'rot',   icon: 'bi-arrow-clockwise',  label: s.rotate === 'hflip' ? (t ? t('filterTagFlip') : 'Flip') : s.rotate + '\u00b0', cls: 'tr-filter' })
@@ -230,7 +279,6 @@ function getTransformTags(video, s, t) {
     if (s.deblock && s.deblock !== 'off')  tags.push({ key: 'db',    icon: 'bi-bounding-box',     label: t ? t('filterTagDeblock') : 'Deblock', cls: 'tr-filter' })
     return tags
 }
-
 // ─── Audio codecs ──────────────────────────────────────────────────────────────
 const AUDIO_CODECS = [
     { value: 'av_aac',      label: 'AAC (libavcodec)' },
@@ -802,7 +850,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     ]
     const isYtdl = !!video.isYtdlItem
     const tabs = isYtdl ? VSP_TABS_YTDL : VSP_TABS
-    const [draft, setDraft] = useState(() => ({
+    const [draft, setDraft] = useState(() => normalizeEncoderSettings({
         ...(video.customSettings || video.conversionSettings || { ...globalSettings }),
         noAudio: (video.customSettings || video.conversionSettings || {}).noAudio ?? false,
         _ytdlNoAudio:       video.ytdlNoAudio       ?? false,
@@ -830,10 +878,34 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
         _ytdlSponsorBlockCats:   video.ytdlSponsorBlockCats   ?? ['sponsor'],
     }))
     const [activeTab, setActiveTab] = useState(isYtdl ? 'download' : 'video')
+    const audioOnly = isAudioOnlyOutputFormat(draft.format)
+
+    useEffect(() => {
+        if (audioOnly && ['subtitles', 'filters', 'hdr'].includes(activeTab)) {
+            setActiveTab('audio')
+        }
+    }, [audioOnly, activeTab])
 
     const update = (key, val) => setDraft(prev => ({ ...prev, [key]: val }))
 
     const handleFormatChange = (fmt) => {
+        const audioDefaults = getAudioFormatDefaults(fmt)
+        if (audioDefaults) {
+            setDraft(prev => ({
+                ...prev,
+                format: fmt,
+                ...audioDefaults,
+                noAudio: false,
+                subtitleMode: 'none',
+                subtitleBurn: false,
+                subtitleExternalFile: '',
+                alphaChannel: false,
+                hwDecoding: 'none',
+                multiPass: false,
+            }))
+            setActiveTab('audio')
+            return
+        }
         const patch = { format: fmt }
         if (fmt === 'av_webm') {
             if (!WEBM_COMPATIBLE_ENCODERS.has(draft.encoder)) {
@@ -872,9 +944,10 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                 patch.encoderSpeed = speeds?.find(s => s.value === 'slow')?.value
                     ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? 'slow'
             }
-            if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_avi' || fmt === 'av_ts') {
+            if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_avi' || fmt === 'av_ts' || fmt === 'av_flv' || fmt === 'av_3gp') {
                 const audioCodec = draft.audioCodec || 'av_aac'
-                if (WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
+                const containerUnsafeAudio = new Set(['vorbis', 'opus', 'flac16', 'flac24', 'pcm_s16le', 'pcm_s24le', 'pcm_f32le', 'alac', 'wmav2'])
+                if ((WEBM_COMPATIBLE_AUDIO.has(audioCodec) || containerUnsafeAudio.has(audioCodec)) && !audioCodec.startsWith('copy')) {
                     patch.audioCodec = 'av_aac'
                 }
             }
@@ -912,9 +985,9 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             }
             // Strip internal flags before persisting as conversionSettings
             const { _convertAfterDownload: _, _ytdlNoAudio: __, _ytdlDownloadSubs: ___, _ytdlAutoSubs: ____, _ytdlSubLangs: _____, _ytdlSubFormat: ______, _ytdlAudioFormat: _______, _ytdlSponsorBlock: ________, _ytdlSponsorBlockCats: _________, ...cleanDraft } = draft
-            onSave(video.id, cleanDraft)
+            onSave(video.id, normalizeEncoderSettings(cleanDraft))
         } else {
-            onSave(video.id, draft)
+            onSave(video.id, normalizeEncoderSettings(draft))
         }
         onClose()
     }
@@ -1012,7 +1085,8 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
-                                className={`vsp-tab${activeTab === tab.id ? ' active' : ''}${isYtdl && tab.id !== 'download' && !convertAfterDownload ? ' vsp-tab--dim' : ''}`}
+                                className={`vsp-tab${activeTab === tab.id ? ' active' : ''}${isYtdl && tab.id !== 'download' && !convertAfterDownload ? ' vsp-tab--dim' : ''}${audioOnly && ['subtitles', 'filters', 'hdr'].includes(tab.id) ? ' vsp-tab--dim' : ''}`}
+                                disabled={audioOnly && ['subtitles', 'filters', 'hdr'].includes(tab.id)}
                                 onClick={() => setActiveTab(tab.id)}
                             >
                                 <i className={`bi ${tab.icon}`}></i>
@@ -1191,22 +1265,12 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
 
                         {/* ═══ VIDEO ═══ */}
                         {activeTab === 'video' && (
-                            <div className="vsp-section">
+                            <div className={`vsp-section${audioOnly ? ' vsp-section--audio-output' : ''}`}>
                                 <VspSectionHeader icon="bi-file-earmark-play" title={t('sectionContainer')} />
                                 <VspRow label={t('rowFormat')} hint={t('hintFormat')}>
                                     <PanelSelect
                                         value={draft.format}
-                                        options={[
-                                            { value: 'av_mp4',  label: 'MP4' },
-                                            { value: 'av_mkv',  label: 'MKV' },
-                                            { value: 'av_webm', label: 'WebM' },
-                                            { value: 'av_mov',  label: 'MOV' },
-                                            { value: 'av_avi',  label: 'AVI' },
-                                            { value: 'av_ts',   label: 'MPEG-TS' },
-                                            { value: 'av_flv',  label: 'FLV' },
-                                            { value: 'av_ogg',  label: 'OGG' },
-                                            { value: 'av_3gp',  label: '3GP' },
-                                        ]}
+                                        groups={getFormatOptionGroups(t)}
                                         onChange={handleFormatChange}
                                     />
                                 </VspRow>
@@ -1224,9 +1288,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                             }))
                                         }))}
                                         onChange={v => {
-                                            const speeds = ENCODER_PRESETS[v] ?? []
-                                            const mid = speeds[Math.floor(speeds.length / 2)]?.value ?? 'medium'
-                                            setDraft(prev => ({ ...prev, encoder: v, encoderSpeed: mid }))
+                                            setDraft(prev => normalizeEncoderSettings({ ...prev, encoder: v }))
                                         }}
                                     />
                                 </VspRow>
@@ -1364,7 +1426,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                 </VspRow>
 
                                 {/* ── Time trim for local file conversion ── */}
-                                {!isYtdl && (video.durationSecs || 0) > 0 && (
+                                {!isYtdl && !audioOnly && (video.durationSecs || 0) > 0 && (
                                     <>
                                         <VspSectionHeader icon="bi-scissors" title={t('vspTimeClip')} />
                                         <div className="vsp-clip-wrap">
@@ -1388,7 +1450,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                         {activeTab === 'audio' && (
                             <div className="vsp-section">
                                 {/* No audio option for local file conversion */}
-                                {!isYtdl && (
+                                {!isYtdl && !audioOnly && (
                                     <>
                                         <VspSectionHeader icon="bi-volume-mute" title={t('vspAudioOptions')} />
                                         <VspRow label={t('vspNoAudio')} hint={t('vspHintNoAudioConv')}>
@@ -1405,7 +1467,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                         value={draft.audioCodec || 'av_aac'}
                                         options={AUDIO_CODECS.map(c => ({
                                             ...c,
-                                            disabled: draft.format === 'av_webm' && !WEBM_COMPATIBLE_AUDIO.has(c.value) && !c.value.startsWith('copy'),
+                                            disabled: (draft.format === 'av_webm' && !WEBM_COMPATIBLE_AUDIO.has(c.value) && !c.value.startsWith('copy')) || (audioOnly && !isAudioCodecCompatibleWithFormat(draft.format, c.value)),
                                         }))}
                                         onChange={v => update('audioCodec', v)}
                                     />
@@ -1717,9 +1779,10 @@ function ListPage({
     outputMode, customOutputDir, defaultOutputDir, onOutputModeChange,
     onAddFiles, onDownload, onRemoveVideo, onClearQueue, onRenameOutput, onVideoSettingsChange,
     onYtdlFormatChange, onYtdlConvertToggle, onYtdlConversionSettings, onYtdlClipChange, onYtdlOptionsChange,
+    twitchChannelPicker, onTwitchAddChannelVideos, onTwitchCloseChannelPicker, onTwitchOpenChat, onTwitchConvertToggle, onTwitchQualityChange,
     onLocalClipChange,
     isDraggingOnList, onListDragEnter, onListDragLeave, onListDragOver, onListDrop,
-    gpuVendor, encodingStartTime, onOpenSettings
+    gpuVendor, encodingStartTime, onOpenSettings, onOpenOutputLocation
 }) {
     const [editingId, setEditingId] = useState(null)
     const [editingValue, setEditingValue] = useState('')
@@ -1731,6 +1794,11 @@ function ListPage({
     const { t } = useLanguage()
     const urlInputRef = useRef(null)
     const [urlCtxMenu, setUrlCtxMenu] = useState(null)
+    const [selectedTwitchVideos, setSelectedTwitchVideos] = useState(() => new Set())
+
+    useEffect(() => {
+        setSelectedTwitchVideos(new Set())
+    }, [twitchChannelPicker])
 
     // Close context menu on outside click / scroll
     useEffect(() => {
@@ -1823,7 +1891,8 @@ function ListPage({
 
     const addUrlTrimmed = addUrl.trim()
     const addUrlService = detectService(addUrlTrimmed)
-    const addUrlValid = isValidUrl(addUrlTrimmed)
+    const addUrlHasValue = addUrlTrimmed.length > 0
+    const addUrlValid = addUrlHasValue && isValidUrl(addUrlTrimmed)
 
     const handleAddUrl = async () => {
         if (!addUrlTrimmed || isAddingUrl || !addUrlValid || !onDownload) return
@@ -1839,18 +1908,55 @@ function ListPage({
         }
     }
 
-    const customCount = videos.filter(v => v.customSettings).length
-    const globalCount = videos.length - customCount
+    const handleTopAddAction = () => {
+        if (isEncoding || isAddingUrl) return
+        if (!addUrlHasValue) {
+            onAddFiles?.()
+            return
+        }
+        if (!addUrlValid) {
+            setAddUrlError(t('invalidUrl'))
+            return
+        }
+        handleAddUrl()
+    }
 
-    const hasOnlyDownloads = videos.length > 0 && videos.every(v => v.isYtdlItem)
-    const hasRegular = videos.some(v => !v.isYtdlItem)
-    const hasDownloads = videos.some(v => v.isYtdlItem)
-    const hasYtdlConvert = videos.some(v => v.isYtdlItem && v.convertAfterDownload)
+    const twitchChannelItems = twitchChannelPicker?.videos || []
+    const selectedTwitchItems = twitchChannelItems.filter(item => selectedTwitchVideos.has(getTwitchVideoKey(item)))
+    const toggleTwitchVideoSelection = useCallback((item) => {
+        const key = getTwitchVideoKey(item)
+        if (!key || isEncoding) return
+        setSelectedTwitchVideos(prev => {
+            const next = new Set(prev)
+            if (next.has(key)) next.delete(key)
+            else next.add(key)
+            return next
+        })
+    }, [isEncoding])
+    const handleSelectAllTwitch = useCallback(() => {
+        if (isEncoding) return
+        setSelectedTwitchVideos(new Set(twitchChannelItems.map(getTwitchVideoKey).filter(Boolean)))
+    }, [isEncoding, twitchChannelItems])
+    const handleClearTwitchSelection = useCallback(() => setSelectedTwitchVideos(new Set()), [])
+    const handleAddSelectedTwitch = useCallback(() => {
+        if (!selectedTwitchItems.length || isEncoding) return
+        onTwitchAddChannelVideos?.(selectedTwitchItems)
+        setSelectedTwitchVideos(new Set())
+    }, [isEncoding, onTwitchAddChannelVideos, selectedTwitchItems])
+
+    const customCount = videos.filter(v => !isDownloadVideo(v) && v.customSettings).length
+    const regularCount = videos.filter(v => !isDownloadVideo(v)).length
+    const globalCount = regularCount - customCount
+    const downloadCount = videos.filter(isDownloadVideo).length
+
+    const hasOnlyDownloads = videos.length > 0 && videos.every(isDownloadVideo)
+    const hasRegular = videos.some(v => !isDownloadVideo(v))
+    const hasDownloads = videos.some(isDownloadVideo)
     const globalSettingsActive =
-        videos.some(v => !v.isYtdlItem && !v.customSettings) ||
-        videos.some(v => v.isYtdlItem && v.convertAfterDownload && !v.conversionSettings)
+        videos.some(v => !isDownloadVideo(v) && !v.customSettings) ||
+        videos.some(v => isDownloadVideo(v) && v.convertAfterDownload && !v.conversionSettings)
     const allReady = videos.every(v =>
-        v.isYtdlItem ? ['format_select', 'error'].includes(v.status) : ['ready', 'done', 'error'].includes(v.status)
+        isDownloadVideo(v) ? ['format_select', 'error'].includes(v.status) : ['ready', 'done', 'error'].includes(v.status)
     )
 
     const startBtnLabel = hasOnlyDownloads ? t('btnDownload') : hasDownloads ? t('btnStart') : t('btnConvert')
@@ -1896,14 +2002,16 @@ function ListPage({
                         </button>
                     </div>
                     <button
-                        className="add-button"
-                        onClick={onAddFiles}
-                        disabled={isEncoding}
-                        title={t('addFilesTitle')}
+                        className={`add-button${addUrlHasValue ? ' add-button--url' : ''}${addUrlHasValue && !addUrlValid ? ' add-button--invalid' : ''}`}
+                        onClick={handleTopAddAction}
+                        disabled={isEncoding || isAddingUrl}
+                        title={addUrlHasValue ? t('addUrlTitle') : t('addFilesTitle')}
                     >
-                        <i className="bi bi-plus-lg"></i>
-                    </button>
-                    <button
+                        {isAddingUrl
+                            ? <span className="list-url-spinner" />
+                            : <i className={`bi ${addUrlHasValue ? 'bi-arrow-right' : 'bi-plus-lg'}`}></i>
+                        }
+                    </button>                    <button
                         className="add-button clear-button"
                         onClick={onClearQueue}
                         disabled={isEncoding}
@@ -1923,17 +2031,98 @@ function ListPage({
                 onDrop={onListDrop}
             >
                 <div className={`video-list-scroll ${isDraggingOnList ? 'blurred' : ''}`}>
+                    {twitchChannelPicker && (
+                        <section className={`twitch-channel-picker ${theme}`}>
+                            <div className="twitch-channel-picker__head">
+                                <div>
+                                    <div className="twitch-channel-picker__title">
+                                        <i className="bi bi-twitch"></i>
+                                        {t('twitchChannelVideosTitle')}: {twitchChannelPicker.displayName || twitchChannelPicker.channel}
+                                    </div>
+                                    <div className="twitch-channel-picker__meta">
+                                        {twitchChannelItems.length
+                                            ? t('twitchChannelVideosFound').replace('{count}', twitchChannelItems.length)
+                                            : t('twitchChannelVideosEmpty')}
+                                    </div>
+                                </div>
+                                <div className="twitch-channel-picker__actions">
+                                    <button type="button" onClick={handleSelectAllTwitch} disabled={!twitchChannelItems.length || isEncoding}>
+                                        {t('twitchChannelSelectAll')}
+                                    </button>
+                                    <button type="button" onClick={handleClearTwitchSelection} disabled={!selectedTwitchVideos.size || isEncoding}>
+                                        {t('twitchChannelClearSelection')}
+                                    </button>
+                                    <button type="button" onClick={onTwitchCloseChannelPicker} disabled={isEncoding} title={t('twitchChannelClose')}>
+                                        <i className="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {twitchChannelItems.length > 0 ? (
+                                <div className="twitch-channel-grid">
+                                    {twitchChannelItems.map(item => {
+                                        const key = getTwitchVideoKey(item)
+                                        const checked = selectedTwitchVideos.has(key)
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                className={`twitch-channel-card${checked ? ' selected' : ''}`}
+                                                onClick={() => toggleTwitchVideoSelection(item)}
+                                                disabled={isEncoding}
+                                                title={item.title}
+                                            >
+                                                <span className="twitch-channel-card__check">
+                                                    <i className={`bi ${checked ? 'bi-check-lg' : 'bi-plus-lg'}`}></i>
+                                                </span>
+                                                <span className="twitch-channel-card__thumb">
+                                                    {item.thumbnail
+                                                        ? <img src={item.thumbnail} alt="" />
+                                                        : <i className="bi bi-film"></i>
+                                                    }
+                                                </span>
+                                                <span className="twitch-channel-card__body">
+                                                    <span className="twitch-channel-card__title">{item.title}</span>
+                                                    <span className="twitch-channel-card__tags">
+                                                        {item.duration && <span><i className="bi bi-clock"></i>{item.duration}</span>}
+                                                        {formatTwitchPublishedAt(item.publishedAt) && <span><i className="bi bi-calendar3"></i>{formatTwitchPublishedAt(item.publishedAt)}</span>}
+                                                        {item.viewCount ? <span><i className="bi bi-eye"></i>{item.viewCount}</span> : null}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="twitch-channel-empty">{t('twitchChannelVideosEmpty')}</div>
+                            )}
+                            <div className="twitch-channel-picker__footer">
+                                <span>{t('twitchChannelSelected').replace('{count}', selectedTwitchItems.length)}</span>
+                                <button
+                                    type="button"
+                                    className="twitch-channel-add"
+                                    onClick={handleAddSelectedTwitch}
+                                    disabled={!selectedTwitchItems.length || isEncoding}
+                                >
+                                    <i className="bi bi-plus-circle"></i>
+                                    {t('twitchChannelAddSelected')}
+                                </button>
+                            </div>
+                        </section>
+                    )}
                     {videos.map(v => {
                         const isActive = ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status)
-                        const unknownHost = (!v.downloadService && v.isYtdlItem && v.ytdlUrl)
-                            ? (() => { try { return new URL(v.ytdlUrl).hostname } catch { return null } })()
+                        const downloadUrl = v.ytdlUrl || v.twitchUrl || ''
+                        const isDownload = isDownloadVideo(v)
+                        const unknownHost = (!v.downloadService && isDownload && downloadUrl)
+                            ? (() => { try { return new URL(downloadUrl).hostname } catch { return null } })()
                             : null
                         const unknownColor = unknownHost ? hostnameToColor(unknownHost) : null
                         const accentColor = v.downloadService?.color ?? unknownColor
+                        const hasCustomSettings = v.customSettings || (isDownload && v.conversionSettings)
                         return (
                         <div
                             key={v.id}
-                            className={`video-item ${v.status} ${theme}${(v.customSettings || (v.isYtdlItem && v.conversionSettings)) ? ' has-custom-settings' : ''}`}
+                            className={`video-item ${v.status} ${theme}${hasCustomSettings ? ' has-custom-settings' : ''}`}
                             style={{
                                 ...(accentColor ? {
                                     borderColor: `color-mix(in srgb, ${accentColor} 40%, transparent)`,
@@ -1956,13 +2145,13 @@ function ListPage({
                             </div>
                             <div className="video-info">
                                 <div className="video-title-row">
-                                    {v.isYtdlItem && v.ytdlUrl && (
+                                    {isDownload && downloadUrl && (
                                         <span className="svc-icon-tag svc-icon-tag--favicon" title={v.downloadService?.name ?? unknownHost}>
-                                            <FaviconImg url={v.ytdlUrl} className="dl-favicon-img" />
+                                            <FaviconImg url={downloadUrl} className="dl-favicon-img" />
                                         </span>
                                     )}
                                     <div className="video-title">{v.title}</div>
-                                    {(v.customSettings || (v.isYtdlItem && v.conversionSettings)) && (
+                                    {hasCustomSettings && (
                                         <span className="vtag custom-tag">
                                             <i className="bi bi-sliders2"></i>
                                             {t('indCustomTag')}
@@ -1990,6 +2179,8 @@ function ListPage({
                                     )}
                                 </div>
                                 <div className="video-tags">
+                                    {v.isTwitchItem && <span className="vtag fmt twitch-tag"><i className="bi bi-twitch"></i>{v.twitchType === 'clip' ? 'Twitch Clip' : 'Twitch VOD'}</span>}
+                                    {v.channel && <span className="vtag"><i className="bi bi-person-video2"></i>{v.channel}</span>}
                                     {v.container && <span className="vtag fmt"><i className="bi bi-file-earmark-play"></i>{v.container}</span>}
                                     {v.resolution && <span className="vtag"><i className="bi bi-aspect-ratio"></i>{v.resolution}</span>}
                                     {v.videoCodec && <span className="vtag"><i className="bi bi-cpu"></i>{v.videoCodec}</span>}
@@ -2058,9 +2249,74 @@ function ListPage({
                                     }
                                 )())}
 
-                                {/* ── conversion transform tags (non-ytdl only; ytdl case is handled inside ytdl-controls) ── */}
-                                {(!v.isYtdlItem || (v.isYtdlItem && v.convertAfterDownload && v.status === 'done')) && (() => {
-                                    const effectiveSettings = v.isYtdlItem
+                                {/* ── Twitch inline controls ── */}
+                                {v.isTwitchItem && v.status !== 'done' && (() => {
+                                    const qualityGroups = buildTwitchQualityGroups(v, t)
+                                    const resolvedQuality = resolveTwitchQuality(v.twitchQuality, qualityGroups)
+                                    const qualityLabel = getTwitchQualityLabel(resolvedQuality, qualityGroups)
+                                    const convTags = v.convertAfterDownload
+                                        ? getTransformTags(v, v.conversionSettings || settings, t)
+                                        : []
+                                    return (
+                                        <div className="ytdl-controls twitch-controls" onClick={e => e.stopPropagation()}>
+                                            <div className="ytdl-format-row">
+                                                <i className="bi bi-twitch ytdl-icon"></i>
+                                                <span className="ytdl-label">{t('twitchQualityLabel')}</span>
+                                                <span onClick={e => e.stopPropagation()}>
+                                                    <GsSelect
+                                                        className="ytdl-format-gs twitch-quality-gs"
+                                                        groups={qualityGroups}
+                                                        value={resolvedQuality}
+                                                        onChange={val => onTwitchQualityChange?.(v.id, val)}
+                                                        disabled={isEncoding}
+                                                        direction="down"
+                                                    />
+                                                </span>
+                                                <span onClick={e => e.stopPropagation()}>
+                                                    <VspToggle
+                                                        value={!!v.convertAfterDownload}
+                                                        onChange={val => (onTwitchConvertToggle || onYtdlConvertToggle)?.(v.id, val)}
+                                                        disabled={isEncoding}
+                                                    />
+                                                </span>
+                                                <span className="ytdl-label">{t('twitchConvertLabel')}</span>
+                                                {v.twitchType !== 'clip' && (
+                                                    <button
+                                                        type="button"
+                                                        className="twitch-chat-btn"
+                                                        onClick={e => { e.stopPropagation(); onTwitchOpenChat?.(v) }}
+                                                        disabled={isEncoding}
+                                                    >
+                                                        <i className="bi bi-chat-left-text"></i>
+                                                        {t('twitchChatButton')}
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {(qualityLabel || convTags.length > 0) && (
+                                                <span className="ytdl-fmt-tags">
+                                                    {qualityLabel && (
+                                                        <span className="vtag transform-tag tr-res">
+                                                            <i className="bi bi-aspect-ratio"></i>{qualityLabel}
+                                                        </span>
+                                                    )}
+                                                    {convTags.length > 0 && (
+                                                        <>
+                                                            <span className="vtag-arrow"><i className="bi bi-arrow-right-short"></i></span>
+                                                            {convTags.map(tag => (
+                                                                <span key={tag.key} className={`vtag transform-tag ${tag.cls}`}>
+                                                                    <i className={`bi ${tag.icon}`}></i>{tag.label}
+                                                                </span>
+                                                            ))}
+                                                        </>
+                                                    )}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )
+                                })()}
+                                {/* ── conversion transform tags (non-download only; download conversion is handled inline) ── */}
+                                {(!isDownload || (isDownload && v.convertAfterDownload && v.status === 'done')) && (() => {
+                                    const effectiveSettings = isDownload
                                         ? (v.conversionSettings || settings)
                                         : (v.customSettings || settings)
                                     const transformTags = getTransformTags(v, effectiveSettings, t)
@@ -2129,7 +2385,7 @@ function ListPage({
                                     : v.status === 'error'
                                         ? <i className="bi bi-x-circle-fill error-icon"></i>
                                         : (() => {
-                                        if (v.isYtdlItem) return null
+                                        if (isDownload) return null
                                         const effectiveSettings = v.customSettings || settings
                                         const estimated = v.status !== 'encoding'
                                             ? estimateOutputSize(v, effectiveSettings)
@@ -2146,6 +2402,15 @@ function ListPage({
                                         )
                                     })()
                                 }
+                                {v.status === 'done' && v.outputPath && (
+                                    <button
+                                        className="open-output-btn"
+                                        onClick={e => { e.stopPropagation(); onOpenOutputLocation?.(v.outputPath) }}
+                                        title={t('openOutputFolderTitle')}
+                                    >
+                                        <i className="bi bi-folder2-open"></i>
+                                    </button>
+                                )}
                                 {v.status !== 'encoding' && v.status !== 'downloading' && v.status !== 'downloading-subs' && v.status !== 'probing-keyframes' && v.status !== 'cutting-sponsors' && v.status !== 'converting' && !isEncoding && (
                                     <button
                                         className="delete-video-btn"
@@ -2186,7 +2451,7 @@ function ListPage({
                     <GlobalSettings
                         settings={settings}
                         onChange={onSettingsChange}
-                        videos={videos.filter(v => !v.isYtdlItem)}
+                        videos={videos.filter(v => !isDownloadVideo(v))}
                         disabled={isEncoding || !globalSettingsActive}
                         gpuVendor={gpuVendor}
                     />
@@ -2196,7 +2461,7 @@ function ListPage({
                 {hasRegular && hasDownloads && (
                     <div className="ytdl-global-notice">
                         <i className="bi bi-info-circle-fill"></i>
-                        {videos.filter(v => v.isYtdlItem).length} {t('mixedQueueNotice')}
+                        {downloadCount} {t('mixedQueueNotice')}
                     </div>
                 )}
 
@@ -2262,7 +2527,7 @@ function ListPage({
                 <div className="list-bottom-status">
                     <span>
                         {hasDownloads && (
-                            <><i className="bi bi-cloud-arrow-down"></i>&nbsp;<b>{videos.filter(v => v.isYtdlItem).length}</b>&nbsp;{t('countDownloads')}</>
+                            <><i className="bi bi-cloud-arrow-down"></i>&nbsp;<b>{downloadCount}</b>&nbsp;{t('countDownloads')}</>
                         )}
                         {hasDownloads && hasRegular && <>&nbsp;&nbsp;·&nbsp;&nbsp;</>}
                         {hasRegular && globalCount > 0 && (
@@ -2302,8 +2567,8 @@ function ListPage({
                     video={editingVideo}
                     globalSettings={settings}
                     onClose={() => setEditingVideoId(null)}
-                    onSave={editingVideo.isYtdlItem ? onYtdlConversionSettings : onVideoSettingsChange}
-                    onReset={(id) => editingVideo.isYtdlItem ? onYtdlConversionSettings(id, null) : onVideoSettingsChange(id, null)}
+                    onSave={isDownloadVideo(editingVideo) ? onYtdlConversionSettings : onVideoSettingsChange}
+                    onReset={(id) => isDownloadVideo(editingVideo) ? onYtdlConversionSettings(id, null) : onVideoSettingsChange(id, null)}
                     onYtdlFormatChange={onYtdlFormatChange}
                     onYtdlConvertToggle={onYtdlConvertToggle}
                     onYtdlClipChange={onYtdlClipChange}

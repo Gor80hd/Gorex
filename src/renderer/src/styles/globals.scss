@@ -1463,3 +1463,405 @@ body {
     from { opacity: 0; transform: translateY(16px) scale(0.95); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+// ---- What's new overlay ----
+
+.whats-new-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.2s ease both;
+
+    &.dark {
+        background:
+            radial-gradient(ellipse at 22% 18%, rgba(20, 184, 166, 0.14) 0%, transparent 34%),
+            radial-gradient(ellipse at 78% 82%, rgba(245, 158, 11, 0.12) 0%, transparent 36%),
+            rgba(9, 8, 14, 0.78);
+    }
+
+    &.light {
+        background:
+            radial-gradient(ellipse at 22% 18%, rgba(20, 184, 166, 0.11) 0%, transparent 34%),
+            radial-gradient(ellipse at 78% 82%, rgba(245, 158, 11, 0.11) 0%, transparent 36%),
+            rgba(241, 245, 249, 0.78);
+    }
+}
+
+.whats-new-card {
+    position: relative;
+    width: min(620px, 100%);
+    max-height: min(720px, calc(100vh - 56px));
+    overflow: auto;
+    border-radius: 18px;
+    padding: 30px;
+    animation: popupIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+    .dark & {
+        background: rgba(24, 22, 35, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.68), 0 0 0 1px rgba(var(--accent-rgb), 0.08);
+    }
+
+    .light & {
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(15, 23, 42, 0.09);
+        box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
+    }
+}
+
+.whats-new-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+
+    .dark & {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.58);
+        &:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+    }
+
+    .light & {
+        background: rgba(15, 23, 42, 0.06);
+        color: rgba(15, 23, 42, 0.55);
+        &:hover { background: rgba(15, 23, 42, 0.1); color: #0f172a; }
+    }
+}
+
+.whats-new-kicker {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+
+    .dark & {
+        color: rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .light & {
+        color: rgba(15, 23, 42, 0.68);
+        background: rgba(15, 23, 42, 0.06);
+    }
+}
+
+.whats-new-title {
+    font-size: 28px;
+    line-height: 1.14;
+    font-weight: 760;
+    letter-spacing: 0;
+    margin: 0 40px 8px 0;
+
+    .dark & { color: #fff; }
+    .light & { color: #0f172a; }
+}
+
+.whats-new-subtitle {
+    max-width: 450px;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 0 22px;
+
+    .dark & { color: rgba(255, 255, 255, 0.52); }
+    .light & { color: rgba(15, 23, 42, 0.54); }
+}
+
+.whats-new-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.whats-new-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 13px 14px;
+    border-radius: 10px;
+    animation: obPointIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+
+    .dark & {
+        background: rgba(255, 255, 255, 0.035);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .light & {
+        background: rgba(15, 23, 42, 0.028);
+        border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+
+    &:nth-child(1) .whats-new-item-icon { --whats-new-color: #14b8a6; }
+    &:nth-child(2) .whats-new-item-icon { --whats-new-color: #f59e0b; }
+    &:nth-child(3) .whats-new-item-icon { --whats-new-color: #22c55e; }
+    &:nth-child(4) .whats-new-item-icon { --whats-new-color: #ef4444; }
+    &:nth-child(5) .whats-new-item-icon { --whats-new-color: #60a5fa; }
+}
+
+.whats-new-item-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    color: var(--whats-new-color, var(--accent-color));
+    background: color-mix(in srgb, var(--whats-new-color, var(--accent-color)) 14%, transparent);
+}
+
+.whats-new-item-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.whats-new-item-title {
+    font-size: 13.5px;
+    line-height: 1.35;
+    font-weight: 700;
+
+    .dark & { color: rgba(255, 255, 255, 0.92); }
+    .light & { color: rgba(15, 23, 42, 0.92); }
+}
+
+.whats-new-item-text {
+    font-size: 12.5px;
+    line-height: 1.5;
+
+    .dark & { color: rgba(255, 255, 255, 0.52); }
+    .light & { color: rgba(15, 23, 42, 0.56); }
+}
+
+.whats-new-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 20px;
+}
+
+.whats-new-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 9px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--accent-color);
+    color: var(--accent-text);
+    transition: var(--transition);
+
+    &:hover {
+        box-shadow: var(--glow-accent);
+        transform: translateY(-1px);
+    }
+
+    &:active { transform: translateY(0); }
+}
+
+// ---- Twitch chat viewer ----
+.twitch-chat-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10020;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(9px);
+
+    &.dark { background: rgba(9, 8, 14, 0.76); }
+    &.light { background: rgba(241, 245, 249, 0.78); }
+}
+
+.twitch-chat-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(880px, 100%);
+    max-height: min(720px, calc(100vh - 48px));
+    border-radius: 8px;
+    overflow: hidden;
+
+    .dark & {
+        background: #17131f;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.64);
+    }
+
+    .light & {
+        background: #ffffff;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        box-shadow: 0 28px 70px rgba(15, 23, 42, 0.18);
+    }
+}
+
+.twitch-chat-header,
+.twitch-chat-tools,
+.twitch-chat-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+}
+
+.twitch-chat-header {
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.twitch-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    font-size: 0.95rem;
+    font-weight: 760;
+
+    i { color: #9146ff; }
+    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.twitch-chat-close {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    opacity: 0.58;
+    cursor: pointer;
+
+    &:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
+}
+
+.twitch-chat-tools {
+    flex-wrap: wrap;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.twitch-chat-search {
+    flex: 1;
+    min-width: 220px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(145, 70, 255, 0.25);
+    background: rgba(145, 70, 255, 0.08);
+
+    input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: inherit;
+        font-size: 0.8rem;
+    }
+}
+
+.twitch-chat-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    border: 1px solid rgba(145, 70, 255, 0.28);
+    border-radius: 8px;
+    background: rgba(145, 70, 255, 0.1);
+    color: inherit;
+    padding: 0 11px;
+    font-size: 0.75rem;
+    font-weight: 750;
+    cursor: pointer;
+
+    &:hover:not(:disabled) { background: rgba(145, 70, 255, 0.16); }
+    &:disabled { opacity: 0.42; cursor: wait; }
+}
+
+.twitch-chat-meta {
+    justify-content: space-between;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 0.7rem;
+    opacity: 0.58;
+}
+
+.twitch-chat-list {
+    flex: 1;
+    overflow: auto;
+    padding: 8px 14px 14px;
+}
+
+.twitch-chat-message {
+    display: grid;
+    grid-template-columns: 58px minmax(96px, 150px) 1fr;
+    gap: 8px;
+    align-items: baseline;
+    padding: 5px 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.twitch-chat-time {
+    border: none;
+    background: transparent;
+    color: #9146ff;
+    padding: 0;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}
+
+.twitch-chat-user {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 760;
+}
+
+.twitch-chat-body {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    opacity: 0.84;
+}
+
+.twitch-chat-empty {
+    padding: 42px 12px;
+    text-align: center;
+    font-size: 0.82rem;
+    opacity: 0.58;
+}
+
+@media (max-width: 680px) {
+    .twitch-chat-overlay { padding: 12px; }
+    .twitch-chat-message { grid-template-columns: 52px 1fr; }
+    .twitch-chat-body { grid-column: 2; }
+}

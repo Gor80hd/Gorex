@@ -5,6 +5,24 @@ import { readFileSync, existsSync, statSync, createReadStream } from 'fs'
 import { Readable } from 'stream'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { spawn, exec } from 'child_process'
+import {
+    getAudioOnlyFormatConfig,
+    isYtdlAuthError,
+    serializeCookiesToNetscape,
+} from './ytdlHelpers.mjs'
+import {
+    formatTwitchChatText,
+    getTwitchCliModeForType,
+    isTwitchUpdateAvailable,
+    normalizeTwitchVersion,
+    normalizeTwitchVideoInfo,
+    parseTwitchChatMessages,
+    parseTwitchInfoOutput,
+    parseTwitchM3u8QualityOptions,
+    parseTwitchUrl,
+    sanitizeTwitchOutputName,
+    summarizeTwitchRelease,
+} from './twitchHelpers.mjs'
 
 // ─── Local HTTP server for production renderer ──────────────────────────────────────────
 // Serves the built renderer from http://127.0.0.1:{port}/ so the page has a real HTTP
@@ -212,15 +230,15 @@ async function fetchYtdlFormatsForExtension(videoUrl) {
     if (!fs.existsSync(ytdlPath)) throw new Error(`yt-dlp не найден: ${ytdlPath}`)
 
     const appCfg = readAppSettings()
-    const cookiesFile = appCfg.ytdlCookiesFile || ''
+    const cookiesFile = getYtdlCookieCandidates(appCfg)[0] || ''
     const nodePath = await findNodeJsPath()
 
     const runDump = (url, extraArgs = []) => new Promise((res) => {
         const child = spawn(ytdlPath, [
             '--dump-json', '--no-playlist',
-            '--extractor-args', 'generic:impersonate',
+            ...getYtdlExtractorArgs(),
             ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
-            ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+            ...withCookieArgs([], cookiesFile),
             ...extraArgs, url,
         ], { windowsHide: true })
         let out = '', err = ''
@@ -317,9 +335,92 @@ function writeAppSettings(settings) {
     require('fs').writeFileSync(getSettingsFilePath(), JSON.stringify(settings, null, 2), 'utf8')
 }
 
+function samePath(a, b) {
+    if (!a || !b) return false
+    const left = normalize(String(a))
+    const right = normalize(String(b))
+    return process.platform === 'win32'
+        ? left.toLowerCase() === right.toLowerCase()
+        : left === right
+}
+
+function getLegacyManagedYoutubeCookiesPath() {
+    return join(app.getPath('userData'), 'cookies', 'youtube-cookies.txt')
+}
+
+function getManagedYoutubeCookiesPath() {
+    return join(app.getPath('userData'), 'managed-cookies', 'youtube-cookies.txt')
+}
+
+function migrateManagedYoutubeCookiesStorage(settings = readAppSettings()) {
+    const fs = require('fs')
+    const legacyFile = getLegacyManagedYoutubeCookiesPath()
+    const legacyDir = dirname(legacyFile)
+    const targetFile = getManagedYoutubeCookiesPath()
+    let nextSettings = settings
+    let changed = false
+
+    const statIfExists = (pathToCheck) => {
+        try {
+            return fs.existsSync(pathToCheck) ? fs.statSync(pathToCheck) : null
+        } catch {
+            return null
+        }
+    }
+
+    const legacyFileStat = statIfExists(legacyFile)
+    const targetFileStat = statIfExists(targetFile)
+    const settingsUseLegacyPath = samePath(settings.ytdlManagedCookiesFile, legacyFile)
+
+    if (legacyFileStat?.isFile() && !targetFileStat?.isFile()) {
+        try {
+            fs.mkdirSync(dirname(targetFile), { recursive: true })
+            try {
+                fs.renameSync(legacyFile, targetFile)
+            } catch {
+                fs.copyFileSync(legacyFile, targetFile)
+                fs.unlinkSync(legacyFile)
+            }
+        } catch (err) {
+            console.warn('[cookies] failed to migrate managed YouTube cookies:', err?.message || err)
+        }
+    }
+
+    if (settingsUseLegacyPath) {
+        nextSettings = { ...nextSettings, ytdlManagedCookiesFile: targetFile }
+        changed = true
+    }
+
+    const legacyDirStat = statIfExists(legacyDir)
+    if (legacyDirStat?.isDirectory()) {
+        try {
+            const entries = fs.readdirSync(legacyDir)
+            if (entries.length === 0) {
+                fs.rmdirSync(legacyDir)
+            } else {
+                let backupDir = join(app.getPath('userData'), 'legacy-managed-cookies')
+                let suffix = 1
+                while (fs.existsSync(backupDir)) {
+                    backupDir = join(app.getPath('userData'), `legacy-managed-cookies-${suffix}`)
+                    suffix += 1
+                }
+                fs.renameSync(legacyDir, backupDir)
+            }
+        } catch (err) {
+            console.warn('[cookies] failed to move legacy cookies directory:', err?.message || err)
+        }
+    }
+
+    if (changed) writeAppSettings(nextSettings)
+    return nextSettings
+}
+
 // ─── yt-dlp error message helpers ───────────────────────────────────────────────────────
 function ytdlFriendlyErr(raw) {
-    if (raw.includes('Failed to decrypt with DPAPI')) {
+    const text = String(raw || '')
+    const lower = text.toLowerCase()
+
+    if (text.includes('Failed to decrypt with DPAPI')) {
         return (
             'Ошибка расшифровки cookies браузера (DPAPI).\n' +
             'Chrome/Edge/Brave шифруют cookies с привязкой к приложению — yt-dlp не может их прочитать напрямую.\n\n' +
@@ -329,7 +430,23 @@ function ytdlFriendlyErr(raw) {
             '  и укажите этот файл в Настройках → Cookies браузера → Файл cookies.txt'
         )
     }
-    if (raw.includes('The page needs to be reloaded')) {
+    if (lower.includes('sign in to confirm') && lower.includes('not a bot')) {
+        return (
+            'YouTube просит подтвердить, что вы не бот.\n\n' +
+            'Обычно это решается cookies-файлом:\n' +
+            '• Войдите в YouTube в браузере\n' +
+            '• Экспортируйте cookies через расширение "Get cookies.txt LOCALLY"\n' +
+            '• Укажите файл в Настройках → Cookies для YouTube → Файл cookies.txt\n\n' +
+            'Если файл уже выбран — экспортируйте его заново и обновите yt-dlp в Настройках.'
+        )
+    }
+    if (lower.includes('cookies-from-browser') || lower.includes('use --cookies')) {
+        return (
+            'Сервис требует авторизацию через cookies.\n\n' +
+            'Экспортируйте cookies.txt из браузера, где вы вошли в аккаунт, и выберите файл в Настройках → Cookies для YouTube.'
+        )
+    }
+    if (text.includes('The page needs to be reloaded')) {
         return (
             'YouTube требует обновления сессии.\n\n' +
             'Если у вас настроены cookies — попробуйте:\n' +
@@ -347,6 +464,8 @@ let tray = null
 let isQuitting = false
 let ytdlFetchActiveChildren = new Set()
 let ytdlFetchCancelled = false
+let ytdlUpdateActive = false
+let twitchUpdateActive = false
 let videoDataCancelled = false
 
 // ─── Tray helpers ────────────────────────────────────────────────────────────
@@ -435,32 +554,753 @@ function createTray() {
     })
 }
 
+function getYtdlBinName() {
+    const platform = process.platform
+    return platform === 'win32' ? 'yt-dlp.exe' : (platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp')
+}
+
+function getYtdlResourceDir() {
+    if (is.dev) {
+        return join(app.getAppPath(), 'resources', 'ytdl')
+    }
+    return join(dirname(process.execPath), 'resources', 'ytdl')
+}
+
+function getBundledYtdlPath() {
+    return join(getYtdlResourceDir(), getYtdlBinName())
+}
+
+function getUserYtdlPath() {
+    return join(app.getPath('userData'), 'tools', getYtdlBinName())
+}
+
 // ─── yt-dlp binary resolver ─────────────────────────────────────────────────────────────
 function getYtdlPath() {
-    const platform = process.platform
-    const bin = platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp_macos'
-    if (is.dev) {
-        return join(app.getAppPath(), 'resources', 'ytdl', bin)
+    const fs = require('fs')
+    const userYtdl = getUserYtdlPath()
+    if (fs.existsSync(userYtdl)) return userYtdl
+    return getBundledYtdlPath()
+}
+
+function getYtdlDownloadUrl() {
+    return `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${getYtdlBinName()}`
+}
+
+async function getYtdlLatestInfo() {
+    const res = await net.fetch('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', {
+        headers: { 'User-Agent': 'Gorex-App/' + app.getVersion() },
+    })
+    if (!res.ok) throw new Error(`GitHub вернул HTTP ${res.status}`)
+    const data = await res.json()
+    const latestVersion = String(data.tag_name || '').replace(/^v/i, '')
+    return {
+        latestVersion,
+        downloadUrl: getYtdlDownloadUrl(),
+        releaseUrl: data.html_url || 'https://github.com/yt-dlp/yt-dlp/releases/latest',
+        publishedAt: data.published_at || data.created_at || '',
+        releaseName: data.name || data.tag_name || '',
+        body: data.body || '',
     }
-    return join(dirname(process.execPath), 'resources', 'ytdl', bin)
+}
+
+const TWITCH_UPDATE_TIMEOUT_MS = 90 * 1000
+
+function getTwitchBinName() {
+    return process.platform === 'win32' ? 'TwitchDownloaderCLI.exe' : 'TwitchDownloaderCLI'
+}
+
+function getTwitchResourceDir() {
+    if (is.dev) {
+        return join(app.getAppPath(), 'resources', 'twitch')
+    }
+    return join(dirname(process.execPath), 'resources', 'twitch')
+}
+
+function getBundledTwitchPath() {
+    return join(getTwitchResourceDir(), getTwitchBinName())
+}
+
+function getUserTwitchDir() {
+    return join(app.getPath('userData'), 'tools', 'twitch', 'current')
+}
+
+function getUserTwitchPath() {
+    return join(getUserTwitchDir(), getTwitchBinName())
+}
+
+function getTwitchPath() {
+    const fs = require('fs')
+    const userPath = getUserTwitchPath()
+    if (fs.existsSync(userPath)) return userPath
+    return getBundledTwitchPath()
+}
+
+function sendTwitchUpdateProgress(target, payload) {
+    try { target?.send('twitch-update-progress', payload) } catch {}
+}
+
+function runProcess(binPath, args = [], options = {}) {
+    return new Promise((resolve) => {
+        const child = spawn(binPath, args, { windowsHide: true, cwd: options.cwd })
+        const timeoutMs = options.timeoutMs || 30000
+        const timer = setTimeout(() => {
+            try { child.kill() } catch {}
+            resolve({ code: 1, stdout: '', stderr: 'process timeout' })
+        }, timeoutMs)
+        timer.unref?.()
+        let stdout = ''
+        let stderr = ''
+        child.stdout?.on('data', d => { stdout += d.toString() })
+        child.stderr?.on('data', d => { stderr += d.toString() })
+        child.on('close', code => {
+            clearTimeout(timer)
+            resolve({ code, stdout, stderr })
+        })
+        child.on('error', err => {
+            clearTimeout(timer)
+            resolve({ code: 1, stdout, stderr: err.message })
+        })
+    })
+}
+
+async function getTwitchLatestInfo() {
+    const res = await net.fetch('https://api.github.com/repos/lay295/TwitchDownloader/releases/latest', {
+        headers: { 'User-Agent': 'Gorex-App/' + app.getVersion() },
+    })
+    if (!res.ok) throw new Error(`GitHub вернул HTTP ${res.status}`)
+    const data = await res.json()
+    const latest = summarizeTwitchRelease(data, process.platform, process.arch)
+    if (!latest.downloadUrl) {
+        throw new Error('В последнем релизе TwitchDownloader не найден архив TwitchDownloaderCLI для этой платформы')
+    }
+    return latest
+}
+
+async function downloadTwitchUpdateBuffer(downloadUrl, onProgress = () => {}) {
+    const controller = new AbortController()
+    let timeout = null
+    const resetTimeout = () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => controller.abort(), TWITCH_UPDATE_TIMEOUT_MS)
+        timeout.unref?.()
+    }
+    const report = (payload) => {
+        resetTimeout()
+        onProgress(payload)
+    }
+
+    resetTimeout()
+
+    try {
+        report({ stage: 'connecting', percent: 5 })
+        const res = await net.fetch(downloadUrl, {
+            headers: { 'User-Agent': 'Gorex-App/' + app.getVersion() },
+            signal: controller.signal,
+        })
+        if (!res.ok) throw new Error(`GitHub вернул HTTP ${res.status}`)
+
+        const totalHeader = res.headers.get('content-length')
+        const totalBytes = Number(totalHeader) > 0 ? Number(totalHeader) : null
+        const reader = res.body?.getReader?.()
+        if (reader) {
+            const chunks = []
+            let receivedBytes = 0
+            report({ stage: 'downloading', percent: totalBytes ? 10 : null, receivedBytes, totalBytes })
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                const chunk = Buffer.from(value)
+                chunks.push(chunk)
+                receivedBytes += chunk.length
+                const percent = totalBytes
+                    ? Math.min(82, 10 + Math.round((receivedBytes / totalBytes) * 72))
+                    : null
+                report({ stage: 'downloading', percent, receivedBytes, totalBytes })
+            }
+            const buf = Buffer.concat(chunks)
+            if (!buf.length) throw new Error('Загружен пустой архив TwitchDownloaderCLI')
+            report({ stage: 'downloaded', percent: 84, receivedBytes, totalBytes: totalBytes || receivedBytes })
+            return buf
+        }
+
+        const buf = Buffer.from(await res.arrayBuffer())
+        if (!buf.length) throw new Error('Загружен пустой архив TwitchDownloaderCLI')
+        report({ stage: 'downloaded', percent: 84, receivedBytes: buf.length, totalBytes: totalBytes || buf.length })
+        return buf
+    } catch (err) {
+        if (controller.signal.aborted || err?.name === 'AbortError') {
+            throw new Error('Превышено время ожидания загрузки TwitchDownloaderCLI. Проверьте подключение и попробуйте снова')
+        }
+        throw err
+    } finally {
+        if (timeout) clearTimeout(timeout)
+    }
+}
+
+function findFileRecursive(rootDir, fileName) {
+    const fs = require('fs')
+    const stack = [rootDir]
+    const target = String(fileName).toLowerCase()
+    while (stack.length) {
+        const current = stack.pop()
+        let entries = []
+        try { entries = fs.readdirSync(current, { withFileTypes: true }) } catch { continue }
+        for (const entry of entries) {
+            const fullPath = join(current, entry.name)
+            if (entry.isDirectory()) {
+                stack.push(fullPath)
+            } else if (entry.name.toLowerCase() === target) {
+                return fullPath
+            }
+        }
+    }
+    return null
+}
+
+async function extractZipArchive(zipPath, destDir) {
+    const fs = require('fs')
+    fs.mkdirSync(destDir, { recursive: true })
+
+    const tarResult = await runProcess('tar', ['-xf', zipPath, '-C', destDir], { timeoutMs: 90000 })
+    if (tarResult.code === 0) return
+
+    if (process.platform === 'win32') {
+        const ps = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+        const psResult = await runProcess(ps, [
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy', 'Bypass',
+            '-Command', 'Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force',
+            zipPath,
+            destDir,
+        ], { timeoutMs: 90000 })
+        if (psResult.code === 0) return
+        throw new Error((psResult.stderr || psResult.stdout || tarResult.stderr || 'Не удалось распаковать архив TwitchDownloaderCLI').trim())
+    }
+
+    throw new Error((tarResult.stderr || 'Не удалось распаковать архив TwitchDownloaderCLI').trim())
+}
+
+async function getTwitchInfo() {
+    const fs = require('fs')
+    const activePath = getTwitchPath()
+    const userPath = getUserTwitchPath()
+    const found = fs.existsSync(activePath)
+    let version = null
+    if (found) {
+        const versionResult = await runToolVersion(activePath, ['--version'])
+        const raw = versionResult?.output?.split(/\r?\n/)[0] || ''
+        version = normalizeTwitchVersion(raw) || null
+    }
+    return {
+        found,
+        version,
+        path: activePath,
+        source: activePath === userPath ? 'user' : 'bundled',
+        userPath,
+        bundledPath: getBundledTwitchPath(),
+        hasUserOverride: fs.existsSync(userPath),
+    }
+}
+
+async function updateTwitchBinary(progressTarget = null) {
+    const fs = require('fs')
+    const report = (payload) => sendTwitchUpdateProgress(progressTarget, payload)
+    if (twitchUpdateActive) {
+        throw new Error('Обновление TwitchDownloaderCLI уже выполняется')
+    }
+    if (activeJobs.size || ytdlFetchActiveChildren.size) {
+        throw new Error('Остановите активные загрузки перед обновлением TwitchDownloaderCLI')
+    }
+
+    const installRoot = join(app.getPath('userData'), 'tools', 'twitch')
+    const currentDir = getUserTwitchDir()
+    const stagingDir = join(installRoot, 'staging')
+    const zipPath = join(installRoot, 'TwitchDownloaderCLI.update.zip')
+
+    twitchUpdateActive = true
+    try {
+        report({ stage: 'preparing', percent: 0 })
+        fs.mkdirSync(installRoot, { recursive: true })
+        try { fs.rmSync(stagingDir, { recursive: true, force: true }) } catch {}
+        try { fs.unlinkSync(zipPath) } catch {}
+
+        const latest = await getTwitchLatestInfo()
+        const buf = await downloadTwitchUpdateBuffer(latest.downloadUrl, report)
+        fs.writeFileSync(zipPath, buf)
+
+        report({ stage: 'installing', percent: 86 })
+        await extractZipArchive(zipPath, stagingDir)
+        const extractedBin = findFileRecursive(stagingDir, getTwitchBinName())
+        if (!extractedBin) {
+            throw new Error(`В архиве не найден ${getTwitchBinName()}`)
+        }
+        if (process.platform !== 'win32') {
+            try { fs.chmodSync(extractedBin, 0o755) } catch {}
+        }
+
+        report({ stage: 'verifying', percent: 92 })
+        const versionCheck = await runToolVersion(extractedBin, ['--version'])
+        const checkedVersion = normalizeTwitchVersion(versionCheck.output)
+        if (!checkedVersion) {
+            throw new Error(versionCheck.output || 'Новая версия TwitchDownloaderCLI не запускается')
+        }
+
+        report({ stage: 'installing', percent: 96 })
+        const extractedDir = dirname(extractedBin)
+        try { fs.rmSync(currentDir, { recursive: true, force: true }) } catch {}
+        fs.mkdirSync(dirname(currentDir), { recursive: true })
+        if (extractedDir === stagingDir) {
+            fs.renameSync(stagingDir, currentDir)
+        } else {
+            fs.renameSync(extractedDir, currentDir)
+            try { fs.rmSync(stagingDir, { recursive: true, force: true }) } catch {}
+        }
+        try { fs.unlinkSync(zipPath) } catch {}
+
+        const info = await getTwitchInfo()
+        report({ stage: 'done', percent: 100 })
+        return { ...info, latest }
+    } catch (err) {
+        try { fs.rmSync(stagingDir, { recursive: true, force: true }) } catch {}
+        throw err
+    } finally {
+        twitchUpdateActive = false
+    }
+}
+
+async function fetchTwitchGraphql(query, variables) {
+    const res = await net.fetch('https://gql.twitch.tv/gql', {
+        method: 'POST',
+        headers: {
+            'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Gorex-App/' + app.getVersion(),
+        },
+        body: JSON.stringify({ query, variables }),
+    })
+    if (!res.ok) throw new Error(`Twitch вернул HTTP ${res.status}`)
+    const data = await res.json()
+    if (Array.isArray(data?.errors) && data.errors.length) {
+        throw new Error(data.errors.map(e => e.message).filter(Boolean).join('; ') || 'Twitch не вернул данные')
+    }
+    return data?.data || {}
+}
+
+async function fetchTwitchVideoMetadata(parsed) {
+    if (parsed.type === 'vod') {
+        const data = await fetchTwitchGraphql(`query GorexVod($id: ID!) {
+            video(id: $id) {
+                id
+                title
+                lengthSeconds
+                createdAt
+                previewThumbnailURL(width: 320, height: 180)
+                owner { login displayName }
+            }
+        }`, { id: parsed.id })
+        const video = data.video
+        if (!video) return {}
+        return {
+            id: video.id,
+            title: video.title,
+            durationSeconds: video.lengthSeconds,
+            createdAt: video.createdAt,
+            thumbnail: video.previewThumbnailURL,
+            channel: video.owner?.displayName || video.owner?.login || parsed.channel || '',
+        }
+    }
+
+    if (parsed.type === 'clip') {
+        const data = await fetchTwitchGraphql(`query GorexClip($slug: String!) {
+            clip(slug: $slug) {
+                id
+                slug
+                title
+                durationSeconds
+                createdAt
+                thumbnailURL(width: 320, height: 180)
+                broadcaster { login displayName }
+                curator { login displayName }
+            }
+        }`, { slug: parsed.slug || parsed.id })
+        const clip = data.clip
+        if (!clip) return {}
+        return {
+            id: clip.slug || parsed.id,
+            title: clip.title,
+            durationSeconds: clip.durationSeconds,
+            createdAt: clip.createdAt,
+            thumbnail: clip.thumbnailURL,
+            channel: clip.broadcaster?.displayName || clip.broadcaster?.login || clip.curator?.displayName || clip.curator?.login || parsed.channel || '',
+        }
+    }
+
+    return {}
+}
+
+async function fetchTwitchQualityOptions(parsed, cliPath) {
+    const fs = require('fs')
+    if (!fs.existsSync(cliPath)) return []
+    const result = await runProcess(cliPath, [
+        'info',
+        '--id', parsed.sourceUrl || parsed.id,
+        '--format', 'M3U8',
+        '--banner=false',
+    ], { timeoutMs: 20000 })
+    if (result.code !== 0) return []
+    return parseTwitchM3u8QualityOptions(result.stdout || result.stderr)
+}
+
+async function getTwitchVideoInfo(parsed) {
+    const fs = require('fs')
+    const fallback = normalizeTwitchVideoInfo({}, {
+        id: parsed.id,
+        type: parsed.type,
+        channel: parsed.channel || '',
+        url: parsed.sourceUrl,
+        title: parsed.type === 'clip' ? 'Twitch Clip' : 'Twitch VOD',
+    })
+    const cliPath = getTwitchPath()
+    let gqlInfo = {}
+    let parsedInfo = {}
+    let qualityOptions = []
+
+    try { gqlInfo = await fetchTwitchVideoMetadata(parsed) } catch (err) { console.warn('[twitch] metadata fallback:', err?.message || err) }
+
+    if (fs.existsSync(cliPath)) {
+        const result = await runProcess(cliPath, [
+            'info',
+            '--id', parsed.sourceUrl || parsed.id,
+            '--format', 'raw',
+            '--banner=false',
+        ], { timeoutMs: 20000 })
+        if (result.code === 0) {
+            parsedInfo = parseTwitchInfoOutput(result.stdout || result.stderr)
+        }
+        try { qualityOptions = await fetchTwitchQualityOptions(parsed, cliPath) } catch (err) { console.warn('[twitch] quality fallback:', err?.message || err) }
+    }
+
+    return normalizeTwitchVideoInfo({ ...gqlInfo, ...parsedInfo, qualityOptions }, fallback)
+}
+
+async function fetchTwitchChannelVideos(channel, limit = 30) {
+    const cleanChannel = String(channel || '').trim()
+    if (!cleanChannel) throw new Error('Канал Twitch не указан')
+
+    const body = JSON.stringify({
+        query: `query GorexChannelVideos($login: String!, $limit: Int!) {
+            user(login: $login) {
+                id
+                login
+                displayName
+                profileImageURL(width: 70)
+                videos(first: $limit, sort: TIME, type: ARCHIVE) {
+                    edges {
+                        node {
+                            id
+                            title
+                            lengthSeconds
+                            createdAt
+                            previewThumbnailURL(width: 320, height: 180)
+                            viewCount
+                            owner { login displayName }
+                        }
+                    }
+                }
+            }
+        }`,
+        variables: { login: cleanChannel, limit: Math.max(1, Math.min(60, Number(limit) || 30)) },
+    })
+
+    const res = await net.fetch('https://gql.twitch.tv/gql', {
+        method: 'POST',
+        headers: {
+            'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Gorex-App/' + app.getVersion(),
+        },
+        body,
+    })
+    if (!res.ok) throw new Error(`Twitch вернул HTTP ${res.status}`)
+    const data = await res.json()
+    if (Array.isArray(data?.errors) && data.errors.length) {
+        throw new Error(data.errors.map(e => e.message).filter(Boolean).join('; ') || 'Twitch не вернул список видео')
+    }
+    const user = data?.data?.user
+    if (!user) throw new Error(`Канал Twitch не найден: ${cleanChannel}`)
+    const videos = (user.videos?.edges || [])
+        .map(edge => edge?.node)
+        .filter(Boolean)
+        .map(node => normalizeTwitchVideoInfo({
+            id: node.id,
+            title: node.title,
+            channel: node.owner?.displayName || user.displayName || cleanChannel,
+            durationSeconds: node.lengthSeconds,
+            thumbnail: node.previewThumbnailURL,
+            createdAt: node.createdAt,
+        }, {
+            type: 'vod',
+            url: `https://www.twitch.tv/videos/${node.id}`,
+        }))
+
+    return {
+        channel: user.login || cleanChannel,
+        displayName: user.displayName || cleanChannel,
+        avatar: user.profileImageURL || '',
+        videos,
+    }
+}
+
+function getYoutubeAuthSession() {
+    return session.fromPartition('persist:gorex-youtube-auth')
+}
+
+function getYtdlCookieCandidates(appCfg = readAppSettings()) {
+    const fs = require('fs')
+    const effectiveCfg = migrateManagedYoutubeCookiesStorage(appCfg)
+    const candidates = []
+    const pushIfValid = (file) => {
+        if (!file || candidates.includes(file)) return
+        try {
+            if (fs.existsSync(file)) candidates.push(file)
+        } catch {}
+    }
+
+    if (effectiveCfg.ytdlCookiesMode !== 'off') {
+        pushIfValid(effectiveCfg.ytdlManagedCookiesFile)
+    }
+    pushIfValid(effectiveCfg.ytdlCookiesFile)
+    return candidates
+}
+
+function withCookieArgs(args, cookieFile) {
+    return cookieFile ? [...args, '--cookies', cookieFile] : args
+}
+
+async function getYoutubeAuthStatus() {
+    const authSession = getYoutubeAuthSession()
+    const allCookies = await authSession.cookies.get({})
+    const relevant = allCookies.filter(c => /(^|\.)(youtube|google|googleusercontent|googlevideo|ytimg)\.com$/i.test(String(c.domain || '').replace(/^\./, '')))
+    const loginNames = new Set(['SID', 'HSID', 'SSID', 'SAPISID', 'APISID', 'LOGIN_INFO', '__Secure-1PSID', '__Secure-3PSID'])
+    const signedIn = relevant.some(c => loginNames.has(c.name))
+    const settings = migrateManagedYoutubeCookiesStorage(readAppSettings())
+    const managedCookiesFile = settings.ytdlManagedCookiesFile || getManagedYoutubeCookiesPath()
+
+    return {
+        signedIn,
+        cookieCount: relevant.length,
+        managedCookiesFile,
+        cookiesMode: settings.ytdlCookiesMode || 'auto',
+        lastExportAt: settings.ytdlAuthLastExportAt || null,
+    }
+}
+
+async function exportYoutubeCookiesToFile() {
+    const fs = require('fs')
+    const authSession = getYoutubeAuthSession()
+    const cookies = await authSession.cookies.get({})
+    const text = serializeCookiesToNetscape(cookies)
+    const cookieRows = text.split('\n').filter(line => line && !line.startsWith('#'))
+    if (cookieRows.length === 0) {
+        throw new Error('Cookies YouTube/Google не найдены. Сначала войдите в YouTube.')
+    }
+
+    const filePath = getManagedYoutubeCookiesPath()
+    fs.mkdirSync(dirname(filePath), { recursive: true })
+    fs.writeFileSync(filePath, text, { encoding: 'utf8', mode: 0o600 })
+
+    const settings = readAppSettings()
+    const updated = {
+        ...settings,
+        ytdlManagedCookiesFile: filePath,
+        ytdlCookiesMode: settings.ytdlCookiesMode || 'auto',
+        ytdlAuthLastExportAt: new Date().toISOString(),
+    }
+    writeAppSettings(updated)
+    return getYoutubeAuthStatus()
+}
+const YTDL_UPDATE_TIMEOUT_MS = 60 * 1000
+
+function sendYtdlUpdateProgress(target, payload) {
+    try { target?.send('ytdl-update-progress', payload) } catch {}
+}
+
+async function downloadYtdlUpdateBuffer(onProgress = () => {}) {
+    const controller = new AbortController()
+    let timeout = null
+    const resetTimeout = () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => controller.abort(), YTDL_UPDATE_TIMEOUT_MS)
+        timeout.unref?.()
+    }
+    const report = (payload) => {
+        resetTimeout()
+        onProgress(payload)
+    }
+
+    resetTimeout()
+
+    try {
+        report({ stage: 'connecting', percent: 5 })
+        const res = await net.fetch(getYtdlDownloadUrl(), {
+            headers: { 'User-Agent': 'Gorex-App/' + app.getVersion() },
+            signal: controller.signal,
+        })
+        if (!res.ok) {
+            throw new Error(`GitHub вернул HTTP ${res.status}`)
+        }
+
+        const totalHeader = res.headers.get('content-length')
+        const totalBytes = Number(totalHeader) > 0 ? Number(totalHeader) : null
+        const reader = res.body?.getReader?.()
+        if (reader) {
+            const chunks = []
+            let receivedBytes = 0
+            report({ stage: 'downloading', percent: totalBytes ? 10 : null, receivedBytes, totalBytes })
+
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                const chunk = Buffer.from(value)
+                chunks.push(chunk)
+                receivedBytes += chunk.length
+
+                const percent = totalBytes
+                    ? Math.min(84, 10 + Math.round((receivedBytes / totalBytes) * 74))
+                    : null
+                report({ stage: 'downloading', percent, receivedBytes, totalBytes })
+            }
+
+            const buf = Buffer.concat(chunks)
+            if (!buf.length) throw new Error('Загружен пустой файл yt-dlp')
+            report({ stage: 'downloaded', percent: 85, receivedBytes, totalBytes: totalBytes || receivedBytes })
+            return buf
+        }
+
+        report({ stage: 'downloading', percent: null, receivedBytes: 0, totalBytes })
+        const buf = Buffer.from(await res.arrayBuffer())
+        if (!buf.length) throw new Error('Загружен пустой файл yt-dlp')
+        report({ stage: 'downloaded', percent: 85, receivedBytes: buf.length, totalBytes: totalBytes || buf.length })
+        return buf
+    } catch (err) {
+        if (controller.signal.aborted || err?.name === 'AbortError') {
+            throw new Error('Превышено время ожидания загрузки yt-dlp. Проверьте подключение и попробуйте снова')
+        }
+        throw err
+    } finally {
+        if (timeout) clearTimeout(timeout)
+    }
+}
+
+function getYtdlExtractorArgs() {
+    return ['--extractor-args', 'generic:impersonate']
+}
+
+function runToolVersion(binPath, args = ['--version']) {
+    return new Promise((resolve) => {
+        const child = spawn(binPath, args, { windowsHide: true })
+        const timer = setTimeout(() => {
+            try { child.kill() } catch {}
+            resolve({ code: 1, output: 'version check timeout' })
+        }, 7000)
+        let output = ''
+        child.stdout.on('data', d => { output += d.toString() })
+        child.stderr.on('data', d => { output += d.toString() })
+        child.on('close', code => {
+            clearTimeout(timer)
+            resolve({ code, output: output.trim() })
+        })
+        child.on('error', e => {
+            clearTimeout(timer)
+            resolve({ code: 1, output: e.message })
+        })
+    })
+}
+
+async function getYtdlInfo() {
+    const fs = require('fs')
+    const activePath = getYtdlPath()
+    const userPath = getUserYtdlPath()
+    const found = fs.existsSync(activePath)
+    const versionResult = found ? await runToolVersion(activePath) : null
+    return {
+        found,
+        version: versionResult?.code === 0 ? versionResult.output.split(/\r?\n/)[0] : null,
+        path: activePath,
+        source: activePath === userPath ? 'user' : 'bundled',
+        userPath,
+        bundledPath: getBundledYtdlPath(),
+        hasUserOverride: fs.existsSync(userPath),
+    }
+}
+
+async function updateYtdlBinary(progressTarget = null) {
+    const fs = require('fs')
+    const report = (payload) => sendYtdlUpdateProgress(progressTarget, payload)
+    if (ytdlUpdateActive) {
+        throw new Error('Обновление yt-dlp уже выполняется')
+    }
+    if (activeJobs.size || ytdlFetchActiveChildren.size) {
+        throw new Error('Остановите активные загрузки перед обновлением yt-dlp')
+    }
+
+    const userDir = join(app.getPath('userData'), 'tools')
+    const targetPath = getUserYtdlPath()
+    const tempPath = join(userDir, `${getYtdlBinName()}.download${process.platform === 'win32' ? '.exe' : ''}`)
+
+    ytdlUpdateActive = true
+    try {
+        report({ stage: 'preparing', percent: 0 })
+        fs.mkdirSync(userDir, { recursive: true })
+        try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath) } catch {}
+
+        const buf = await downloadYtdlUpdateBuffer(report)
+
+        fs.writeFileSync(tempPath, buf)
+        if (process.platform !== 'win32') {
+            try { fs.chmodSync(tempPath, 0o755) } catch {}
+        }
+
+        report({ stage: 'verifying', percent: 90 })
+        const versionCheck = await runToolVersion(tempPath)
+        if (versionCheck.code !== 0) {
+            try { fs.unlinkSync(tempPath) } catch {}
+            throw new Error(versionCheck.output || 'Новая версия yt-dlp не запускается')
+        }
+
+        report({ stage: 'installing', percent: 96 })
+        try { if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath) } catch (err) {
+            try { fs.unlinkSync(tempPath) } catch {}
+            throw new Error(`Не удалось заменить yt-dlp: ${err.message}`)
+        }
+        try {
+            fs.renameSync(tempPath, targetPath)
+        } catch (err) {
+            try { fs.unlinkSync(tempPath) } catch {}
+            throw new Error(`Не удалось установить yt-dlp: ${err.message}`)
+        }
+        const info = await getYtdlInfo()
+        report({ stage: 'done', percent: 100 })
+        return info
+    } catch (err) {
+        try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath) } catch {}
+        throw err
+    } finally {
+        ytdlUpdateActive = false
+    }
 }
 
 // ─── ffmpeg binary resolver (bundled alongside yt-dlp) ──────────────────────────────────
 function getFfmpegPath() {
     const bin = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
-    if (is.dev) {
-        return join(app.getAppPath(), 'resources', 'ytdl', bin)
-    }
-    return join(dirname(process.execPath), 'resources', 'ytdl', bin)
+    return join(getYtdlResourceDir(), bin)
 }
 
 // ─── ffprobe binary resolver (same dir as ffmpeg) ───────────────────────────────────────
 function getFfprobePath() {
     const bin = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe'
-    if (is.dev) {
-        return join(app.getAppPath(), 'resources', 'ytdl', bin)
-    }
-    return join(dirname(process.execPath), 'resources', 'ytdl', bin)
+    return join(getYtdlResourceDir(), bin)
 }
 
 // ─── SponsorBlock: keyframe-aligned manual cutting ──────────────────────────────────────
@@ -640,9 +1480,7 @@ function findNodeJsPath() {
     _nodeJsPathPromise = (async () => {
         // 1. Bundled node binary (ships with the installer, always preferred)
         const bin = process.platform === 'win32' ? 'node.exe' : 'node'
-        const bundled = is.dev
-            ? join(app.getAppPath(), 'resources', 'ytdl', bin)
-            : join(dirname(process.execPath), 'resources', 'ytdl', bin)
+        const bundled = join(getYtdlResourceDir(), bin)
         if (require('fs').existsSync(bundled)) return bundled
 
         // 2. Fallback: system Node.js (useful for developers running from source)
@@ -723,6 +1561,7 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.akhmatyarov.gorex')
+    migrateManagedYoutubeCookiesStorage()
 
     // Renderer loads from localhost — HTTP cache only accumulates junk, disable it
     session.defaultSession.clearCache()
@@ -845,6 +1684,9 @@ app.whenReady().then(async () => {
         writeAppSettings(settings)
         return true
     })
+    ipcMain.handle('get-app-version', () => {
+        return app.getVersion()
+    })
     ipcMain.on('open-devtools', () => {
         BrowserWindow.getFocusedWindow()?.webContents.openDevTools()
     })
@@ -920,6 +1762,229 @@ app.whenReady().then(async () => {
             })
         })
     })
+    ipcMain.handle('get-ytdl-info', async () => {
+        return getYtdlInfo()
+    })
+
+    ipcMain.handle('get-ytdl-latest-info', async () => {
+        return getYtdlLatestInfo()
+    })
+
+    ipcMain.handle('open-output-location', async (event, outputPath) => {
+        const fs = require('fs')
+        if (typeof outputPath !== 'string' || !outputPath.trim()) {
+            return { ok: false, error: 'Путь к файлу не указан' }
+        }
+        const cleanPath = outputPath.trim()
+        try {
+            if (fs.existsSync(cleanPath)) {
+                shell.showItemInFolder(cleanPath)
+                return { ok: true }
+            }
+            const parent = dirname(cleanPath)
+            if (parent && fs.existsSync(parent)) {
+                await shell.openPath(parent)
+                return { ok: true }
+            }
+            return { ok: false, error: 'Файл или папка не найдены' }
+        } catch (err) {
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
+
+    ipcMain.handle('open-youtube-login-window', async () => {
+        const authWindow = new BrowserWindow({
+            parent: mainWindow || undefined,
+            width: 1120,
+            height: 760,
+            show: true,
+            autoHideMenuBar: true,
+            title: 'YouTube / Google Login',
+            webPreferences: {
+                partition: 'persist:gorex-youtube-auth',
+                nodeIntegration: false,
+                contextIsolation: true,
+                sandbox: true,
+                webSecurity: true,
+            },
+        })
+        const cleanUA = authWindow.webContents.userAgent.replace(/\bElectron\/[\d.]+\s*/g, '').trim()
+        authWindow.webContents.userAgent = cleanUA
+        authWindow.webContents.setWindowOpenHandler((details) => {
+            if (details.url.startsWith('https://')) authWindow.loadURL(details.url)
+            return { action: 'deny' }
+        })
+        await authWindow.loadURL('https://www.youtube.com/')
+        return { ok: true }
+    })
+
+    ipcMain.handle('export-youtube-cookies', async () => {
+        try {
+            const status = await exportYoutubeCookiesToFile()
+            return { ok: true, status }
+        } catch (err) {
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
+
+    ipcMain.handle('clear-youtube-auth', async () => {
+        const fs = require('fs')
+        const authSession = getYoutubeAuthSession()
+        await authSession.clearStorageData({
+            storages: ['cookies', 'localstorage', 'indexdb', 'cachestorage', 'serviceworkers'],
+        })
+        const settings = migrateManagedYoutubeCookiesStorage(readAppSettings())
+        const managedFile = settings.ytdlManagedCookiesFile || getManagedYoutubeCookiesPath()
+        try { if (fs.existsSync(managedFile)) fs.unlinkSync(managedFile) } catch {}
+        writeAppSettings({
+            ...settings,
+            ytdlManagedCookiesFile: '',
+            ytdlAuthLastExportAt: null,
+        })
+        return getYoutubeAuthStatus()
+    })
+
+    ipcMain.handle('get-youtube-auth-status', async () => {
+        return getYoutubeAuthStatus()
+    })
+    ipcMain.handle('update-ytdl', async (event) => {
+        try {
+            const info = await updateYtdlBinary(event.sender)
+            return { ok: true, info }
+        } catch (err) {
+            sendYtdlUpdateProgress(event.sender, { stage: 'error', percent: null })
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
+    ipcMain.handle('get-twitch-info', async () => {
+        return getTwitchInfo()
+    })
+
+    ipcMain.handle('get-twitch-latest-info', async () => {
+        return getTwitchLatestInfo()
+    })
+
+    ipcMain.handle('update-twitch', async (event) => {
+        try {
+            const info = await updateTwitchBinary(event.sender)
+            return { ok: true, info }
+        } catch (err) {
+            sendTwitchUpdateProgress(event.sender, { stage: 'error', percent: null })
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
+
+    ipcMain.handle('twitch-resolve-url', async (event, { url }) => {
+        try {
+            const parsed = parseTwitchUrl(url)
+            if (!parsed.ok) {
+                return { ok: false, error: 'Неподдерживаемая ссылка Twitch', parsed }
+            }
+            if (parsed.type === 'channel') {
+                return { ok: true, type: 'channel', parsed, channel: parsed.channel }
+            }
+            const info = await getTwitchVideoInfo(parsed)
+            return { ok: true, type: parsed.type, parsed, info }
+        } catch (err) {
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
+
+    ipcMain.handle('twitch-get-channel-videos', async (event, { channel, limit } = {}) => {
+        try {
+            const result = await fetchTwitchChannelVideos(channel, limit)
+            return { ok: true, ...result }
+        } catch (err) {
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
+
+    ipcMain.handle('twitch-download-chat', async (event, { url, id, outputDir, force = false } = {}) => {
+        const fs = require('fs')
+        try {
+            const cliPath = getTwitchPath()
+            if (!fs.existsSync(cliPath)) {
+                return { ok: false, error: `TwitchDownloaderCLI не найден: ${cliPath}` }
+            }
+            const parsed = url ? parseTwitchUrl(url) : { ok: true, type: 'vod', id, sourceUrl: id }
+            if (!parsed.ok || (!parsed.id && !parsed.sourceUrl)) {
+                return { ok: false, error: 'Невозможно определить Twitch VOD/Clip для чата' }
+            }
+            const cacheDir = join(app.getPath('userData'), 'twitch-chat')
+            fs.mkdirSync(cacheDir, { recursive: true })
+            const base = sanitizeTwitchOutputName(parsed.id || id || 'twitch_chat', 'twitch_chat')
+            const filePath = join(cacheDir, `${base}.json`)
+
+            if (force || !fs.existsSync(filePath)) {
+                const result = await runProcess(cliPath, [
+                    'chatdownload',
+                    '--id', parsed.sourceUrl || parsed.id,
+                    '-o', filePath,
+                    '--banner=false',
+                ], { timeoutMs: 10 * 60 * 1000 })
+                if (result.code !== 0) {
+                    return { ok: false, error: (result.stderr || result.stdout || `TwitchDownloaderCLI завершился с кодом ${result.code}`).trim() }
+                }
+            }
+
+            const raw = fs.readFileSync(filePath, 'utf8')
+            const messages = parseTwitchChatMessages(raw)
+            return { ok: true, filePath, messages }
+        } catch (err) {
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
+
+    ipcMain.handle('twitch-export-chat', async (event, { url, id, format = 'json', outputDir } = {}) => {
+        const fs = require('fs')
+        try {
+            const parsed = url ? parseTwitchUrl(url) : { ok: true, type: 'vod', id, sourceUrl: id }
+            if (!parsed.ok || (!parsed.id && !parsed.sourceUrl)) {
+                return { ok: false, error: 'Невозможно определить Twitch VOD/Clip для экспорта чата' }
+            }
+            const resolvedDir = getDownloadDir(outputDir)
+            fs.mkdirSync(resolvedDir, { recursive: true })
+            const base = sanitizeTwitchOutputName(parsed.id || id || 'twitch_chat', 'twitch_chat')
+            const ext = format === 'txt' ? 'txt' : 'json'
+            let outPath = join(resolvedDir, `${base}_chat.${ext}`)
+            if (fs.existsSync(outPath)) {
+                let c = 1
+                while (fs.existsSync(join(resolvedDir, `${base}_chat (${c}).${ext}`))) c++
+                outPath = join(resolvedDir, `${base}_chat (${c}).${ext}`)
+            }
+
+            const cachePath = join(app.getPath('userData'), 'twitch-chat', `${base}.json`)
+            if (format === 'txt' && fs.existsSync(cachePath)) {
+                const messages = parseTwitchChatMessages(fs.readFileSync(cachePath, 'utf8'))
+                fs.writeFileSync(outPath, formatTwitchChatText(messages), 'utf8')
+                return { ok: true, outputPath: outPath }
+            }
+
+            if (format === 'json' && fs.existsSync(cachePath)) {
+                fs.copyFileSync(cachePath, outPath)
+                return { ok: true, outputPath: outPath }
+            }
+
+            const cliPath = getTwitchPath()
+            if (!fs.existsSync(cliPath)) {
+                return { ok: false, error: `TwitchDownloaderCLI не найден: ${cliPath}` }
+            }
+            const args = [
+                'chatdownload',
+                '--id', parsed.sourceUrl || parsed.id,
+                '-o', outPath,
+                '--banner=false',
+            ]
+            if (format === 'txt') args.splice(args.length - 1, 0, '--timestamp-format', 'Relative')
+            const result = await runProcess(cliPath, args, { timeoutMs: 10 * 60 * 1000 })
+            if (result.code !== 0) {
+                return { ok: false, error: (result.stderr || result.stdout || `TwitchDownloaderCLI завершился с кодом ${result.code}`).trim() }
+            }
+            return { ok: true, outputPath: outPath }
+        } catch (err) {
+            return { ok: false, error: err?.message || String(err) }
+        }
+    })
 
     ipcMain.handle('get-app-settings', () => {
         return readAppSettings()
@@ -978,28 +2043,35 @@ app.whenReady().then(async () => {
         }
     })
 
-    ipcMain.handle('check-for-updates', async () => {
+    ipcMain.handle('check-for-updates', async (event, options = {}) => {
+        const manual = !!options?.manual
+        const current = app.getVersion()
         try {
             const res = await net.fetch('https://api.github.com/repos/Gor80hd/Gorex/releases/latest', {
-                headers: { 'User-Agent': 'Gorex-App/' + app.getVersion() }
+                headers: { 'User-Agent': 'Gorex-App/' + current }
             })
-            if (!res.ok) return null
+            if (!res.ok) {
+                return manual ? { ok: false, error: `GitHub вернул HTTP ${res.status}`, currentVersion: current } : null
+            }
             const data = await res.json()
             const latest = (data.tag_name || '').replace(/^v/i, '')
-            const current = app.getVersion()
-            if (!latest) return null
+            if (!latest) {
+                return manual ? { ok: false, error: 'GitHub не вернул номер версии', currentVersion: current } : null
+            }
             const toNums = (v) => v.split('.').map(n => parseInt(n, 10) || 0)
             const [la, lb, lc] = toNums(latest)
             const [ca, cb, cc] = toNums(current)
             const isNewer = la > ca || (la === ca && lb > cb) || (la === ca && lb === cb && lc > cc)
-            if (!isNewer) return null
-            // Only allow verified github.com release URLs
             const url = typeof data.html_url === 'string' && data.html_url.startsWith('https://github.com/Gor80hd/Gorex/')
                 ? data.html_url
                 : 'https://github.com/Gor80hd/Gorex/releases/latest'
+            if (manual) {
+                return { ok: true, updateAvailable: isNewer, currentVersion: current, latestVersion: latest, downloadUrl: url }
+            }
+            if (!isNewer) return null
             return { latestVersion: latest, downloadUrl: url }
-        } catch {
-            return null
+        } catch (err) {
+            return manual ? { ok: false, error: err?.message || String(err), currentVersion: current } : null
         }
     })
 
@@ -1130,10 +2202,12 @@ app.whenReady().then(async () => {
     }
 
     // ─── yt-dlp: fetch formats + metadata WITHOUT downloading ───────────────────────────
-    ipcMain.handle('ytdl-get-formats', async (event, videoUrl) => {
+    ipcMain.handle('ytdl-get-formats', async (event, request) => {
         ytdlFetchCancelled = false
         ytdlFetchActiveChildren.clear()
         const fs = require('fs')
+        const videoUrl = typeof request === 'string' ? request : request?.url
+        if (!videoUrl) throw new Error('URL не указан')
         const ytdlPath = getYtdlPath()
         if (!fs.existsSync(ytdlPath)) throw new Error(`yt-dlp не найден: ${ytdlPath}`)
 
@@ -1142,18 +2216,18 @@ app.whenReady().then(async () => {
         }
 
         const appCfg = readAppSettings()
-        const cookiesFile = appCfg.ytdlCookiesFile || ''
+        const cookieCandidates = getYtdlCookieCandidates(appCfg)
         const nodePath = await findNodeJsPath()
 
         // Run yt-dlp --dump-json and return { out, err, code }
-        const runDumpJson = (url, extraArgs = []) => new Promise((res) => {
+        const runDumpJson = (url, extraArgs = [], cookieFile = '') => new Promise((res) => {
             if (ytdlFetchCancelled) return res({ out: '', err: 'cancelled', code: -1 })
             const child = spawn(ytdlPath, [
                 '--dump-json',
                 '--no-playlist',
-                '--extractor-args', 'generic:impersonate',
+                ...getYtdlExtractorArgs(),
                 ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
-                ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+                ...withCookieArgs([], cookieFile),
                 ...extraArgs,
                 url
             ], { windowsHide: true })
@@ -1170,6 +2244,18 @@ app.whenReady().then(async () => {
             child.on('error', e => { ytdlFetchActiveChildren.delete(child); res({ out: '', err: e.message, code: 1 }) })
         })
 
+        const runDumpJsonWithCookieFallback = async (targetUrl, extraArgs = []) => {
+            let result = await runDumpJson(targetUrl, extraArgs)
+            if (result.code === 0 || !isYtdlAuthError(result.err)) return result
+
+            for (const cookieFile of cookieCandidates) {
+                if (ytdlFetchCancelled) return result
+                try { event.sender.send('ytdl-output', { id: null, data: '[gorex] Повтор yt-dlp с cookies для авторизации...\n' }) } catch {}
+                result = await runDumpJson(targetUrl, extraArgs, cookieFile)
+                if (result.code === 0 || !isYtdlAuthError(result.err)) return result
+            }
+            return result
+        }
         // Build a video info object from a successful yt-dlp JSON output
         const buildInfo = async (rawOut, origUrl, resolvedUrl) => {
             const info = JSON.parse(rawOut.trim())
@@ -1240,7 +2326,7 @@ app.whenReady().then(async () => {
         }
 
         sendStage('ytdlp')
-        const firstResult = await runDumpJson(videoUrl)
+        const firstResult = await runDumpJsonWithCookieFallback(videoUrl)
         if (ytdlFetchCancelled) return null
         console.log('[ytdl-get-formats] exit code:', firstResult.code)
 
@@ -1284,7 +2370,7 @@ app.whenReady().then(async () => {
         console.log(`[ytdl-get-formats] found ${resolvedUrls.length} candidate URL(s) — retrying with referer`)
         sendStage('retry', { total: resolvedUrls.length })
         const retryResults = await Promise.all(
-            resolvedUrls.map(u => runDumpJson(u, ['--referer', videoUrl]).then(r => ({ ...r, resolvedUrl: u })))
+            resolvedUrls.map(u => runDumpJsonWithCookieFallback(u, ['--referer', videoUrl]).then(r => ({ ...r, resolvedUrl: u })))
         )
         if (ytdlFetchCancelled) return null
         retryResults.forEach(r => console.log('[ytdl-get-formats] retry', r.resolvedUrl, '→ code:', r.code))
@@ -1315,7 +2401,7 @@ app.whenReady().then(async () => {
     })
 
     // ─── yt-dlp: download with selected format + optional post-conversion ────────────
-    ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat, audioFormat, sponsorBlock, sponsorBlockCats }) => {
+    ipcMain.on('ytdl-run', async (event, { id, url, formatId, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, clipStart, clipEnd, ytdlDuration, noAudio, downloadSubs, autoSubs, subLangs, subFormat, audioFormat, sponsorBlock, sponsorBlockCats, cookieFileOverride = '', cookieRetryIndex = 0 }) => {
         _trayColor = '#7c3aed'
         const fs = require('fs')
         const ytdlPath = getYtdlPath()
@@ -1370,7 +2456,8 @@ app.whenReady().then(async () => {
 
         const ffmpegPath = getFfmpegPath()
         const appCfg = readAppSettings()
-        const cookiesFile = appCfg.ytdlCookiesFile || ''
+        const cookieCandidates = getYtdlCookieCandidates(appCfg)
+        const cookiesFile = cookieFileOverride || ''
         const nodePath = await findNodeJsPath()
         const ytdlArgs = [
             '-f', fmtArg,
@@ -1378,9 +2465,9 @@ app.whenReady().then(async () => {
             '--no-playlist',
             ...(!isAudioOnlyFmt ? ['--merge-output-format', 'mp4'] : []),
             '--newline',
-            '--extractor-args', 'generic:impersonate',
+            ...getYtdlExtractorArgs(),
             ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
-            ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+            ...withCookieArgs([], cookiesFile),
             ...(require('fs').existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
         ]
 
@@ -1422,13 +2509,27 @@ app.whenReady().then(async () => {
         ytdlArgs.push(url)
 
         console.log('[yt-dlp] spawn:', ytdlPath)
-        console.log('[yt-dlp] args:', ytdlArgs.join(' '))
+        console.log('[yt-dlp] args:', ytdlArgs.map((arg, idx) => ytdlArgs[idx - 1] === '--cookies' ? '<cookies>' : arg).join(' '))
 
         const child = spawn(ytdlPath, ytdlArgs, { windowsHide: true })
         activeJobs.set(id, { child, outputPath: null, downloadDir, downloadBase, isTempDownload: convertAfterDownloadTemp })
 
         let downloadedPath = null
         let stderrAccum = ''
+        let ytdlErrorSent = false
+        const sendYtdlError = (code, fallback = '') => {
+            if (ytdlErrorSent) return
+            ytdlErrorSent = true
+            const raw = (stderrAccum || fallback || '').trim()
+            const friendly = ytdlFriendlyErr(raw) || raw || `yt-dlp завершился с кодом ${code ?? 1}`
+            event.sender.send('ytdl-exit', {
+                id,
+                code: code ?? 1,
+                outputPath: null,
+                error: friendly,
+                stderr: raw || friendly,
+            })
+        }
         // Tracks fragment download phases so progress doesn't reset between video/audio streams
         let fragPhase = 0
         let fragPhaseOffset = 0
@@ -1527,7 +2628,7 @@ app.whenReady().then(async () => {
             console.log('[yt-dlp error]', err.message)
             activeJobs.delete(id)
             if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
-            event.sender.send('ytdl-exit', { id, code: 1, error: err.message })
+            sendYtdlError(1, err.message)
         })
 
         child.on('close', async (code) => {
@@ -1536,7 +2637,22 @@ app.whenReady().then(async () => {
 
             if (code !== 0) {
                 if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
-                event.sender.send('ytdl-exit', { id, code, outputPath: null })
+                const raw = stderrAccum.trim()
+                const nextCookieFile = isYtdlAuthError(raw) ? cookieCandidates[cookieRetryIndex] : null
+                if (nextCookieFile) {
+                    event.sender.send('ytdl-output', { id, data: '[gorex] Повтор загрузки с cookies для авторизации...\n' })
+                    ipcMain.emit('ytdl-run', event, {
+                        id, url, formatId, outputDir, outputName,
+                        convertAfterDownload, conversionSettings, videoResolution,
+                        clipStart, clipEnd, ytdlDuration, noAudio,
+                        downloadSubs, autoSubs, subLangs, subFormat, audioFormat,
+                        sponsorBlock, sponsorBlockCats,
+                        cookieFileOverride: nextCookieFile,
+                        cookieRetryIndex: cookieRetryIndex + 1,
+                    })
+                    return
+                }
+                sendYtdlError(code)
                 return
             }
 
@@ -1589,9 +2705,9 @@ app.whenReady().then(async () => {
                     '-o', subTemplate,
                     '--no-playlist',
                     '--newline',
-                    '--extractor-args', 'generic:impersonate',
+                    ...getYtdlExtractorArgs(),
                     ...(nodePath ? ['--js-runtimes', `node:${nodePath}`] : []),
-                    ...(cookiesFile ? ['--cookies', cookiesFile] : []),
+                    ...withCookieArgs([], cookiesFile),
                     ...(fs.existsSync(ffmpegPath) ? ['--ffmpeg-location', ffmpegPath] : []),
                 ]
                 if (downloadSubs) subArgs.push('--write-subs')
@@ -1601,7 +2717,7 @@ app.whenReady().then(async () => {
                 subArgs.push(url)
 
                 console.log('[yt-dlp subs] spawn:', ytdlPath)
-                console.log('[yt-dlp subs] args:', subArgs.join(' '))
+                console.log('[yt-dlp subs] args:', subArgs.map((arg, idx) => subArgs[idx - 1] === '--cookies' ? '<cookies>' : arg).join(' '))
 
                 const subChild = spawn(ytdlPath, subArgs, { windowsHide: true })
                 activeJobs.set(id + '_subs', { child: subChild, outputPath: null })
@@ -1678,7 +2794,7 @@ app.whenReady().then(async () => {
                 const os = require('os')
                 const PASS_CODECS_CVT = new Set(['libx264', 'libx265', 'libsvtav1', 'libvpx', 'libvpx-vp9', 'libaom-av1'])
                 const cvtEncoderCodec = ENCODER_CODEC_MAP[s.encoder || 'x265'] || 'libx265'
-                const doCvtTwoPass = !!(s.multiPass) && PASS_CODECS_CVT.has(cvtEncoderCodec)
+                const doCvtTwoPass = !getAudioOnlyFormatConfig(s.format) && !!(s.multiPass) && PASS_CODECS_CVT.has(cvtEncoderCodec)
                 const cvtPasslogfile = doCvtTwoPass ? join(os.tmpdir(), `gorex_cvt_pass_${id}`) : null
                 const stderrLines = []
 
@@ -1731,6 +2847,7 @@ app.whenReady().then(async () => {
                         if (downloadedPath && fs.existsSync(downloadedPath)) {
                             try { fs.unlinkSync(downloadedPath) } catch (_) {}
                         }
+                        event.sender.send('cli-exit', { id, code: code1, outputPath: convertedPath, stderr: stderrLines.join('') })
                         return
                     }
                     ffCode = await spawnCvtPass({ pass: 2, passlogfile: cvtPasslogfile })
@@ -1745,7 +2862,10 @@ app.whenReady().then(async () => {
                     try { fs.unlinkSync(downloadedPath) } catch (_) {}
                 }
                 // If killed/errored, skip subtitle pass — partial output already deleted by stop handler
-                if (ffCode !== 0) return
+                if (ffCode !== 0) {
+                    event.sender.send('cli-exit', { id, code: ffCode, outputPath: convertedPath, stderr: stderrLines.join('') })
+                    return
+                }
                 runSubtitlePass(convertedPath, () => {
                     event.sender.send('cli-exit', { id, code: ffCode, outputPath: convertedPath, stderr: stderrLines.join('') })
                 })
@@ -1880,6 +3000,8 @@ app.whenReady().then(async () => {
     const FORMAT_EXT = {
         av_mp4: 'mp4', av_mkv: 'mkv', av_webm: 'webm', av_mov: 'mov',
         av_avi: 'avi', av_flv: 'flv', av_ts: 'ts', av_ogg: 'ogg', av_3gp: '3gp',
+        audio_mp3: 'mp3', audio_m4a: 'm4a', audio_flac: 'flac',
+        audio_wav: 'wav', audio_opus: 'opus', audio_ogg: 'ogg',
     }
 
     const CODEC_RF_TABLE = {
@@ -2004,6 +3126,12 @@ app.whenReady().then(async () => {
         av_ts:   'mpegts',
         av_ogg:  'ogg',
         av_3gp:  '3gp',
+        audio_mp3:  'mp3',
+        audio_m4a:  'ipod',
+        audio_flac: 'flac',
+        audio_wav:  'wav',
+        audio_opus: 'opus',
+        audio_ogg:  'ogg',
     }
 
     // Subtitle codec appropriate for the output container
@@ -2017,11 +3145,12 @@ app.whenReady().then(async () => {
     // clipStart / clipEnd are in seconds (numbers or null).
     function buildFfmpegArgs(filePath, outputPath, settings, videoResolution, clipStart = null, clipEnd = null, passMode = null) {
         const args = []
+        const audioOnlyConfig = getAudioOnlyFormatConfig(settings.format)
 
         // ── Hardware decoding (before -i) ──────────────────────────────────────────
-        if (settings.hwDecoding === 'nvdec') {
+        if (!audioOnlyConfig && settings.hwDecoding === 'nvdec') {
             args.push('-hwaccel', 'nvdec')
-        } else if (settings.hwDecoding === 'qsv') {
+        } else if (!audioOnlyConfig && settings.hwDecoding === 'qsv') {
             args.push('-hwaccel', 'qsv')
         }
 
@@ -2034,7 +3163,7 @@ app.whenReady().then(async () => {
         const extSubFile = settings.subtitleExternalFile || ''
         const subBurn = settings.subtitleBurn
         const subMode = settings.subtitleMode || 'none'
-        const useExtSubAsInput = !!(extSubFile && !subBurn)
+        const useExtSubAsInput = !!(extSubFile && !subBurn && !audioOnlyConfig)
 
         args.push('-i', filePath)
 
@@ -2048,12 +3177,40 @@ app.whenReady().then(async () => {
             args.push('-t', String(dur))
         }
 
+        const WEBM_AUDIO = new Set(['vorbis', 'opus'])
+        if (audioOnlyConfig) {
+            args.push('-vn')
+            let audioCodec = settings.audioCodec || audioOnlyConfig.audioCodec
+            if (audioCodec.startsWith('copy')) {
+                args.push('-c:a', 'copy')
+            } else {
+                const ffAudio = AUDIO_CODEC_MAP[audioCodec] || AUDIO_CODEC_MAP[audioOnlyConfig.audioCodec] || 'aac'
+                args.push('-c:a', ffAudio)
+                if (audioCodec === 'fdk_haac') args.push('-profile:a', 'aac_he')
+                if (audioCodec === 'flac24')   args.push('-sample_fmt', 's32')
+                if (audioCodec === 'pcm_s24le') args.push('-sample_fmt', 's32')
+                const noBitrateCodecs = ['flac16', 'flac24', 'pcm_s16le', 'pcm_s24le', 'pcm_f32le', 'alac']
+                if (!noBitrateCodecs.includes(audioCodec)) {
+                    args.push('-b:a', `${settings.audioBitrate || 160}k`)
+                }
+                const channels = MIXDOWN_CHANNELS[settings.audioMixdown] || '2'
+                args.push('-ac', channels)
+                if (settings.audioSampleRate && settings.audioSampleRate !== 'auto') {
+                    args.push('-ar', settings.audioSampleRate)
+                }
+            }
+            args.push('-sn')
+            args.push('-map_metadata', settings.keepMetadata ? '0' : '-1')
+            args.push('-map_chapters', settings.chapterMarkers !== false ? '0' : '-1')
+            args.push('-f', audioOnlyConfig.container)
+            args.push(outputPath)
+            return args
+        }
         // ── Video codec ─────────────────────────────────────────────────────────────
         const WEBM_VIDEO = new Set(['vp8', 'vp9', 'vp9_10bit', 'svt_av1', 'svt_av1_10bit', 'nvenc_av1', 'qsv_av1', 'vce_av1', 'libaom_av1'])
         const OGG_VIDEO  = new Set(['theora', 'vp8', 'vp9', 'vp9_10bit'])
         const FLV_VIDEO  = new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264'])
         const GP3_VIDEO  = new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4'])
-        const WEBM_AUDIO = new Set(['vorbis', 'opus'])
         let encoder = settings.encoder || 'x265'
         if (settings.format === 'av_webm' && !WEBM_VIDEO.has(encoder)) encoder = 'vp9'
         if (settings.format === 'av_ogg'  && !OGG_VIDEO.has(encoder))  encoder = 'theora'
@@ -2365,6 +3522,7 @@ app.whenReady().then(async () => {
             }
 
             // ── Metadata ──────────────────────────────────────────────────────────────
+            args.push('-sn')
             args.push('-map_metadata', settings.keepMetadata ? '0' : '-1')
 
             // ── Chapter markers ───────────────────────────────────────────────────────
@@ -2466,7 +3624,7 @@ app.whenReady().then(async () => {
         const os = require('os')
         const PASS_CODECS = new Set(['libx264', 'libx265', 'libsvtav1', 'libvpx', 'libvpx-vp9', 'libaom-av1'])
         const encoderForPass = ENCODER_CODEC_MAP[fallbackSettings.encoder || 'x265'] || 'libx265'
-        const doTwoPass = !!(fallbackSettings.multiPass) && PASS_CODECS.has(encoderForPass)
+        const doTwoPass = !getAudioOnlyFormatConfig(fallbackSettings.format) && !!(fallbackSettings.multiPass) && PASS_CODECS.has(encoderForPass)
         const passlogfile = doTwoPass ? join(os.tmpdir(), `gorex_pass_${id}`) : null
 
         const stderrLines = []
@@ -2541,6 +3699,188 @@ app.whenReady().then(async () => {
         }
     })
 
+    // ─── TwitchDownloaderCLI: VOD/Clip download + optional post-conversion ───────
+    ipcMain.on('twitch-run', async (event, { id, type, url, outputDir, outputName, convertAfterDownload, conversionSettings, videoResolution, twitchQuality, clipStart, clipEnd }) => {
+        _trayColor = '#9146ff'
+        const fs = require('fs')
+        const cliPath = getTwitchPath()
+        if (!fs.existsSync(cliPath)) {
+            event.sender.send('twitch-exit', { id, code: 1, error: `TwitchDownloaderCLI не найден: ${cliPath}` })
+            return
+        }
+
+        const mode = getTwitchCliModeForType(type)
+        if (!mode) {
+            event.sender.send('twitch-exit', { id, code: 1, error: `Неподдерживаемый тип Twitch: ${type || 'unknown'}` })
+            return
+        }
+
+        const resolvedDir = getDownloadDir(outputDir)
+        if (!fs.existsSync(resolvedDir)) fs.mkdirSync(resolvedDir, { recursive: true })
+        const downloadDir = convertAfterDownload ? getTempDownloadDir() : resolvedDir
+        if (!fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir, { recursive: true })
+
+        const safeBase = sanitizeTwitchOutputName(outputName || 'twitch_video', 'twitch_video')
+        const downloadBase = convertAfterDownload ? `gorex_twitch_${id}_${Date.now()}` : safeBase
+        const makeUniquePath = (dir, base, ext) => {
+            let target = join(dir, `${base}.${ext}`)
+            if (!fs.existsSync(target)) return target
+            let c = 1
+            while (fs.existsSync(join(dir, `${base} (${c}).${ext}`))) c++
+            return join(dir, `${base} (${c}).${ext}`)
+        }
+        const downloadPath = makeUniquePath(downloadDir, downloadBase, 'mp4')
+
+        const secToTimestamp = (s) => {
+            const sec = Math.max(0, Math.floor(Number(s) || 0))
+            const h = Math.floor(sec / 3600)
+            const m = Math.floor((sec % 3600) / 60)
+            const ss = sec % 60
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+        }
+
+        const ffmpegPath = getFfmpegPath()
+        const args = [
+            mode,
+            '--id', url,
+            '-o', downloadPath,
+            '--collision', 'Rename',
+            '--banner=false',
+            '--temp-path', getTempDownloadDir(),
+        ]
+        if (fs.existsSync(ffmpegPath)) args.push('--ffmpeg-path', ffmpegPath)
+        const selectedQuality = String(twitchQuality || '').trim()
+        if (selectedQuality && !/^(source|best|auto)$/i.test(selectedQuality)) args.push('--quality', selectedQuality)
+        if (clipStart != null && clipStart > 0) args.push('--beginning', secToTimestamp(clipStart))
+        if (clipEnd != null) args.push('--ending', secToTimestamp(clipEnd))
+
+        console.log('[twitch] spawn:', cliPath)
+        console.log('[twitch] args:', args.join(' '))
+
+        const child = spawn(cliPath, args, { windowsHide: true })
+        activeJobs.set(id, { child, outputPath: downloadPath, downloadDir, downloadBase, isTempDownload: !!convertAfterDownload })
+
+        let stderrAccum = ''
+        let stdoutAccum = ''
+        let lastProgress = 0
+        const sendProgress = (progress) => {
+            const next = Math.max(lastProgress, Math.min(99, Number(progress) || 0))
+            lastProgress = next
+            event.sender.send('twitch-progress', { id, progress: next })
+            if (activeJobs.has(id)) mainWindow?.setProgressBar(next / 100)
+        }
+        const parseProgress = (str) => {
+            const matches = String(str || '').match(/(?:^|\s)(\d{1,3}(?:\.\d+)?)\s*%/g)
+            if (!matches) return
+            const raw = matches[matches.length - 1].match(/(\d{1,3}(?:\.\d+)?)/)?.[1]
+            if (raw != null) sendProgress(parseFloat(raw))
+        }
+
+        child.stdout.on('data', d => {
+            const str = d.toString()
+            stdoutAccum += str
+            console.log('[twitch stdout]', str.trimEnd())
+            event.sender.send('twitch-output', { id, data: str })
+            parseProgress(str)
+        })
+        child.stderr.on('data', d => {
+            const str = d.toString()
+            stderrAccum += str
+            console.log('[twitch stderr]', str.trimEnd())
+            event.sender.send('twitch-output', { id, data: str })
+            parseProgress(str)
+        })
+        child.on('error', err => {
+            activeJobs.delete(id)
+            if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+            event.sender.send('twitch-exit', { id, code: 1, outputPath: null, error: err.message, stderr: err.message })
+        })
+        child.on('close', async (code) => {
+            activeJobs.delete(id)
+            if (code !== 0) {
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                const raw = (stderrAccum || stdoutAccum || '').trim()
+                event.sender.send('twitch-exit', { id, code, outputPath: null, error: raw || `TwitchDownloaderCLI завершился с кодом ${code}`, stderr: raw })
+                return
+            }
+
+            let downloadedPath = downloadPath
+            if (!fs.existsSync(downloadedPath)) {
+                try {
+                    const files = fs.readdirSync(downloadDir)
+                    const matching = files
+                        .filter(f => f.startsWith(downloadBase))
+                        .map(f => ({ f, mtime: fs.statSync(join(downloadDir, f)).mtimeMs }))
+                        .sort((a, b) => b.mtime - a.mtime)
+                    if (matching.length > 0) downloadedPath = join(downloadDir, matching[0].f)
+                } catch {}
+            }
+
+            if (!convertAfterDownload) {
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                event.sender.send('twitch-exit', { id, code: 0, outputPath: downloadedPath })
+                return
+            }
+
+            const localFfmpegPath = getFfmpegPath()
+            if (!downloadedPath || !fs.existsSync(downloadedPath) || !fs.existsSync(localFfmpegPath)) {
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                event.sender.send('twitch-exit', { id, code: 0, outputPath: downloadedPath })
+                return
+            }
+
+            _trayColor = '#f97316'
+            event.sender.send('twitch-exit', { id, code: 0, outputPath: downloadedPath, converting: true })
+
+            const ffmpegLib = require('fluent-ffmpeg')
+            let inputDuration = null
+            try {
+                const probeResult = await new Promise((res) => {
+                    ffmpegLib.ffprobe(downloadedPath, (err, meta) => res(err ? null : meta))
+                })
+                inputDuration = probeResult?.format?.duration || null
+            } catch {}
+
+            const s = conversionSettings || { format: 'av_mp4', encoder: 'x265', encoderSpeed: 'slow', quality: 'medium', fps: 'source', resolution: 'source' }
+            const rawBase = safeBase.replace(/_converted(\s*\(\d+\))?$/i, '').trimEnd()
+            const convertedBase = rawBase + '_converted'
+            const ext = FORMAT_EXT[s.format] || 'mp4'
+            const convertedPath = makeUniquePath(resolvedDir, convertedBase, ext)
+            const stderrLines = []
+            const ffArgs = buildFfmpegArgs(downloadedPath, convertedPath, s, videoResolution, null, null, null)
+            event.sender.send('cli-output', `$ ${localFfmpegPath} ${ffArgs.join(' ')}\n`)
+            const ffChild = spawn(localFfmpegPath, ffArgs, { windowsHide: true })
+            activeJobs.set(id, { child: ffChild, outputPath: convertedPath, trackedPaths: new Set([downloadedPath]) })
+            ffChild.stdout.on('data', d => { event.sender.send('cli-output', d.toString()) })
+            ffChild.stderr.on('data', d => {
+                const str = d.toString()
+                stderrLines.push(str)
+                event.sender.send('cli-output', str)
+                if (inputDuration) {
+                    const m = str.match(/time=(\d+):(\d+):([\d.]+)/)
+                    if (m) {
+                        const secs = parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3])
+                        const progress = Math.min(99, (secs / inputDuration) * 100)
+                        event.sender.send('cli-progress', { id, progress })
+                        if (activeJobs.has(id)) mainWindow?.setProgressBar(Math.min(0.99, progress / 100))
+                    }
+                }
+            })
+            ffChild.on('error', err => {
+                activeJobs.delete(id)
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                event.sender.send('cli-exit', { id, code: 1, outputPath: convertedPath, stderr: err.message })
+            })
+            ffChild.on('close', ffCode => {
+                activeJobs.delete(id)
+                if (activeJobs.size === 0) mainWindow?.setProgressBar(-1)
+                if (ffCode === 0) {
+                    try { fs.unlinkSync(downloadedPath) } catch {}
+                }
+                event.sender.send('cli-exit', { id, code: ffCode, outputPath: convertedPath, stderr: stderrLines.join('') })
+            })
+        })
+    })
     ipcMain.on('stop-all-cli', () => {
         const fs = require('fs')
 

@@ -174,6 +174,123 @@
     }
 }
 
+.tb-ytdl-badge {
+    --ytdl-progress: 100%;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 156px;
+    min-width: 116px;
+    max-width: 156px;
+    height: 28px;
+    padding: 2px;
+    overflow: hidden;
+    border: none;
+    border-radius: 999px;
+    background: conic-gradient(var(--accent-color) var(--ytdl-progress), rgba(255,255,255,0.16) 0);
+    color: inherit;
+    cursor: pointer;
+    transition-property: width, min-width, max-width, background, transform;
+    transition-duration: 160ms;
+    transition-timing-function: ease-out;
+    -webkit-app-region: no-drag;
+
+    &__inner {
+        width: 100%;
+        height: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 0 10px;
+        border-radius: inherit;
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        transition-property: gap, padding;
+        transition-duration: 160ms;
+        transition-timing-function: ease-out;
+
+        .dark & { background: rgba(18, 17, 24, 0.94); }
+        .light & { background: rgba(255, 255, 255, 0.96); }
+
+        span {
+            min-width: 0;
+            max-width: 112px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 1;
+            transform: translateX(0);
+            transition-property: max-width, opacity, transform;
+            transition-duration: 160ms;
+            transition-timing-function: ease-out;
+        }
+
+        i { font-size: 0.78rem; color: var(--accent-color); flex-shrink: 0; }
+    }
+
+    &:hover,
+    &:focus-visible {
+        transform: translateY(-1px);
+    }
+
+    &--checking,
+    &--updating {
+        animation: tb-ytdl-pulse 1.2s ease-in-out infinite;
+    }
+
+    &--up-to-date {
+        width: 28px;
+        min-width: 28px;
+        max-width: 28px;
+        background: conic-gradient(#22c55e var(--ytdl-progress), rgba(34,197,94,0.2) 0);
+
+        .tb-ytdl-badge__inner {
+            gap: 0;
+            padding: 0;
+        }
+
+        .tb-ytdl-badge__inner i { color: #22c55e; }
+
+        .tb-ytdl-badge__inner span {
+            max-width: 0;
+            opacity: 0;
+            transform: translateX(-4px);
+        }
+
+        &:hover,
+        &:focus-visible {
+            width: 156px;
+            min-width: 116px;
+            max-width: 156px;
+
+            .tb-ytdl-badge__inner {
+                gap: 5px;
+                padding: 0 10px;
+            }
+
+            .tb-ytdl-badge__inner span {
+                max-width: 112px;
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+    }
+
+    &--error,
+    &--check-failed {
+        background: conic-gradient(#ef4444 var(--ytdl-progress), rgba(239,68,68,0.2) 0);
+        .tb-ytdl-badge__inner i { color: #ef4444; }
+    }
+}
+
+@keyframes tb-ytdl-pulse {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 1; }
+}
 .tb-item-shortcut {
     font-size: 0.72rem;
     opacity: 0.38;
@@ -317,4 +434,117 @@
 
 .app-wrapper.light .control-btn:hover {
     color: #000;
+}
+
+// ─── Downloader tools popover ─────────────────────────────────────────────────
+.tb-tools-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    -webkit-app-region: no-drag;
+}
+
+.tb-tools-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: min(360px, calc(100vw - 32px));
+    padding: 10px;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity 0.14s ease, transform 0.14s ease;
+    z-index: 10000;
+
+    .dark & {
+        background: #1c1828;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 16px 46px rgba(0, 0, 0, 0.58);
+    }
+
+    .light & {
+        background: #ffffff;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        box-shadow: 0 16px 42px rgba(15, 23, 42, 0.16);
+    }
+}
+
+.tb-tools-wrap:hover .tb-tools-popover,
+.tb-tools-wrap:focus-within .tb-tools-popover {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.tb-tools-popover__title {
+    padding: 2px 4px 8px;
+    font-size: 0.72rem;
+    font-weight: 750;
+    opacity: 0.72;
+}
+
+.tb-tool-row {
+    padding: 8px;
+    border-radius: 7px;
+
+    & + & { margin-top: 4px; }
+
+    .dark & { background: rgba(255, 255, 255, 0.045); }
+    .light & { background: rgba(15, 23, 42, 0.045); }
+}
+
+.tb-tool-row__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+
+    span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    i { color: var(--accent-color); }
+}
+
+.tb-tool-row__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 10px;
+    margin-top: 6px;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    opacity: 0.58;
+}
+
+.tb-tool-status {
+    flex-shrink: 0;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.68rem;
+    font-weight: 750;
+
+    &--up-to-date,
+    &--ok { color: #22c55e; }
+    &--update-available,
+    &--updating,
+    &--checking { color: var(--accent-color); }
+    &--error,
+    &--check-failed { color: #ef4444; }
+}
+
+.tb-ytdl-badge--update-available {
+    background: conic-gradient(#f59e0b var(--ytdl-progress), rgba(245,158,11,0.2) 0);
+    .tb-ytdl-badge__inner i { color: #f59e0b; }
 }

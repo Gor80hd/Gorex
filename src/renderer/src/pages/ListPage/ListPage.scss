@@ -1,4 +1,4 @@
-﻿.video-list-container {
+.video-list-container {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -175,6 +175,23 @@
     border-color: var(--border-color-light);
 }
 
+.add-button--url {
+    background: #0f0f12;
+    border-color: #0f0f12;
+    color: #ffffff;
+    opacity: 0.95;
+
+    &:hover:not(:disabled) {
+        background: #000000;
+        border-color: #000000;
+        color: #ffffff;
+    }
+}
+
+.add-button--invalid {
+    border-color: rgba(239, 68, 68, 0.55);
+    color: #ef4444;
+}
 .add-button.clear-button {
     &:hover:not(:disabled) {
         border-color: #ef4444;
@@ -688,7 +705,16 @@
     &:hover { opacity: 0.75; }
 }
 
-.vsp-tab--dim {
+
+.vsp-section--audio-output {
+    > :nth-child(n + 3) {
+        display: none;
+    }
+}
+
+.vsp-tab:disabled {
+    cursor: not-allowed;
+}.vsp-tab--dim {
     opacity: 0.35 !important;
 }
 
@@ -842,26 +868,53 @@ $dur: 0.5s;
     }
 }
 
+.open-output-btn,
 .delete-video-btn {
     position: absolute;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     z-index: 1;
     width: 36px;
     height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(239, 68, 68, 0);
+    background: transparent;
     border: none;
-    color: rgba(239, 68, 68, 0);
+    color: transparent;
     cursor: pointer;
     font-size: 1rem;
-    transition: background 0.2s ease, color 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
     border-radius: 6px;
     padding: 0;
     flex-shrink: 0;
+}
+
+.open-output-btn {
+    left: calc(50% - 42px);
+    transform: translateY(-50%);
+}
+
+.delete-video-btn {
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.video-item:hover .open-output-btn,
+.video-item:hover .delete-video-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.video-item:hover .open-output-btn {
+    background: rgba(34, 197, 94, 0.18);
+    color: #22c55e;
+
+    &:hover {
+        background: rgba(34, 197, 94, 0.32);
+        color: #4ade80;
+    }
 }
 
 .video-item:hover .delete-video-btn {
@@ -2306,4 +2359,219 @@ $dur: 0.5s;
         &:hover { border-color: rgba(0, 0, 0, 0.3); color: rgba(0, 0, 0, 0.55); }
         &.active:hover { opacity: 0.8; }
     }
+}
+
+// ─── Twitch channel picker ────────────────────────────────────────────────────
+.twitch-channel-picker {
+    border: 1px solid rgba(145, 70, 255, 0.28);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(145, 70, 255, 0.07);
+}
+
+.twitch-channel-picker__head,
+.twitch-channel-picker__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.twitch-channel-picker__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 760;
+
+    i { color: #9146ff; }
+}
+
+.twitch-channel-picker__meta,
+.twitch-channel-picker__footer {
+    font-size: 0.72rem;
+    opacity: 0.66;
+}
+
+.twitch-channel-picker__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    button {
+        min-height: 28px;
+        border: 1px solid rgba(145, 70, 255, 0.25);
+        border-radius: 6px;
+        background: rgba(145, 70, 255, 0.08);
+        color: inherit;
+        padding: 0 9px;
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 700;
+
+        &:hover:not(:disabled) {
+            border-color: rgba(145, 70, 255, 0.5);
+            background: rgba(145, 70, 255, 0.14);
+        }
+
+        &:disabled {
+            opacity: 0.42;
+            cursor: not-allowed;
+        }
+    }
+}
+
+.twitch-channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.twitch-channel-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.045);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+
+    &:hover:not(:disabled) {
+        border-color: rgba(145, 70, 255, 0.42);
+        transform: translateY(-1px);
+    }
+
+    &.selected {
+        border-color: rgba(145, 70, 255, 0.7);
+        background: rgba(145, 70, 255, 0.15);
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+.app-wrapper.light .twitch-channel-card {
+    border-color: rgba(15, 23, 42, 0.08);
+    background: rgba(15, 23, 42, 0.035);
+}
+
+.twitch-channel-card__check {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: rgba(9, 8, 14, 0.74);
+    color: #fff;
+    font-size: 0.72rem;
+}
+
+.twitch-channel-card.selected .twitch-channel-card__check {
+    background: #9146ff;
+}
+
+.twitch-channel-card__thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 16 / 9;
+    background: rgba(0, 0, 0, 0.18);
+    color: rgba(255, 255, 255, 0.42);
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.twitch-channel-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 9px;
+    min-width: 0;
+}
+
+.twitch-channel-card__title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.5em;
+    font-size: 0.76rem;
+    line-height: 1.25;
+    font-weight: 700;
+}
+
+.twitch-channel-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+    font-size: 0.66rem;
+    opacity: 0.58;
+
+    span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+}
+
+.twitch-channel-picker__footer {
+    margin-top: 12px;
+}
+
+.twitch-channel-add,
+.twitch-chat-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: #9146ff;
+    color: #fff;
+    padding: 0 10px;
+    font-size: 0.72rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+
+    &:hover:not(:disabled) { transform: translateY(-1px); }
+    &:disabled { opacity: 0.42; cursor: not-allowed; }
+}
+
+.twitch-channel-empty {
+    margin-top: 12px;
+    padding: 18px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.78rem;
+    opacity: 0.6;
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.twitch-controls .ytdl-icon,
+.vtag.twitch-tag {
+    color: #9146ff;
+}
+
+.vtag.twitch-tag {
+    background: rgba(145, 70, 255, 0.12);
 }

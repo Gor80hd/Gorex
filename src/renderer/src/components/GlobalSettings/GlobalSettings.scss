@@ -1,4 +1,4 @@
-﻿.global-settings {
+.global-settings {
     display: flex;
     gap: 8px;
     align-items: stretch;
@@ -9,6 +9,18 @@
 .gs-card--fps        { flex: 0 0 auto; min-width: 105px; }
 .gs-card--quality    { flex: 1; min-width: 0; }
 .gs-card--codec      { flex: 2.2; min-width: 0; }
+.gs-card--audio-codec { flex: 1.4; min-width: 150px; }
+.gs-card--audio-bitrate { flex: 0 0 auto; min-width: 120px; }
+.gs-card--audio-sample-rate { flex: 0 0 auto; min-width: 130px; }
+
+.global-settings--audio-only {
+    .gs-card--resolution,
+    .gs-card--fps,
+    .gs-card--quality,
+    .gs-card--codec {
+        display: none;
+    }
+}
 
 // ─── Card base ─────────────────────────────────────────────────────────────────
 .gs-card {

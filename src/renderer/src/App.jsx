@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import TitleBar from './components/TitleBar/TitleBar'
 import CliConsole from './components/CliConsole/CliConsole'
 import { useLanguage } from './i18n'
+import { getMissingToolStatus, isToolUpdateAlreadyRunningError, shouldAutoDownloadMissingTool, shouldAutoUpdateExistingTool } from './toolAutoUpdatePolicy.mjs'
 
 // Register CLI output IPC listeners at module level so they survive HMR without
 // needing useEffect to re-run. The callback ref is wired inside the component.
@@ -9,12 +10,13 @@ const _cliLogEmitter = { callback: null }
 window.api.onCliOutput(data => _cliLogEmitter.callback?.({ type: 'out', text: data }))
 window.api.onCliError(data => _cliLogEmitter.callback?.({ type: 'err', text: data }))
 window.api.onYtdlOutput(({ data }) => _cliLogEmitter.callback?.({ type: 'ytdl', text: data }))
+window.api.onTwitchOutput?.(({ data }) => _cliLogEmitter.callback?.({ type: 'twitch', text: data }))
 import SourcePage from './pages/SourcePage/SourcePage'
 import ListPage from './pages/ListPage/ListPage'
 import AboutPage from './pages/AboutPage/AboutPage'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import OnboardingScreen from './components/OnboardingScreen/OnboardingScreen'
-import { DEFAULT_SETTINGS, initDefaultSettings, saveGpuVendor, getDefaultSettingsForGpu } from './components/GlobalSettings/GlobalSettings'
+import { initDefaultSettings, saveGpuVendor, getDefaultSettingsForGpu, normalizeEncoderSettings } from './components/GlobalSettings/GlobalSettings'
 import gradientPPL from './assets/images/Gradient_PPL.webm'
 import gradientBlack from './assets/images/Gradient_Black.webm'
 import gradientWhite from './assets/images/Gradient_White.webm'
@@ -36,6 +38,208 @@ function getEncoderErrorHint(stderr, t) {
     return null
 }
 
+const YTDL_STAGE_LABELS = {
+    preparing: 'ytdlUpdateStagePreparing',
+    connecting: 'ytdlUpdateStageConnecting',
+    downloading: 'ytdlUpdateStageDownloading',
+    downloaded: 'ytdlUpdateStageDownloaded',
+    verifying: 'ytdlUpdateStageVerifying',
+    installing: 'ytdlUpdateStageInstalling',
+    done: 'ytdlUpdateStageDone',
+    error: 'ytdlUpdateStageError',
+}
+
+const WHATS_NEW_STORAGE_KEY = 'gorex-whats-new-version'
+
+const WHATS_NEW_ITEMS = [
+    { icon: 'bi-cloud-arrow-down-fill', titleKey: 'whatsNewDownloadTitle', textKey: 'whatsNewDownloadText' },
+    { icon: 'bi-music-note-beamed', titleKey: 'whatsNewAudioTitle', textKey: 'whatsNewAudioText' },
+    { icon: 'bi-folder2-open', titleKey: 'whatsNewQueueTitle', textKey: 'whatsNewQueueText' },
+    { icon: 'bi-youtube', titleKey: 'whatsNewAuthTitle', textKey: 'whatsNewAuthText' },
+    { icon: 'bi-arrow-repeat', titleKey: 'whatsNewUpdatesTitle', textKey: 'whatsNewUpdatesText' },
+]
+
+function createYtdlToolState(overrides = {}) {
+    return {
+        status: 'checking',
+        info: null,
+        latest: null,
+        progress: null,
+        receivedBytes: 0,
+        totalBytes: 0,
+        stageMessage: '',
+        message: '',
+        ...overrides,
+    }
+}
+
+function createTwitchToolState(overrides = {}) {
+    return {
+        status: 'checking',
+        info: null,
+        latest: null,
+        progress: null,
+        receivedBytes: 0,
+        totalBytes: 0,
+        stageMessage: '',
+        message: '',
+        ...overrides,
+    }
+}
+
+function isTwitchUrl(raw) {
+    try {
+        const host = new URL(raw).hostname.replace(/^www\./, '').replace(/^m\./, '').toLowerCase()
+        return host === 'twitch.tv' || host === 'clips.twitch.tv'
+    } catch {
+        return false
+    }
+}
+
+function isDownloadItem(video) {
+    return !!(video?.isYtdlItem || video?.isTwitchItem)
+}
+
+function getTwitchQualityLabel(options, value) {
+    const list = Array.isArray(options) ? options : []
+    const found = list.find(option => option?.value === value)
+    return found?.label || value || ''
+}
+
+function normalizeTwitchQualityOptions(options) {
+    const clean = Array.isArray(options) ? options.filter(option => option?.value && option?.label) : []
+    return clean.length ? clean : [{ value: 'Source', label: 'Source', source: true }]
+}
+
+function normalizeTwitchSelectedQuality(info) {
+    const options = normalizeTwitchQualityOptions(info?.qualityOptions)
+    const selected = info?.twitchQuality || options[0]?.value || 'Source'
+    return {
+        options,
+        selected,
+        label: getTwitchQualityLabel(options, selected),
+    }
+}
+
+function normalizeTwitchToolVersion(version) {
+    const text = String(version || '').trim().replace(/^TwitchDownloader(?:CLI)?\s*/i, '').replace(/^v/i, '')
+    const match = text.match(/\d+(?:\.\d+)+(?:[-+][0-9A-Za-z.-]+)?/)
+    return match ? match[0].split('+')[0] : ''
+}
+
+function compareTwitchToolVersions(a, b) {
+    const pa = normalizeTwitchToolVersion(a).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
+    const pb = normalizeTwitchToolVersion(b).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
+    const len = Math.max(pa.length, pb.length)
+    for (let i = 0; i < len; i += 1) {
+        const diff = (pa[i] || 0) - (pb[i] || 0)
+        if (diff !== 0) return diff > 0 ? 1 : -1
+    }
+    return 0
+}
+
+function isTwitchToolUpdateAvailable(currentVersion, latestVersion) {
+    if (!currentVersion || !latestVersion) return false
+    return compareTwitchToolVersions(latestVersion, currentVersion) > 0
+}
+
+function TwitchChatViewer({ theme, viewer, query, onQueryChange, onClose, onExport, exporting, t }) {
+    if (!viewer) return null
+    const q = query.trim().toLowerCase()
+    const messages = q
+        ? viewer.messages.filter(message => (`${message.timeLabel} ${message.username} ${message.body}`).toLowerCase().includes(q))
+        : viewer.messages
+    return (
+        <div className={`twitch-chat-overlay ${theme}`} onClick={onClose}>
+            <div className="twitch-chat-panel" onClick={e => e.stopPropagation()}>
+                <div className="twitch-chat-header">
+                    <div className="twitch-chat-title">
+                        <i className="bi bi-twitch"></i>
+                        <span>{viewer.video?.title || t('twitchChatTitle')}</span>
+                    </div>
+                    <button className="twitch-chat-close" onClick={onClose} title={t('close')}>
+                        <i className="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div className="twitch-chat-tools">
+                    <div className="twitch-chat-search">
+                        <i className="bi bi-search"></i>
+                        <input
+                            value={query}
+                            onChange={e => onQueryChange(e.target.value)}
+                            placeholder={t('twitchChatSearch')}
+                            spellCheck={false}
+                        />
+                    </div>
+                    <button className="twitch-chat-action" onClick={() => onExport('json')} disabled={!!exporting}>
+                        <i className="bi bi-braces"></i>
+                        {exporting === 'json' ? t('loading') : 'JSON'}
+                    </button>
+                    <button className="twitch-chat-action" onClick={() => onExport('txt')} disabled={!!exporting}>
+                        <i className="bi bi-filetype-txt"></i>
+                        {exporting === 'txt' ? t('loading') : 'TXT'}
+                    </button>
+                </div>
+                <div className="twitch-chat-meta">
+                    <span>{messages.length} / {viewer.messages.length}</span>
+                    {viewer.filePath && <span>{viewer.filePath}</span>}
+                </div>
+                <div className="twitch-chat-list">
+                    {messages.map(message => (
+                        <div key={message.id} className="twitch-chat-message">
+                            <button className="twitch-chat-time" onClick={() => onQueryChange(message.timeLabel)}>
+                                {message.timeLabel}
+                            </button>
+                            <span className="twitch-chat-user">{message.username || 'unknown'}</span>
+                            <span className="twitch-chat-body">{message.body}</span>
+                        </div>
+                    ))}
+                    {messages.length === 0 && (
+                        <div className="twitch-chat-empty">{t('twitchChatNoMatches')}</div>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
+function normalizeYtdlVersion(version) {
+    return String(version || '').trim().replace(/^yt-dlp\s+/i, '').replace(/^v/i, '')
+}
+
+function compareYtdlVersions(a, b) {
+    const pa = normalizeYtdlVersion(a).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
+    const pb = normalizeYtdlVersion(b).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
+    const len = Math.max(pa.length, pb.length)
+    for (let i = 0; i < len; i += 1) {
+        const diff = (pa[i] || 0) - (pb[i] || 0)
+        if (diff !== 0) return diff > 0 ? 1 : -1
+    }
+    return 0
+}
+
+function isYtdlUpdateAvailable(currentVersion, latestVersion) {
+    if (!currentVersion || !latestVersion) return false
+    return compareYtdlVersions(latestVersion, currentVersion) > 0
+}
+
+function cleanYtdlToolError(message) {
+    const text = String(message || '')
+        .replace(/^Error invoking remote method '[-a-z]+':\s*/i, '')
+        .replace(/^Error:\s*/i, '')
+        .trim()
+
+    if (/net::ERR_CONNECTION_RESET/i.test(text)) {
+        return 'Соединение с GitHub было сброшено. Проверьте сеть или попробуйте позже.'
+    }
+    if (/net::ERR_INTERNET_DISCONNECTED|ENOTFOUND|EAI_AGAIN/i.test(text)) {
+        return 'Нет соединения с GitHub. Проверьте интернет и попробуйте позже.'
+    }
+    if (/net::ERR_TIMED_OUT|timeout/i.test(text)) {
+        return 'GitHub не ответил вовремя. Попробуйте обновить yt-dlp позже.'
+    }
+
+    return text
+}
 function App() {
     const { t } = useLanguage()
     const [view, setView] = useState('source')
@@ -92,11 +296,37 @@ function App() {
     const [appSettings, setAppSettings] = useState(null)
     const [gpuVendor, setGpuVendor] = useState('unknown')
     const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gorex-onboarding-done'))
+    const [appVersion, setAppVersion] = useState('')
+    const [showWhatsNew, setShowWhatsNew] = useState(false)
     const [updateInfo, setUpdateInfo] = useState(null)
+    const [ytdlTool, setYtdlTool] = useState(() => createYtdlToolState())
+    const [twitchTool, setTwitchTool] = useState(() => createTwitchToolState())
+    const [twitchChannelPicker, setTwitchChannelPicker] = useState(null)
+    const [twitchChatViewer, setTwitchChatViewer] = useState(null)
+    const [twitchChatQuery, setTwitchChatQuery] = useState('')
+    const [twitchChatExporting, setTwitchChatExporting] = useState('')
     const nextIdRef = useRef(0)
     const listDragCounter = useRef(0)
+    const ytdlUpdateInFlightRef = useRef(false)
+    const twitchUpdateInFlightRef = useRef(false)
 
     useEffect(() => { videosRef.current = videos }, [videos])
+
+    useEffect(() => {
+        let cancelled = false
+        window.api.getAppVersion()
+            .then(version => {
+                if (cancelled) return
+                const cleanVersion = String(version || '').trim()
+                if (!cleanVersion) return
+                setAppVersion(cleanVersion)
+                if (localStorage.getItem(WHATS_NEW_STORAGE_KEY) !== cleanVersion) {
+                    setShowWhatsNew(true)
+                }
+            })
+            .catch(() => {})
+        return () => { cancelled = true }
+    }, [])
 
     // Auto-start encoding when extension adds a video with autoStart flag
     useEffect(() => {
@@ -170,12 +400,82 @@ function App() {
     }
 
     const handleVideoSettingsChange = (id, settings) => {
-        setVideos(prev => prev.map(v => v.id === id ? { ...v, customSettings: settings } : v))
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, customSettings: normalizeEncoderSettings(settings) } : v))
     }
 
     const ytdlFetchCancelledRef = useRef(false)
 
+    const handleTwitchDownload = async (url, service, extensionOpts = null) => {
+        setIsLoading(true)
+        setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: t('twitchLoadingResolving') })
+        try {
+            const resolved = await window.api.twitchResolveUrl(url)
+            if (resolved?.ok === false) throw new Error(resolved.error || t('dlErrorDefault'))
+
+            if (resolved.type === 'channel') {
+                setLoadingMessage({ title: t('twitchChannelVideosTitle'), subtitle: t('twitchLoadingChannel') })
+                const result = await window.api.twitchGetChannelVideos(resolved.channel, { limit: 36 })
+                if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
+                setTwitchChannelPicker({
+                    channel: result.channel,
+                    displayName: result.displayName || result.channel,
+                    avatar: result.avatar || '',
+                    videos: result.videos || [],
+                })
+                setView('list')
+                return
+            }
+
+            const info = resolved.info || {}
+            const parsed = resolved.parsed || {}
+            const safeOutputName = (info.title || (resolved.type === 'clip' ? 'Twitch Clip' : 'Twitch VOD'))
+                .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+                .replace(/\.+$/, '')
+                .trim() || 'Twitch Video'
+            const twitchService = service || { name: 'Twitch', color: '#9146ff' }
+            const quality = normalizeTwitchSelectedQuality(info)
+            const newVideo = {
+                id: nextIdRef.current++,
+                isTwitchItem: true,
+                twitchType: resolved.type,
+                twitchId: info.id || parsed.id || '',
+                twitchUrl: info.url || parsed.sourceUrl || url,
+                title: info.title || safeOutputName,
+                outputName: safeOutputName,
+                thumbnail: info.thumbnail || '',
+                duration: info.duration || '',
+                durationSecs: info.durationSeconds || 0,
+                channel: info.channel || parsed.channel || '',
+                resolution: info.resolution || quality.label || '',
+                videoResolution: info.videoResolution || '',
+                twitchQuality: quality.selected,
+                twitchQualityOptions: quality.options,
+                status: 'format_select',
+                progress: 0,
+                downloadService: twitchService,
+                convertAfterDownload: extensionOpts?.convertAfterDownload ?? false,
+                conversionSettings: extensionOpts?.convertAfterDownload ? selectedSettings : null,
+                customSettings: null,
+                clipStart: extensionOpts?.clipStart ?? null,
+                clipEnd: extensionOpts?.clipEnd ?? null,
+            }
+            setVideos(prev => [...prev, newVideo])
+            setView('list')
+        } catch (err) {
+            console.error('Failed to fetch Twitch data:', err)
+            const errText = `[Twitch] Ошибка получения данных:\n${err.message}\n`
+            _cliLogEmitter.callback?.({ type: 'err', text: errText })
+            setYtdlFetchError(err.message || t('dlErrorDefault'))
+        } finally {
+            setIsLoading(false)
+            setLoadingMessage(null)
+        }
+    }
     const handleDownload = async (url, service, extensionOpts = null) => {
+        if (isTwitchUrl(url)) {
+            await handleTwitchDownload(url, service, extensionOpts)
+            return
+        }
         ytdlFetchCancelledRef.current = false
         setIsLoading(true)
         setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: t('loadingStageYtdlp') })
@@ -278,7 +578,7 @@ function App() {
     }
 
     const handleYtdlConversionSettings = (id, settings) => {
-        setVideos(prev => prev.map(v => v.id === id ? { ...v, conversionSettings: settings } : v))
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, conversionSettings: normalizeEncoderSettings(settings) } : v))
     }
 
     const handleYtdlClipChange = (id, clipStart, clipEnd) => {
@@ -304,6 +604,102 @@ function App() {
         ))
     }
 
+    const handleTwitchAddChannelVideos = (items) => {
+        const selected = Array.isArray(items) ? items : []
+        if (!selected.length) return
+        const twitchService = { name: 'Twitch', color: '#9146ff' }
+        const newVideos = selected.map(info => {
+            const safeOutputName = (info.title || 'Twitch VOD')
+                .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+                .replace(/\.+$/, '')
+                .trim() || 'Twitch VOD'
+            const quality = normalizeTwitchSelectedQuality(info)
+            return {
+                id: nextIdRef.current++,
+                isTwitchItem: true,
+                twitchType: info.type || 'vod',
+                twitchId: info.id || '',
+                twitchUrl: info.url || `https://www.twitch.tv/videos/${info.id}`,
+                title: info.title || safeOutputName,
+                outputName: safeOutputName,
+                thumbnail: info.thumbnail || '',
+                duration: info.duration || '',
+                durationSecs: info.durationSeconds || 0,
+                channel: info.channel || twitchChannelPicker?.displayName || '',
+                resolution: info.resolution || quality.label || '',
+                videoResolution: info.videoResolution || '',
+                twitchQuality: quality.selected,
+                twitchQualityOptions: quality.options,
+                status: 'format_select',
+                progress: 0,
+                downloadService: twitchService,
+                convertAfterDownload: false,
+                conversionSettings: null,
+                customSettings: null,
+                clipStart: null,
+                clipEnd: null,
+            }
+        })
+        setVideos(prev => [...prev, ...newVideos])
+        setTwitchChannelPicker(null)
+        setView('list')
+    }
+
+    const handleTwitchConvertToggle = (id, val) => {
+        setVideos(prev => prev.map(v => v.id === id ? { ...v, convertAfterDownload: val, conversionSettings: val ? (v.conversionSettings || selectedSettings) : null } : v))
+    }
+
+    const handleTwitchQualityChange = (id, qualityValue) => {
+        setVideos(prev => prev.map(v => {
+            if (v.id !== id) return v
+            const options = Array.isArray(v.twitchQualityOptions) ? v.twitchQualityOptions : []
+            const selected = options.find(option => option?.value === qualityValue)
+            const label = selected?.label || getTwitchQualityLabel(options, qualityValue)
+            const selectedResolution = selected?.width && selected?.height
+                ? `${selected.width}x${selected.height}`
+                : v.videoResolution
+            return { ...v, twitchQuality: qualityValue, resolution: label || v.resolution || '', videoResolution: selectedResolution || '' }
+        }))
+    }
+
+    const handleTwitchOpenChat = async (video) => {
+        if (!video?.twitchUrl) return
+        setIsLoading(true)
+        setLoadingMessage({ title: t('twitchChatTitle'), subtitle: t('twitchChatLoading') })
+        try {
+            const result = await window.api.twitchDownloadChat({ url: video.twitchUrl, id: video.twitchId })
+            if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
+            setTwitchChatQuery('')
+            setTwitchChatViewer({ video, filePath: result.filePath || '', messages: result.messages || [] })
+        } catch (err) {
+            const text = (err?.message || t('dlErrorDefault')).trim()
+            setCliErrors(prev => [...prev, { title: video.title || 'Twitch chat', stderr: text, hint: '' }])
+        } finally {
+            setIsLoading(false)
+            setLoadingMessage(null)
+        }
+    }
+
+    const handleTwitchExportChat = async (format) => {
+        if (!twitchChatViewer?.video) return
+        const resolvedOutputDir = outputMode === 'default' ? defaultOutputDir : customOutputDir
+        setTwitchChatExporting(format)
+        try {
+            const result = await window.api.twitchExportChat({
+                url: twitchChatViewer.video.twitchUrl,
+                id: twitchChatViewer.video.twitchId,
+                format,
+                outputDir: resolvedOutputDir,
+            })
+            if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
+            if (result?.outputPath) await handleOpenOutputLocation(result.outputPath)
+        } catch (err) {
+            const text = (err?.message || t('dlErrorDefault')).trim()
+            setCliErrors(prev => [...prev, { title: twitchChatViewer.video.title || 'Twitch chat', stderr: text, hint: '' }])
+        } finally {
+            setTwitchChatExporting('')
+        }
+    }
     const toggleTheme = () => {
         setTheme(prev => {
             const next = prev === 'dark' ? 'light' : 'dark'
@@ -352,7 +748,7 @@ function App() {
     const handleStop = () => {
         // Record all active job IDs so their cli-exit/ytdl-exit/progress events are ignored
         videosRef.current
-            .filter(v => ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status))
+            .filter(v => ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status))
             .forEach(v => stoppedJobsRef.current.add(v.id))
         window.api.stopAll()
         setIsEncoding(false)
@@ -360,8 +756,8 @@ function App() {
         setEncodingStartTime(null)
         progressStateRef.current.clear()
         setVideos(prev => prev.map(v =>
-            ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status)
-                ? { ...v, status: v.isYtdlItem ? 'format_select' : 'ready', progress: 0, startTime: null, endTime: null }
+            ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status)
+                ? { ...v, status: isDownloadItem(v) ? 'format_select' : 'ready', progress: 0, startTime: null, endTime: null, outputPath: null }
                 : v
         ))
     }
@@ -371,25 +767,30 @@ function App() {
     }
 
     const handleSaveSettings = async (encodingSettings, appConfig) => {
+        const cleanAppConfig = { ...(appConfig || {}) }
+        const normalizedEncodingSettings = normalizeEncoderSettings(encodingSettings)
+        delete cleanAppConfig.ytdlDeepFormatSearch
         // Persist encoding defaults
-        localStorage.setItem('gorex-default-settings', JSON.stringify(encodingSettings))
-        setSelectedSettings(encodingSettings)
+        localStorage.setItem('gorex-default-settings', JSON.stringify(normalizedEncodingSettings))
+        setSelectedSettings(normalizedEncodingSettings)
         // Persist app config (renderer-side)
-        localStorage.setItem('gorex-app-config', JSON.stringify(appConfig))
+        localStorage.setItem('gorex-app-config', JSON.stringify(cleanAppConfig))
         // User-set folder becomes the new default; fall back to system Videos if cleared
-        if (appConfig.defaultOutputDir) {
-            setDefaultOutputDir(appConfig.defaultOutputDir)
+        if (cleanAppConfig.defaultOutputDir) {
+            setDefaultOutputDir(cleanAppConfig.defaultOutputDir)
         } else {
             window.api.getDefaultOutputDir().then(dir => setDefaultOutputDir(dir))
         }
         // Persist to file (main process reads CLI path from here)
-        await window.api.saveAppSettings(appConfig)
-        setAppSettings(appConfig)
+        await window.api.saveAppSettings(cleanAppConfig)
+        setAppSettings(cleanAppConfig)
     }
 
     const handleOutputDirChange = async (dir) => {
         const existing = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
-        const updated = { ...existing, defaultOutputDir: dir || '' }
+        const existingConfig = { ...existing }
+        delete existingConfig.ytdlDeepFormatSearch
+        const updated = { ...existingConfig, defaultOutputDir: dir || '' }
         localStorage.setItem('gorex-app-config', JSON.stringify(updated))
         await window.api.saveAppSettings(updated)
         setAppSettings(prev => ({ ...(prev || {}), defaultOutputDir: dir || '' }))
@@ -400,6 +801,254 @@ function App() {
             window.api.getDefaultOutputDir().then(d => setDefaultOutputDir(d))
         }
     }
+
+    const getYtdlStageText = (stage) => t(YTDL_STAGE_LABELS[stage] || 'ytdlUpdateChecking')
+
+    const handleUpdateYtdl = async () => {
+        if (ytdlUpdateInFlightRef.current) {
+            setYtdlTool(prev => ({
+                ...prev,
+                status: 'updating',
+                message: t('toolUpdateAlreadyRunning'),
+                stageMessage: prev.stageMessage || t('toolUpdateAlreadyRunning'),
+            }))
+            return null
+        }
+
+        ytdlUpdateInFlightRef.current = true
+        setYtdlTool(prev => createYtdlToolState({
+            ...prev,
+            status: 'updating',
+            progress: 0,
+            stageMessage: t('ytdlUpdateStagePreparing'),
+            message: '',
+        }))
+        try {
+            const result = await window.api.updateYtdl()
+            if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
+            const info = result?.info || result
+            setYtdlTool(prev => createYtdlToolState({
+                ...prev,
+                status: 'up-to-date',
+                info,
+                progress: 100,
+                stageMessage: t('ytdlUpdateStageDone'),
+                message: t('ytdlUpdateSuccess'),
+            }))
+            return info
+        } catch (err) {
+            if (isToolUpdateAlreadyRunningError(err?.message)) {
+                setYtdlTool(prev => ({
+                    ...prev,
+                    status: 'updating',
+                    message: t('toolUpdateAlreadyRunning'),
+                    stageMessage: prev.stageMessage || t('toolUpdateAlreadyRunning'),
+                }))
+                return null
+            }
+            const errorText = cleanYtdlToolError(err?.message) || t('dlErrorDefault')
+            setYtdlTool(prev => ({
+                ...prev,
+                status: 'error',
+                message: `${t('ytdlUpdateFailed')}: ${errorText}`,
+                stageMessage: prev.stageMessage || t('ytdlUpdateStageError'),
+            }))
+            return null
+        } finally {
+            ytdlUpdateInFlightRef.current = false
+        }
+    }
+
+    const refreshYtdlToolInfo = async ({ autoUpdate = false } = {}) => {
+        setYtdlTool(prev => ({ ...prev, status: prev.status === 'updating' ? 'updating' : 'checking', message: '' }))
+        try {
+            const info = await window.api.getYtdlInfo()
+            if (!info?.found) {
+                const autoDownloadMissing = shouldAutoDownloadMissingTool(info, { autoUpdate, isEncoding })
+                setYtdlTool(prev => ({
+                    ...prev,
+                    status: getMissingToolStatus(info),
+                    info,
+                    latest: null,
+                    stageMessage: t('ytdlUpdateNotFound'),
+                    message: autoDownloadMissing ? '' : t('ytdlUpdateNotFound'),
+                    progress: null,
+                }))
+                if (autoDownloadMissing) {
+                    setTimeout(() => { handleUpdateYtdl() }, 0)
+                }
+                return
+            }
+
+            let latest = null
+            let latestError = null
+            try {
+                latest = await window.api.getYtdlLatestInfo()
+            } catch (err) {
+                latestError = cleanYtdlToolError(err?.message) || t('dlErrorDefault')
+            }
+
+            if (latestError) {
+                setYtdlTool(prev => ({
+                    ...prev,
+                    status: 'check-failed',
+                    info,
+                    latest: null,
+                    stageMessage: t('ytdlUpdateCheckFailed'),
+                    message: `${t('ytdlUpdateCheckFailed')}: ${latestError}`,
+                    progress: null,
+                }))
+                return
+            }
+
+            const updateAvailable = info?.found && latest?.latestVersion && isYtdlUpdateAvailable(info.version, latest.latestVersion)
+            setYtdlTool(prev => ({
+                ...prev,
+                status: updateAvailable ? 'update-available' : 'up-to-date',
+                info,
+                latest,
+                stageMessage: updateAvailable ? t('ytdlBadgeUpdateAvailable') : t('ytdlBadgeReady'),
+                message: '',
+                progress: updateAvailable ? null : 100,
+            }))
+            if (shouldAutoUpdateExistingTool(info, updateAvailable, { autoUpdate, isEncoding })) {
+                setTimeout(() => { handleUpdateYtdl() }, 0)
+            }
+        } catch (err) {
+            setYtdlTool(prev => ({
+                ...prev,
+                status: 'error',
+                message: err?.message || t('dlErrorDefault'),
+                stageMessage: t('ytdlUpdateStageError'),
+            }))
+        }
+    }
+
+    const handleUpdateTwitch = async () => {
+        if (twitchUpdateInFlightRef.current) {
+            setTwitchTool(prev => ({
+                ...prev,
+                status: 'updating',
+                message: t('toolUpdateAlreadyRunning'),
+                stageMessage: prev.stageMessage || t('toolUpdateAlreadyRunning'),
+            }))
+            return null
+        }
+
+        twitchUpdateInFlightRef.current = true
+        setTwitchTool(prev => createTwitchToolState({
+            ...prev,
+            status: 'updating',
+            progress: 0,
+            stageMessage: t('ytdlUpdateStagePreparing'),
+            message: '',
+        }))
+        try {
+            const result = await window.api.updateTwitch()
+            if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
+            const info = result?.info || result
+            setTwitchTool(prev => createTwitchToolState({
+                ...prev,
+                status: 'up-to-date',
+                info,
+                latest: info?.latest || prev.latest,
+                progress: 100,
+                stageMessage: t('ytdlUpdateStageDone'),
+                message: t('twitchUpdateSuccess'),
+            }))
+            return info
+        } catch (err) {
+            if (isToolUpdateAlreadyRunningError(err?.message)) {
+                setTwitchTool(prev => ({
+                    ...prev,
+                    status: 'updating',
+                    message: t('toolUpdateAlreadyRunning'),
+                    stageMessage: prev.stageMessage || t('toolUpdateAlreadyRunning'),
+                }))
+                return null
+            }
+            const errorText = cleanYtdlToolError(err?.message) || t('dlErrorDefault')
+            setTwitchTool(prev => ({
+                ...prev,
+                status: 'error',
+                message: `${t('twitchUpdateFailed')}: ${errorText}`,
+                stageMessage: prev.stageMessage || t('ytdlUpdateStageError'),
+            }))
+            return null
+        } finally {
+            twitchUpdateInFlightRef.current = false
+        }
+    }
+
+    const refreshTwitchToolInfo = async ({ autoUpdate = false } = {}) => {
+        setTwitchTool(prev => ({ ...prev, status: prev.status === 'updating' ? 'updating' : 'checking', message: '' }))
+        try {
+            const info = await window.api.getTwitchInfo()
+            let latest = null
+            let latestError = null
+            try {
+                latest = await window.api.getTwitchLatestInfo()
+            } catch (err) {
+                latestError = cleanYtdlToolError(err?.message) || t('dlErrorDefault')
+            }
+
+            if (latestError) {
+                setTwitchTool(prev => ({
+                    ...prev,
+                    status: 'check-failed',
+                    info,
+                    latest: null,
+                    stageMessage: t('twitchUpdateCheckFailed'),
+                    message: `${t('twitchUpdateCheckFailed')}: ${latestError}`,
+                    progress: null,
+                }))
+                return
+            }
+
+            const updateAvailable = info?.found && latest?.latestVersion && isTwitchToolUpdateAvailable(info.version, latest.latestVersion)
+            const autoDownloadMissing = shouldAutoDownloadMissingTool(info, { autoUpdate, isEncoding })
+            const autoUpdateExisting = shouldAutoUpdateExistingTool(info, updateAvailable, { autoUpdate, isEncoding })
+            setTwitchTool(prev => ({
+                ...prev,
+                status: !info?.found ? getMissingToolStatus(info) : (updateAvailable ? 'update-available' : 'up-to-date'),
+                info,
+                latest,
+                stageMessage: !info?.found ? t('twitchUpdateNotFound') : (updateAvailable ? t('twitchBadgeUpdateAvailable') : t('twitchBadgeReady')),
+                message: '',
+                progress: updateAvailable || !info?.found ? null : 100,
+            }))
+            if (autoUpdateExisting || autoDownloadMissing) {
+                setTimeout(() => { handleUpdateTwitch() }, 0)
+            }
+        } catch (err) {
+            setTwitchTool(prev => ({
+                ...prev,
+                status: 'error',
+                message: err?.message || t('dlErrorDefault'),
+                stageMessage: t('ytdlUpdateStageError'),
+            }))
+        }
+    }
+    const handleOpenYtdlSettings = () => {
+        setSettingsInitialTab('updates')
+        handleViewChange('settings')
+    }
+
+    const handleDismissWhatsNew = () => {
+        if (appVersion) {
+            localStorage.setItem(WHATS_NEW_STORAGE_KEY, appVersion)
+        }
+        setShowWhatsNew(false)
+    }
+
+    useEffect(() => {
+        if (!showWhatsNew) return undefined
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') handleDismissWhatsNew()
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [showWhatsNew, appVersion])
 
     const handleOutputModeChange = async (mode) => {
         if (mode === 'custom') {
@@ -457,12 +1106,26 @@ function App() {
         // Reset progress for already-finished videos so they get re-encoded
         setVideos(prev => prev.map(v =>
             v.status === 'done' || v.status === 'error'
-                ? { ...v, progress: 0, status: v.isYtdlItem ? 'format_select' : 'ready', startTime: null, endTime: null }
+                ? { ...v, progress: 0, status: isDownloadItem(v) ? 'format_select' : 'ready', startTime: null, endTime: null, outputPath: null }
                 : v
         ))
         const resolvedOutputDir = outputMode === 'default' ? defaultOutputDir : customOutputDir
         videos.forEach(v => {
-            if (v.isYtdlItem) {
+            if (v.isTwitchItem) {
+                window.api.twitchRun({
+                    id: v.id,
+                    type: v.twitchType || 'vod',
+                    url: v.twitchUrl,
+                    outputDir: resolvedOutputDir,
+                    outputName: v.outputName,
+                    convertAfterDownload: v.convertAfterDownload,
+                    conversionSettings: v.conversionSettings || selectedSettings,
+                    videoResolution: v.videoResolution || null,
+                    twitchQuality: v.twitchQuality,
+                    clipStart: v.clipStart ?? null,
+                    clipEnd: v.clipEnd ?? null,
+                })
+            } else if (v.isYtdlItem) {
                 window.api.ytdlRun({
                     id: v.id,
                     url: v.ytdlUrl,
@@ -503,6 +1166,58 @@ function App() {
     useEffect(() => {
         window.api.checkForUpdates().then(info => { if (info) setUpdateInfo(info) }).catch(() => {})
     }, [])
+    useEffect(() => {
+        if (window.api.onYtdlUpdateProgress) {
+            window.api.onYtdlUpdateProgress((payload = {}) => {
+                setYtdlTool(prev => {
+                    const isError = payload.stage === 'error'
+                    const isDone = payload.stage === 'done'
+                    const hasPercent = Object.prototype.hasOwnProperty.call(payload, 'percent')
+                    const progress = isError
+                        ? prev.progress
+                        : hasPercent
+                            ? Number.isFinite(payload.percent)
+                                ? Math.max(0, Math.min(100, payload.percent))
+                                : null
+                            : prev.progress
+                    return {
+                        ...prev,
+                        status: isError ? 'error' : (isDone ? 'up-to-date' : 'updating'),
+                        stageMessage: isError ? prev.stageMessage : getYtdlStageText(payload.stage),
+                        progress,
+                        receivedBytes: payload.receivedBytes ?? prev.receivedBytes,
+                        totalBytes: payload.totalBytes ?? prev.totalBytes,
+                    }
+                })
+            })
+        }
+        if (window.api.onTwitchUpdateProgress) {
+            window.api.onTwitchUpdateProgress((payload = {}) => {
+                setTwitchTool(prev => {
+                    const isError = payload.stage === 'error'
+                    const isDone = payload.stage === 'done'
+                    const hasPercent = Object.prototype.hasOwnProperty.call(payload, 'percent')
+                    const progress = isError
+                        ? prev.progress
+                        : hasPercent
+                            ? Number.isFinite(payload.percent)
+                                ? Math.max(0, Math.min(100, payload.percent))
+                                : null
+                            : prev.progress
+                    return {
+                        ...prev,
+                        status: isError ? 'error' : (isDone ? 'up-to-date' : 'updating'),
+                        stageMessage: isError ? prev.stageMessage : getYtdlStageText(payload.stage),
+                        progress,
+                        receivedBytes: payload.receivedBytes ?? prev.receivedBytes,
+                        totalBytes: payload.totalBytes ?? prev.totalBytes,
+                    }
+                })
+            })
+        }
+        refreshTwitchToolInfo({ autoUpdate: true })
+        refreshYtdlToolInfo({ autoUpdate: true })
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     // ─── Chrome extension integration ─────────────────────────────────────────────
     useEffect(() => {
@@ -520,6 +1235,8 @@ function App() {
                     'x.com': { name: 'Twitter / X', color: '#ffffff' },
                     'instagram.com': { name: 'Instagram', color: '#e1306c' },
                     'tiktok.com': { name: 'TikTok', color: '#ff0050' },
+                    'twitch.tv': { name: 'Twitch', color: '#9146ff' },
+                    'clips.twitch.tv': { name: 'Twitch', color: '#9146ff' },
                     'vk.com': { name: 'VKontakte', color: '#4a76a8' },
                     'vkvideo.ru': { name: 'VK Видео', color: '#4a76a8' },
                     'rutube.ru': { name: 'Rutube', color: '#ff5c00' },
@@ -545,7 +1262,7 @@ function App() {
             title: v.title || v.outputName || '',
             status: v.status,
             progress: v.progress || 0,
-            url: v.ytdlUrl || null,
+            url: v.ytdlUrl || v.twitchUrl || null,
         }))
         window.api.extensionUpdateQueue(summary)
     }, [videos])
@@ -601,7 +1318,45 @@ function App() {
             ))
         })
 
-        window.api.onYtdlExit(({ id, code, converting }) => {
+        window.api.onTwitchProgress?.(({ id, progress }) => {
+            if (stoppedJobsRef.current.has(id)) return
+            setVideos(prev => prev.map(v =>
+                v.id === id
+                    ? { ...v, progress, status: 'downloading', startTime: v.startTime ?? Date.now() }
+                    : v
+            ))
+        })
+
+        window.api.onTwitchExit?.(({ id, code, converting, error, stderr, outputPath }) => {
+            if (stoppedJobsRef.current.has(id)) {
+                stoppedJobsRef.current.delete(id)
+                return
+            }
+            if (converting) {
+                setVideos(prev => prev.map(v =>
+                    v.id === id ? { ...v, progress: 0, status: 'converting', startTime: Date.now(), outputPath: null } : v
+                ))
+            } else {
+                setVideos(prev => {
+                    const updated = prev.map(v => v.id === id
+                        ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now(), outputPath: code === 0 ? (outputPath || v.outputPath || null) : null }
+                        : v
+                    )
+                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status))) {
+                        setIsEncoding(false)
+                        setEncodingStartTime(null)
+                    }
+                    return updated
+                })
+                if (code !== 0) {
+                    const v = videosRef.current.find(v => v.id === id)
+                    const title = v ? (v.title || v.outputName || t('unknownFile')) : t('unknownFile')
+                    const text = (stderr || error || '').trim() || t('noOutput')
+                    setCliErrors(prev => [...prev, { title, stderr: text, hint: error || '' }])
+                }
+            }
+        })
+        window.api.onYtdlExit(({ id, code, converting, error, stderr, outputPath }) => {
             if (stoppedJobsRef.current.has(id)) {
                 stoppedJobsRef.current.delete(id)
                 return
@@ -609,24 +1364,30 @@ function App() {
             if (converting) {
                 // Download finished, conversion phase starting
                 setVideos(prev => prev.map(v =>
-                    v.id === id ? { ...v, progress: 0, status: 'converting', startTime: Date.now() } : v
+                    v.id === id ? { ...v, progress: 0, status: 'converting', startTime: Date.now(), outputPath: null } : v
                 ))
             } else {
                 setVideos(prev => {
                     const updated = prev.map(v => v.id === id
-                        ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
+                        ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now(), outputPath: code === 0 ? (outputPath || v.outputPath || null) : null }
                         : v
                     )
-                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status))) {
+                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status))) {
                         setIsEncoding(false)
                         setEncodingStartTime(null)
                     }
                     return updated
                 })
+                if (code !== 0) {
+                    const v = videosRef.current.find(v => v.id === id)
+                    const title = v ? (v.title || v.outputName || t('unknownFile')) : t('unknownFile')
+                    const text = (stderr || error || '').trim() || t('noOutput')
+                    setCliErrors(prev => [...prev, { title, stderr: text, hint: error || '' }])
+                }
             }
         })
 
-        window.api.onCliExit(({ id, code, stderr }) => {
+        window.api.onCliExit(({ id, code, stderr, outputPath }) => {
             if (stoppedJobsRef.current.has(id)) {
                 stoppedJobsRef.current.delete(id)
                 progressStateRef.current.delete(id)
@@ -635,10 +1396,10 @@ function App() {
             progressStateRef.current.delete(id)
             setVideos(prev => {
                 const updated = prev.map(v => v.id === id
-                    ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now() }
+                    ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now(), outputPath: code === 0 ? (outputPath || v.outputPath || null) : null }
                     : v
                 )
-                if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'cutting-sponsors', 'converting'].includes(v.status))) {
+                if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status))) {
                     setIsEncoding(false)
                     setEncodingStartTime(null)
                 }
@@ -652,6 +1413,15 @@ function App() {
             }
         })
     }, [])
+
+    const handleOpenOutputLocation = async (outputPath) => {
+        if (!outputPath) return
+        try {
+            await window.api.openOutputLocation(outputPath)
+        } catch (err) {
+            console.error('Failed to open output location:', err)
+        }
+    }
 
     const renderPage = () => {
         switch (view) {
@@ -675,6 +1445,12 @@ function App() {
                         onSave={handleSaveSettings}
                         onOutputDirChange={handleOutputDirChange}
                         initialTab={settingsInitialTab}
+                        ytdlTool={ytdlTool}
+                        onUpdateYtdl={handleUpdateYtdl}
+                        onRefreshYtdl={refreshYtdlToolInfo}
+                        twitchTool={twitchTool}
+                        onUpdateTwitch={handleUpdateTwitch}
+                        onRefreshTwitch={refreshTwitchToolInfo}
                     />
                 )
             case 'list':
@@ -705,7 +1481,14 @@ function App() {
                         onYtdlClipChange={handleYtdlClipChange}
                         onLocalClipChange={handleLocalClipChange}
                         onYtdlOptionsChange={handleYtdlOptionsChange}
+                        onOpenOutputLocation={handleOpenOutputLocation}
                         onOpenSettings={(tab) => { setSettingsInitialTab(tab || 'app'); handleViewChange('settings') }}
+                        twitchChannelPicker={twitchChannelPicker}
+                        onTwitchAddChannelVideos={handleTwitchAddChannelVideos}
+                        onTwitchCloseChannelPicker={() => setTwitchChannelPicker(null)}
+                        onTwitchOpenChat={handleTwitchOpenChat}
+                        onTwitchConvertToggle={handleTwitchConvertToggle}
+                        onTwitchQualityChange={handleTwitchQualityChange}
                         isDraggingOnList={isDraggingOnList}
                         onListDragEnter={handleListDragEnter}
                         onListDragLeave={handleListDragLeave}
@@ -757,6 +1540,9 @@ function App() {
                 onStop={handleStop}
                 onClearQueue={handleClearQueue}
                 onOpenCliConsole={() => setShowCliConsole(v => !v)}
+                ytdlTool={ytdlTool}
+                twitchTool={twitchTool}
+                onOpenYtdlSettings={handleOpenYtdlSettings}
             />
             {updateInfo && (
                 <div className={`update-popup ${theme}`}>
@@ -774,6 +1560,37 @@ function App() {
                     >
                         <i className="bi bi-download"></i> {t('updateDownload')}
                     </button>
+                </div>
+            )}
+            {showWhatsNew && !showOnboarding && (
+                <div className={`whats-new-overlay ${theme}`} role="dialog" aria-modal="true" aria-labelledby="whats-new-title" onClick={handleDismissWhatsNew}>
+                    <div className="whats-new-card" onClick={e => e.stopPropagation()}>
+                        <button className="whats-new-close" onClick={handleDismissWhatsNew} title={t('close')}>
+                            <i className="bi bi-x-lg"></i>
+                        </button>
+                        <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '2.3.0')}</div>
+                        <h2 id="whats-new-title" className="whats-new-title">{t('whatsNewTitle')}</h2>
+                        <p className="whats-new-subtitle">{t('whatsNewSubtitle')}</p>
+                        <div className="whats-new-list">
+                            {WHATS_NEW_ITEMS.map((item, index) => (
+                                <div key={item.titleKey} className="whats-new-item" style={{ animationDelay: `${index * 45}ms` }}>
+                                    <span className="whats-new-item-icon">
+                                        <i className={`bi ${item.icon}`}></i>
+                                    </span>
+                                    <span className="whats-new-item-copy">
+                                        <span className="whats-new-item-title">{t(item.titleKey)}</span>
+                                        <span className="whats-new-item-text">{t(item.textKey)}</span>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="whats-new-footer">
+                            <button className="whats-new-primary" onClick={handleDismissWhatsNew}>
+                                {t('whatsNewDone')}
+                                <i className="bi bi-check2"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
             <main className="container">
@@ -795,7 +1612,16 @@ function App() {
                     </div>
                 </div>
             )}
-            {cliErrors.length > 0 && (
+            <TwitchChatViewer
+                theme={theme}
+                viewer={twitchChatViewer}
+                query={twitchChatQuery}
+                onQueryChange={setTwitchChatQuery}
+                onClose={() => setTwitchChatViewer(null)}
+                onExport={handleTwitchExportChat}
+                exporting={twitchChatExporting}
+                t={t}
+            />            {cliErrors.length > 0 && (
                 <div className={`cli-error-overlay ${theme}`} onClick={() => setCliErrors([])}>
                     <div className="cli-error-popup" onClick={e => e.stopPropagation()}>
                         <div className="cli-error-header">
@@ -908,15 +1734,17 @@ function App() {
                             setAppSettings(prev => ({ ...(prev || {}), ...newAppSettings }))
                             // Sync outputDir to localStorage and session state
                             const existingConfig = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
-                            localStorage.setItem('gorex-app-config', JSON.stringify({ ...existingConfig, ...newAppSettings }))
+                            const cleanExistingConfig = { ...existingConfig }
+                            delete cleanExistingConfig.ytdlDeepFormatSearch
+                            localStorage.setItem('gorex-app-config', JSON.stringify({ ...cleanExistingConfig, ...newAppSettings }))
                             if (settings.outputDir) {
                                 setDefaultOutputDir(settings.outputDir)
                             }
                             if (settings.encoder) {
                                 const cur = JSON.parse(localStorage.getItem('gorex-default-settings') || '{}')
-                                const updated = { ...cur, encoder: settings.encoder }
+                                const updated = normalizeEncoderSettings({ ...cur, encoder: settings.encoder })
                                 localStorage.setItem('gorex-default-settings', JSON.stringify(updated))
-                                setSelectedSettings(prev => ({ ...prev, encoder: settings.encoder }))
+                                setSelectedSettings(prev => normalizeEncoderSettings({ ...prev, encoder: settings.encoder }))
                             }
                         }
                         localStorage.setItem('gorex-onboarding-done', '1')

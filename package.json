@@ -1,6 +1,6 @@
 {
   "name": "gorex",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Gorex - FFmpeg / yt-dlp GUI with Electron + Vite + React",
   "main": "./out/main/index.js",
   "author": "Akhmatyarov",
@@ -57,6 +57,10 @@
         {
           "from": "resources/ytdl",
           "to": "resources/ytdl"
+        },
+        {
+          "from": "resources/twitch",
+          "to": "resources/twitch"
         }
       ]
     },

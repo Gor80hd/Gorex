@@ -4,10 +4,25 @@ import logoDark from '../../assets/images/logo.svg'
 import { useLanguage } from '../../i18n'
 import './TitleBar.scss'
 
+function formatToolDate(value) {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    return date.toLocaleDateString()
+}
+
+function getToolStatusText(tool, status, t, readyKey) {
+    if (tool?.message) return tool.message
+    if (tool?.stageMessage) return tool.stageMessage
+    if (status === 'update-available') return t('toolUpdateAvailable')
+    if (status === 'updating' || status === 'checking') return t('ytdlUpdateChecking')
+    if (status === 'error' || status === 'check-failed') return t('toolCheckFailed')
+    return t(readyKey)
+}
 function TitleBar({
     onOpen, theme, toggleTheme, onViewChange, currentView,
     isEncoding, isPaused, hasVideos,
-    onStartEncoding, onPause, onStop, onClearQueue, onOpenCliConsole
+    onStartEncoding, onPause, onStop, onClearQueue, onOpenCliConsole, ytdlTool, twitchTool, onOpenYtdlSettings
 }) {
     const [toggling, setToggling] = useState(false)
     const [fileMenuOpen, setFileMenuOpen] = useState(false)
@@ -36,6 +51,37 @@ function TitleBar({
         fn()
     }
 
+    const ytdlStatus = ytdlTool?.status || 'checking'
+    const ytdlVersion = ytdlTool?.info?.version || ytdlTool?.latest?.latestVersion || '...'
+    const ytdlProgress = Number.isFinite(ytdlTool?.progress)
+        ? Math.max(0, Math.min(100, ytdlTool.progress))
+        : (ytdlStatus === 'updating' ? 35 : 100)
+    const ytdlBadgeClass = `tb-ytdl-badge tb-ytdl-badge--${ytdlStatus}`
+    const ytdlBadgeTitle = ytdlTool?.message || ytdlTool?.stageMessage || t('ytdlBadgeTitle')
+    const ytdlBadgeIcon = ytdlStatus === 'up-to-date' ? 'bi-check-lg' : 'bi-cloud-arrow-down'
+    const twitchStatus = twitchTool?.status || 'checking'
+    const toolRows = [
+        {
+            key: 'ytdl',
+            icon: 'bi-cloud-arrow-down',
+            name: 'yt-dlp',
+            installed: ytdlTool?.info?.version || t('toolVersionUnknown'),
+            latest: ytdlTool?.latest?.latestVersion || t('toolVersionUnknown'),
+            date: formatToolDate(ytdlTool?.latest?.publishedAt),
+            status: getToolStatusText(ytdlTool, ytdlStatus, t, 'ytdlBadgeReady'),
+            statusClass: ytdlStatus,
+        },
+        {
+            key: 'twitch',
+            icon: 'bi-twitch',
+            name: 'TwitchDownloaderCLI',
+            installed: twitchTool?.info?.version || t('toolVersionUnknown'),
+            latest: twitchTool?.latest?.latestVersion || t('toolVersionUnknown'),
+            date: formatToolDate(twitchTool?.latest?.publishedAt),
+            status: getToolStatusText(twitchTool, twitchStatus, t, 'twitchBadgeReady'),
+            statusClass: twitchStatus,
+        },
+    ]
     return (
         <div className="titlebar">
             <div className="titlebar-drag-region"></div>
@@ -111,6 +157,37 @@ function TitleBar({
                 </div>
 
                 <div className="titlebar-right">
+                    <div className="tb-tools-wrap">
+                        <button
+                            type="button"
+                            className={ytdlBadgeClass}
+                            style={{ '--ytdl-progress': `${ytdlProgress}%` }}
+                            title={ytdlBadgeTitle}
+                            aria-label={ytdlBadgeTitle}
+                            onClick={onOpenYtdlSettings}
+                        >
+                            <span className="tb-ytdl-badge__inner">
+                                <i className={`bi ${ytdlBadgeIcon}`}></i>
+                                <span>yt-dlp {ytdlVersion}</span>
+                            </span>
+                        </button>
+                        <div className="tb-tools-popover" role="status">
+                            <div className="tb-tools-popover__title">{t('toolsBadgeTitle')}</div>
+                            {toolRows.map(row => (
+                                <div key={row.key} className="tb-tool-row">
+                                    <div className="tb-tool-row__head">
+                                        <span><i className={`bi ${row.icon}`}></i>{row.name}</span>
+                                        <strong className={`tb-tool-status tb-tool-status--${row.statusClass}`}>{row.status}</strong>
+                                    </div>
+                                    <div className="tb-tool-row__meta">
+                                        <span>{t('toolInstalledLabel')}: {row.installed}</span>
+                                        <span>{t('toolLatestLabel')}: {row.latest}</span>
+                                        {row.date && <span>{t('toolReleaseLabel')}: {row.date}</span>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                     <a href="https://dalink.to/akhmatyarov" target="_blank" rel="noreferrer" className="tb-donate-btn" title={t('donate')}>
                         <i className="bi bi-heart-fill"></i>
                         <span>{t('donate')}</span>
