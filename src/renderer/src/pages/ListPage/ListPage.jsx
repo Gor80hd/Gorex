@@ -2169,12 +2169,12 @@ function ListPage({
                                                 onClick={e => e.stopPropagation()}
                                             />
                                             : <button
-                                                className="rename-btn"
+                                                className="rename-btn rename-btn--icon"
                                                 onClick={e => { e.stopPropagation(); startEdit(v) }}
                                                 title={t('renameFileTitle')}
+                                                aria-label={t('renameFileTitle')}
                                             >
                                                 <i className="bi bi-pencil"></i>
-                                                <span>{v.outputName || v.title}</span>
                                             </button>
                                     )}
                                 </div>

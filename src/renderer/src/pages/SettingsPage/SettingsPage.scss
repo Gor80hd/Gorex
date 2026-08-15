@@ -194,8 +194,8 @@
     font-size: 0.72rem;
     line-height: 1.45;
 
-    .dark & { color: #475569; }
-    .light & { color: #94a3b8; }
+    .dark & { color: #94a3b8; }
+    .light & { color: #64748b; }
 }
 
 .sp-other-btn {
@@ -305,7 +305,7 @@
 .sp-sidebar-hint {
     font-size: 0.65rem;
     line-height: 1.5;
-    opacity: 0.3;
+    opacity: 0.56;
     padding: 0 2px;
 }
 
@@ -357,11 +357,11 @@
 
     .dark & {
         background: rgba(255,255,255,0.04);
-        color: rgba(255,255,255,0.45);
+        color: rgba(255,255,255,0.68);
     }
     .light & {
         background: rgba(0,0,0,0.035);
-        color: rgba(0,0,0,0.45);
+        color: rgba(15,23,42,0.68);
     }
 }
 
@@ -403,7 +403,7 @@
 }
 
 .sp-row-label {
-    flex: 0 0 210px;
+    flex: 0 0 230px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -440,7 +440,7 @@
 .sp-row-hint {
     font-size: 0.67rem;
     line-height: 1.35;
-    opacity: 0.42;
+    opacity: 0.62;
 }
 
 .sp-row-control {
@@ -448,7 +448,7 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    max-width: 280px;
+    max-width: 400px;
 
     .gs-dropdown { width: 100%; }
 }

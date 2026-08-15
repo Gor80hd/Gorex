@@ -137,7 +137,7 @@ function TitleBar({
                                         <span className="tb-item-label">{t('menuDebugConsole')}</span>
                                     </button>
                                     <div className="tb-dropdown-sep"></div>
-                                    <button className="tb-dropdown-item" onClick={() => menuAction(() => window.api.close())}>
+                                    <button className="tb-dropdown-item" onClick={() => menuAction(() => window.api.quit())}>
                                         <span className="tb-item-label">{t('menuExit')}</span>
                                     </button>
                                 </div>

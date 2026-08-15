@@ -81,7 +81,7 @@
 
 .drop-logo {
     height: 80px;
-    opacity: 0.18;
+    opacity: 0.46;
     transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
                 filter 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     animation: floatLogo 3.5s ease-in-out infinite;
@@ -90,7 +90,7 @@
 .drop-text-large {
     font-size: 1.1rem;
     font-weight: 500;
-    opacity: 0.28;
+    opacity: 0.64;
     transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     letter-spacing: 0.5px;
 }
@@ -131,7 +131,7 @@
     font-weight: 600;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    opacity: 0.3;
+    opacity: 0.58;
 }
 
 .dl-input-wrap {
@@ -360,6 +360,6 @@
     max-width: 500px;
     text-align: center;
     font-size: 0.9rem;
-    opacity: 0.18;
+    opacity: 0.52;
     line-height: 1.6;
 }

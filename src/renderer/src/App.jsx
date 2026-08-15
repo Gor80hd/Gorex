@@ -143,21 +143,31 @@ function isTwitchToolUpdateAvailable(currentVersion, latestVersion) {
     return compareTwitchToolVersions(latestVersion, currentVersion) > 0
 }
 
-function TwitchChatViewer({ theme, viewer, query, onQueryChange, onClose, onExport, exporting, t }) {
+function TwitchChatViewer({ theme, viewer, query, onQueryChange, onClose, onExport, onLoadFull, onRetry, exporting, t }) {
     if (!viewer) return null
+    const allMessages = Array.isArray(viewer.messages) ? viewer.messages : []
     const q = query.trim().toLowerCase()
     const messages = q
-        ? viewer.messages.filter(message => (`${message.timeLabel} ${message.username} ${message.body}`).toLowerCase().includes(q))
-        : viewer.messages
+        ? allMessages.filter(message => (`${message.timeLabel} ${message.username} ${message.body}`).toLowerCase().includes(q))
+        : allMessages
+    const controlsDisabled = viewer.loading || viewer.loadingFull || !!viewer.error
     return (
-        <div className={`twitch-chat-overlay ${theme}`} onClick={onClose}>
-            <div className="twitch-chat-panel" onClick={e => e.stopPropagation()}>
+        <div className={`twitch-chat-overlay ${theme}`} onClick={onClose} role="presentation">
+            <div
+                className="twitch-chat-panel"
+                onClick={e => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="twitch-chat-dialog-title"
+            >
                 <div className="twitch-chat-header">
                     <div className="twitch-chat-title">
                         <i className="bi bi-twitch"></i>
-                        <span>{viewer.video?.title || t('twitchChatTitle')}</span>
+                        <span id="twitch-chat-dialog-title" title={viewer.video?.title || t('twitchChatTitle')}>
+                            {viewer.video?.title || t('twitchChatTitle')}
+                        </span>
                     </div>
-                    <button className="twitch-chat-close" onClick={onClose} title={t('close')}>
+                    <button className="twitch-chat-close" onClick={onClose} title={t('close')} aria-label={t('close')}>
                         <i className="bi bi-x-lg"></i>
                     </button>
                 </div>
@@ -169,32 +179,59 @@ function TwitchChatViewer({ theme, viewer, query, onQueryChange, onClose, onExpo
                             onChange={e => onQueryChange(e.target.value)}
                             placeholder={t('twitchChatSearch')}
                             spellCheck={false}
+                            disabled={controlsDisabled}
                         />
                     </div>
-                    <button className="twitch-chat-action" onClick={() => onExport('json')} disabled={!!exporting}>
+                    <button className="twitch-chat-action" onClick={() => onExport('json')} disabled={controlsDisabled || !!exporting}>
                         <i className="bi bi-braces"></i>
                         {exporting === 'json' ? t('loading') : 'JSON'}
                     </button>
-                    <button className="twitch-chat-action" onClick={() => onExport('txt')} disabled={!!exporting}>
+                    <button className="twitch-chat-action" onClick={() => onExport('txt')} disabled={controlsDisabled || !!exporting}>
                         <i className="bi bi-filetype-txt"></i>
                         {exporting === 'txt' ? t('loading') : 'TXT'}
                     </button>
                 </div>
                 <div className="twitch-chat-meta">
-                    <span>{messages.length} / {viewer.messages.length}</span>
-                    {viewer.filePath && <span>{viewer.filePath}</span>}
+                    <span className="twitch-chat-count">
+                        {viewer.loading ? t('twitchChatPreparing') : `${messages.length} / ${allMessages.length}`}
+                    </span>
+                    {!viewer.loading && !viewer.error && (
+                        viewer.isComplete
+                            ? <span className="twitch-chat-complete"><i className="bi bi-check-circle"></i>{t('twitchChatComplete')}</span>
+                            : (
+                                <div className="twitch-chat-preview-note">
+                                    <span>{t('twitchChatPreviewNote').replace('{minutes}', viewer.previewMinutes || 15)}</span>
+                                    <button type="button" onClick={onLoadFull} disabled={viewer.loadingFull}>
+                                        {viewer.loadingFull ? t('twitchChatLoadingFull') : t('twitchChatLoadFull')}
+                                    </button>
+                                </div>
+                            )
+                    )}
                 </div>
                 <div className="twitch-chat-list">
-                    {messages.map(message => (
+                    {viewer.loading && (
+                        <div className="twitch-chat-state">
+                            <span className="twitch-chat-spinner"></span>
+                            <strong>{t('twitchChatPreparing')}</strong>
+                            <span>{t('twitchChatCacheSession')}</span>
+                        </div>
+                    )}
+                    {viewer.error && (
+                        <div className="twitch-chat-state twitch-chat-state--error">
+                            <i className="bi bi-exclamation-triangle"></i>
+                            <strong>{t('twitchChatLoadFailed')}</strong>
+                            <span>{viewer.error}</span>
+                            <button type="button" onClick={onRetry}>{t('twitchChatRetry')}</button>
+                        </div>
+                    )}
+                    {!viewer.loading && !viewer.error && messages.map(message => (
                         <div key={message.id} className="twitch-chat-message">
-                            <button className="twitch-chat-time" onClick={() => onQueryChange(message.timeLabel)}>
-                                {message.timeLabel}
-                            </button>
+                            <span className="twitch-chat-time">{message.timeLabel}</span>
                             <span className="twitch-chat-user">{message.username || 'unknown'}</span>
                             <span className="twitch-chat-body">{message.body}</span>
                         </div>
                     ))}
-                    {messages.length === 0 && (
+                    {!viewer.loading && !viewer.error && messages.length === 0 && (
                         <div className="twitch-chat-empty">{t('twitchChatNoMatches')}</div>
                     )}
                 </div>
@@ -305,6 +342,8 @@ function App() {
     const [twitchChatViewer, setTwitchChatViewer] = useState(null)
     const [twitchChatQuery, setTwitchChatQuery] = useState('')
     const [twitchChatExporting, setTwitchChatExporting] = useState('')
+    const twitchResolveRequestRef = useRef(0)
+    const twitchChatRequestRef = useRef(0)
     const nextIdRef = useRef(0)
     const listDragCounter = useRef(0)
     const ytdlUpdateInFlightRef = useRef(false)
@@ -406,15 +445,19 @@ function App() {
     const ytdlFetchCancelledRef = useRef(false)
 
     const handleTwitchDownload = async (url, service, extensionOpts = null) => {
+        const requestId = ++twitchResolveRequestRef.current
+        const isCurrentRequest = () => twitchResolveRequestRef.current === requestId
         setIsLoading(true)
-        setLoadingMessage({ title: t('loadingFetchingFormats'), subtitle: t('twitchLoadingResolving') })
+        setLoadingMessage({ type: 'twitch', title: t('loadingFetchingFormats'), subtitle: t('twitchLoadingResolving') })
         try {
             const resolved = await window.api.twitchResolveUrl(url)
+            if (!isCurrentRequest()) return
             if (resolved?.ok === false) throw new Error(resolved.error || t('dlErrorDefault'))
 
             if (resolved.type === 'channel') {
-                setLoadingMessage({ title: t('twitchChannelVideosTitle'), subtitle: t('twitchLoadingChannel') })
+                setLoadingMessage({ type: 'twitch', title: t('twitchChannelVideosTitle'), subtitle: t('twitchLoadingChannel') })
                 const result = await window.api.twitchGetChannelVideos(resolved.channel, { limit: 36 })
+                if (!isCurrentRequest()) return
                 if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
                 setTwitchChannelPicker({
                     channel: result.channel,
@@ -462,14 +505,23 @@ function App() {
             setVideos(prev => [...prev, newVideo])
             setView('list')
         } catch (err) {
+            if (!isCurrentRequest()) return
             console.error('Failed to fetch Twitch data:', err)
             const errText = `[Twitch] Ошибка получения данных:\n${err.message}\n`
             _cliLogEmitter.callback?.({ type: 'err', text: errText })
             setYtdlFetchError(err.message || t('dlErrorDefault'))
         } finally {
-            setIsLoading(false)
-            setLoadingMessage(null)
+            if (isCurrentRequest()) {
+                setIsLoading(false)
+                setLoadingMessage(null)
+            }
         }
+    }
+
+    const handleTwitchCancel = () => {
+        twitchResolveRequestRef.current += 1
+        setIsLoading(false)
+        setLoadingMessage(null)
     }
     const handleDownload = async (url, service, extensionOpts = null) => {
         if (isTwitchUrl(url)) {
@@ -664,20 +716,77 @@ function App() {
 
     const handleTwitchOpenChat = async (video) => {
         if (!video?.twitchUrl) return
-        setIsLoading(true)
-        setLoadingMessage({ title: t('twitchChatTitle'), subtitle: t('twitchChatLoading') })
+        const requestId = ++twitchChatRequestRef.current
+        setTwitchChatQuery('')
+        setTwitchChatViewer({
+            video,
+            messages: [],
+            loading: true,
+            loadingFull: false,
+            error: '',
+            isComplete: false,
+            previewMinutes: 15,
+        })
         try {
-            const result = await window.api.twitchDownloadChat({ url: video.twitchUrl, id: video.twitchId })
+            const result = await window.api.twitchDownloadChat({
+                url: video.twitchUrl,
+                id: video.twitchId,
+                full: false,
+            })
+            if (twitchChatRequestRef.current !== requestId) return
             if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
-            setTwitchChatQuery('')
-            setTwitchChatViewer({ video, filePath: result.filePath || '', messages: result.messages || [] })
+            setTwitchChatViewer({
+                video,
+                messages: result.messages || [],
+                loading: false,
+                loadingFull: false,
+                error: '',
+                isComplete: !!result.isComplete,
+                previewMinutes: result.previewMinutes || 15,
+            })
         } catch (err) {
+            if (twitchChatRequestRef.current !== requestId) return
             const text = (err?.message || t('dlErrorDefault')).trim()
-            setCliErrors(prev => [...prev, { title: video.title || 'Twitch chat', stderr: text, hint: '' }])
-        } finally {
-            setIsLoading(false)
-            setLoadingMessage(null)
+            setTwitchChatViewer(prev => prev ? { ...prev, loading: false, error: text } : prev)
         }
+    }
+
+    const handleTwitchLoadFullChat = async () => {
+        const video = twitchChatViewer?.video
+        if (!video || twitchChatViewer.loadingFull) return
+        const requestId = ++twitchChatRequestRef.current
+        setTwitchChatViewer(prev => prev ? { ...prev, loadingFull: true } : prev)
+        try {
+            const result = await window.api.twitchDownloadChat({
+                url: video.twitchUrl,
+                id: video.twitchId,
+                full: true,
+            })
+            if (twitchChatRequestRef.current !== requestId) return
+            if (result?.ok === false) throw new Error(result.error || t('dlErrorDefault'))
+            setTwitchChatViewer(prev => prev ? {
+                ...prev,
+                messages: result.messages || [],
+                loadingFull: false,
+                isComplete: true,
+            } : prev)
+        } catch (err) {
+            if (twitchChatRequestRef.current !== requestId) return
+            const text = (err?.message || t('dlErrorDefault')).trim()
+            setTwitchChatViewer(prev => prev ? { ...prev, loadingFull: false } : prev)
+            setCliErrors(prev => [...prev, { title: video.title || 'Twitch chat', stderr: text, hint: '' }])
+        }
+    }
+
+    const handleTwitchCloseChat = () => {
+        twitchChatRequestRef.current += 1
+        setTwitchChatViewer(null)
+        setTwitchChatQuery('')
+    }
+
+    const handleTwitchRetryChat = () => {
+        const video = twitchChatViewer?.video
+        if (video) handleTwitchOpenChat(video)
     }
 
     const handleTwitchExportChat = async (format) => {
@@ -1604,8 +1713,8 @@ function App() {
                         <div className="loading-bar-track">
                             <div className="loading-bar-fill"></div>
                         </div>
-                        {(loadingMessage?.title === t('loadingFetchingFormats') || loadingMessage?.type === 'videodata') && (
-                            <button className="loading-cancel-btn" onClick={loadingMessage?.type === 'videodata' ? handleVideoDataCancel : handleDownloadCancel}>
+                        {(loadingMessage?.title === t('loadingFetchingFormats') || loadingMessage?.type === 'videodata' || loadingMessage?.type === 'twitch') && (
+                            <button className="loading-cancel-btn" onClick={loadingMessage?.type === 'videodata' ? handleVideoDataCancel : loadingMessage?.type === 'twitch' ? handleTwitchCancel : handleDownloadCancel}>
                                 {t('loadingCancel')}
                             </button>
                         )}
@@ -1617,11 +1726,14 @@ function App() {
                 viewer={twitchChatViewer}
                 query={twitchChatQuery}
                 onQueryChange={setTwitchChatQuery}
-                onClose={() => setTwitchChatViewer(null)}
+                onClose={handleTwitchCloseChat}
                 onExport={handleTwitchExportChat}
+                onLoadFull={handleTwitchLoadFullChat}
+                onRetry={handleTwitchRetryChat}
                 exporting={twitchChatExporting}
                 t={t}
-            />            {cliErrors.length > 0 && (
+            />
+            {cliErrors.length > 0 && (
                 <div className={`cli-error-overlay ${theme}`} onClick={() => setCliErrors([])}>
                     <div className="cli-error-popup" onClick={e => e.stopPropagation()}>
                         <div className="cli-error-header">

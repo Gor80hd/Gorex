@@ -359,12 +359,21 @@
 
 .video-info {
     flex: 1;
+    min-width: 0;
     padding: 4px 8px 0;
 }
 
 .video-title {
+    flex: 1;
+    min-width: 0;
     font-size: 1.1rem;
     font-weight: 600;
+    line-height: 1.28;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 .app-wrapper.dark .video-title {
@@ -402,7 +411,7 @@
 
 .video-title-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 6px;
     flex-wrap: nowrap;
     margin-bottom: 6px;
@@ -442,6 +451,14 @@
 
 .app-wrapper.light .rename-btn:hover {
     border-color: var(--border-color-light);
+}
+
+.rename-btn--icon {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    justify-content: center;
+    padding: 0;
 }
 
 .output-name-input {
@@ -2363,9 +2380,14 @@ $dur: 0.5s;
 
 // ─── Twitch channel picker ────────────────────────────────────────────────────
 .twitch-channel-picker {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: calc(100vh - 154px);
     border: 1px solid rgba(145, 70, 255, 0.28);
     border-radius: 8px;
     padding: 12px;
+    overflow: hidden;
     background: rgba(145, 70, 255, 0.07);
 }
 
@@ -2422,10 +2444,14 @@ $dur: 0.5s;
 }
 
 .twitch-channel-grid {
+    flex: 1;
+    min-height: 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
     gap: 10px;
     margin-top: 12px;
+    padding-right: 4px;
+    overflow-y: auto;
 }
 
 .twitch-channel-card {
@@ -2533,7 +2559,11 @@ $dur: 0.5s;
 }
 
 .twitch-channel-picker__footer {
+    flex-shrink: 0;
     margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(145, 70, 255, 0.18);
+    opacity: 1;
 }
 
 .twitch-channel-add,

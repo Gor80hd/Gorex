@@ -34,6 +34,7 @@ const api = {
     minimize: () => ipcRenderer.send('window-minimize'),
     maximize: () => ipcRenderer.send('window-maximize'),
     close: () => ipcRenderer.send('window-close'),
+    quit: () => ipcRenderer.send('app-quit'),
     openDevTools: () => ipcRenderer.send('open-devtools'),
     ytdlGetFormats: (url, options = {}) => ipcRenderer.invoke('ytdl-get-formats', { url, ...options }),
     ytdlCancelFetch: () => ipcRenderer.send('ytdl-cancel-fetch'),

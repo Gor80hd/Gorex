@@ -462,6 +462,28 @@ const activeJobs = new Map() // id -> child process
 let mainWindow = null
 let tray = null
 let isQuitting = false
+const TWITCH_CHAT_PREVIEW_MINUTES = 15
+const twitchChatMemoryCache = new Map()
+
+function getTwitchChatCacheDir() {
+    return join(app.getPath('userData'), 'twitch-chat-cache')
+}
+
+function clearTwitchChatSessionCache() {
+    const fs = require('fs')
+    const cacheDirs = [
+        getTwitchChatCacheDir(),
+        join(app.getPath('userData'), 'twitch-chat'),
+    ]
+    for (const cacheDir of cacheDirs) {
+        try {
+            fs.rmSync(cacheDir, { recursive: true, force: true })
+        } catch (err) {
+            console.warn(`[twitch-chat] Не удалось очистить кеш ${cacheDir}:`, err?.message || err)
+        }
+    }
+    twitchChatMemoryCache.clear()
+}
 let ytdlFetchActiveChildren = new Set()
 let ytdlFetchCancelled = false
 let ytdlUpdateActive = false
@@ -1515,6 +1537,8 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 850,
+        minWidth: 900,
+        minHeight: 650,
         show: false,
         autoHideMenuBar: true,
         frame: false, // Frameless window
@@ -1562,6 +1586,7 @@ function createWindow() {
 app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.akhmatyarov.gorex')
     migrateManagedYoutubeCookiesStorage()
+    clearTwitchChatSessionCache()
 
     // Renderer loads from localhost — HTTP cache only accumulates junk, disable it
     session.defaultSession.clearCache()
@@ -1676,6 +1701,10 @@ app.whenReady().then(async () => {
         } else {
             BrowserWindow.getFocusedWindow()?.close()
         }
+    })
+    ipcMain.on('app-quit', () => {
+        isQuitting = true
+        app.quit()
     })
 
     ipcMain.handle('set-background-mode', (event, enabled) => {
@@ -1899,7 +1928,7 @@ app.whenReady().then(async () => {
         }
     })
 
-    ipcMain.handle('twitch-download-chat', async (event, { url, id, outputDir, force = false } = {}) => {
+    ipcMain.handle('twitch-download-chat', async (event, { url, id, full = false, force = false } = {}) => {
         const fs = require('fs')
         try {
             const cliPath = getTwitchPath()
@@ -1910,18 +1939,34 @@ app.whenReady().then(async () => {
             if (!parsed.ok || (!parsed.id && !parsed.sourceUrl)) {
                 return { ok: false, error: 'Невозможно определить Twitch VOD/Clip для чата' }
             }
-            const cacheDir = join(app.getPath('userData'), 'twitch-chat')
+            const cacheDir = getTwitchChatCacheDir()
             fs.mkdirSync(cacheDir, { recursive: true })
             const base = sanitizeTwitchOutputName(parsed.id || id || 'twitch_chat', 'twitch_chat')
-            const filePath = join(cacheDir, `${base}.json`)
+            const cacheMode = full ? 'full' : 'preview'
+            const memoryKey = `${base}:${cacheMode}`
+            const filePath = join(cacheDir, `${base}.${cacheMode}.json`)
+
+            if (!force && twitchChatMemoryCache.has(memoryKey)) {
+                return {
+                    ok: true,
+                    filePath,
+                    messages: twitchChatMemoryCache.get(memoryKey),
+                    isComplete: full,
+                    previewMinutes: full ? null : TWITCH_CHAT_PREVIEW_MINUTES,
+                    cachePolicy: 'session',
+                }
+            }
 
             if (force || !fs.existsSync(filePath)) {
-                const result = await runProcess(cliPath, [
+                const args = [
                     'chatdownload',
                     '--id', parsed.sourceUrl || parsed.id,
                     '-o', filePath,
+                    '--collision', 'Overwrite',
                     '--banner=false',
-                ], { timeoutMs: 10 * 60 * 1000 })
+                ]
+                if (!full) args.push('--ending', `${TWITCH_CHAT_PREVIEW_MINUTES}m`)
+                const result = await runProcess(cliPath, args, { timeoutMs: 10 * 60 * 1000 })
                 if (result.code !== 0) {
                     return { ok: false, error: (result.stderr || result.stdout || `TwitchDownloaderCLI завершился с кодом ${result.code}`).trim() }
                 }
@@ -1929,7 +1974,15 @@ app.whenReady().then(async () => {
 
             const raw = fs.readFileSync(filePath, 'utf8')
             const messages = parseTwitchChatMessages(raw)
-            return { ok: true, filePath, messages }
+            twitchChatMemoryCache.set(memoryKey, messages)
+            return {
+                ok: true,
+                filePath,
+                messages,
+                isComplete: full,
+                previewMinutes: full ? null : TWITCH_CHAT_PREVIEW_MINUTES,
+                cachePolicy: 'session',
+            }
         } catch (err) {
             return { ok: false, error: err?.message || String(err) }
         }
@@ -1953,7 +2006,7 @@ app.whenReady().then(async () => {
                 outPath = join(resolvedDir, `${base}_chat (${c}).${ext}`)
             }
 
-            const cachePath = join(app.getPath('userData'), 'twitch-chat', `${base}.json`)
+            const cachePath = join(getTwitchChatCacheDir(), `${base}.full.json`)
             if (format === 'txt' && fs.existsSync(cachePath)) {
                 const messages = parseTwitchChatMessages(fs.readFileSync(cachePath, 'utf8'))
                 fs.writeFileSync(outPath, formatTwitchChatText(messages), 'utf8')
@@ -4084,6 +4137,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
     isQuitting = true
+    clearTwitchChatSessionCache()
 })
 
 app.on('window-all-closed', () => {
