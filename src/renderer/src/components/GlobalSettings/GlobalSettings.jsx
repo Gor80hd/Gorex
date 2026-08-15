@@ -29,6 +29,8 @@ export const CODEC_RF = {
     vce_av1:       { high: 20, medium: 28, low: 38, potato: 51, min: 0, max: 51 },
     mf_h264:       { high: 18, medium: 24, low: 32, potato: 51, min: 0, max: 51 },
     mf_h265:       { high: 20, medium: 28, low: 38, potato: 51, min: 0, max: 51 },
+    vt_h264:       { high: 18, medium: 26, low: 42, potato: 70, min: 0, max: 80 },
+    vt_h265:       { high: 20, medium: 28, low: 44, potato: 70, min: 0, max: 80 },
     theora:        { high: 8,  medium: 6,  low: 3,  potato: 0,  min: 0, max: 10 },
     // ── Additional / Legacy / Professional ────────────────────────────────────
     libaom_av1:   { high: 24, medium: 33, low: 45, potato: 63, min: 0, max: 63 },
@@ -102,6 +104,12 @@ const VCE_SPEEDS = [
     { value: 'quality',  label: 'quality',  desc: { ru: 'Лучшее сжатие AMD VCE. Файл на ~10% меньше speed при том же качестве. Рекомендован.', en: 'Best AMD VCE compression. File ~10% smaller than speed at same quality. Recommended.' }, recommended: true },
 ]
 
+const VIDEOTOOLBOX_SPEEDS = [
+    { value: 'quality',  label: 'quality',  desc: { ru: 'Приоритет качества и эффективности сжатия.', en: 'Prioritizes quality and compression efficiency.' } },
+    { value: 'balanced', label: 'balanced', desc: { ru: 'Баланс скорости и качества VideoToolbox. Рекомендован.', en: 'Balanced VideoToolbox speed and quality. Recommended.' }, recommended: true },
+    { value: 'speed',    label: 'speed',    desc: { ru: 'Приоритет скорости и кодирование в реальном времени.', en: 'Prioritizes speed and real-time encoding.' } },
+]
+
 const VP_SPEEDS = [
     { value: 'best',     label: 'best',     desc: { ru: 'Лучшее сжатие VP8/VP9. Файл меньше, кодирование значительно дольше.', en: 'Best VP8/VP9 compression. File smaller, encoding significantly longer.' }, recommended: true },
     { value: 'good',     label: 'good',     desc: { ru: 'Разумный баланс скорости и размера файла.', en: 'Reasonable speed/file size balance.' } },
@@ -155,6 +163,8 @@ export const ENCODER_PRESETS = {
     vce_av1:       VCE_SPEEDS,
     mf_h264:       [{ value: 'default', label: 'default', desc: { ru: 'Единственный пресет. Параметры задаются драйвером.', en: 'Single preset. Parameters are set by the driver.' } }],
     mf_h265:       [{ value: 'default', label: 'default', desc: { ru: 'Единственный пресет. Параметры задаются драйвером.', en: 'Single preset. Parameters are set by the driver.' } }],
+    vt_h264:       VIDEOTOOLBOX_SPEEDS,
+    vt_h265:       VIDEOTOOLBOX_SPEEDS,
     vp8:           VP_SPEEDS,
     vp9:           VP_SPEEDS,
     vp9_10bit:     VP_SPEEDS,
@@ -322,6 +332,7 @@ export const DEFAULT_SETTINGS = {
 
 // ─── GPU-aware defaults ────────────────────────────────────────────────────────
 const GPU_ENCODER_MAP = {
+    apple:  { encoder: 'vt_h265',    encoderSpeed: 'balanced', hwDecoding: 'videotoolbox' },
     nvidia: { encoder: 'nvenc_h264', encoderSpeed: 'p5' },
     amd:    { encoder: 'vce_h264',   encoderSpeed: 'quality' },
     intel:  { encoder: 'qsv_h264',   encoderSpeed: 'balanced' },
@@ -372,6 +383,13 @@ export const ENCODER_GROUPS = [
             { value: 'vp9_10bit',     label: 'VP9 10-bit (libvpx)',   desc: { ru: 'VP9 с расширенным диапазоном цвета.', en: 'VP9 with extended color range.' } },
             { value: 'vp8',           label: 'VP8 (libvpx)',          desc: { ru: 'Устаревший. Рекомендуется только для контейнера WebM.', en: 'Deprecated. Recommended only for WebM container.' } },
             { value: 'theora',        label: 'Theora',                desc: { ru: 'Открытый кодек для OGG. Устарел, не рекомендуется.', en: 'Open codec for OGG container. Deprecated, not recommended.' } },
+        ],
+    },
+    {
+        id: 'videotoolbox', label: 'Apple (VideoToolbox)',
+        encoders: [
+            { value: 'vt_h264', label: 'H.264 VideoToolbox', desc: { ru: 'Нативное аппаратное кодирование H.264 на Apple Silicon. Быстро и совместимо с большинством устройств.', en: 'Native hardware H.264 encoding on Apple Silicon. Fast and widely compatible.' } },
+            { value: 'vt_h265', label: 'H.265 VideoToolbox', desc: { ru: 'Нативное аппаратное кодирование HEVC на Apple Silicon. Меньше файл при высоком качестве.', en: 'Native hardware HEVC encoding on Apple Silicon. Smaller files at high quality.' } },
         ],
     },
     {
@@ -431,14 +449,24 @@ export const ENCODER_GROUPS = [
     },
 ]
 
-// ─── Encoder groups for conversion page (GPU-aware) ───────────────────────────
-export function getConversionEncoderGroups(vendor, showAll, t) {
-    const software   = ENCODER_GROUPS.find(g => g.id === 'software')
-    const nvenc      = ENCODER_GROUPS.find(g => g.id === 'nvenc')
-    const qsv        = ENCODER_GROUPS.find(g => g.id === 'qsv')
-    const vce        = ENCODER_GROUPS.find(g => g.id === 'vce')
+// Platform-specific hardware encoders are not useful on macOS. VideoToolbox is
+// the native hardware path there; software and intermediate codecs stay
+// available on every platform.
+export function getEncoderGroupsForPlatform(platform) {
+    if (platform !== 'darwin') return ENCODER_GROUPS
+    return ENCODER_GROUPS.filter(group => !['nvenc', 'qsv', 'vce', 'mf'].includes(group.id))
+}
 
-    const gpuGroupMap = { nvidia: nvenc, intel: qsv, amd: vce }
+// ─── Encoder groups for conversion page (GPU-aware) ───────────────────────────
+export function getConversionEncoderGroups(vendor, showAll, t, platform = 'unknown') {
+    const platformGroups = getEncoderGroupsForPlatform(platform)
+    const software   = platformGroups.find(g => g.id === 'software')
+    const nvenc      = platformGroups.find(g => g.id === 'nvenc')
+    const qsv        = platformGroups.find(g => g.id === 'qsv')
+    const vce        = platformGroups.find(g => g.id === 'vce')
+    const videotoolbox = platformGroups.find(g => g.id === 'videotoolbox')
+
+    const gpuGroupMap = { apple: videotoolbox, nvidia: nvenc, intel: qsv, amd: vce }
     const gpuGroup = gpuGroupMap[vendor]
 
     const rec = t ? t('recommended') : 'рекомендован'
@@ -456,6 +484,7 @@ export function getConversionEncoderGroups(vendor, showAll, t) {
     if (!showAll) {
         if (gpuGroup) {
             const gpuLabel = {
+                apple:  `Apple VideoToolbox (${rec})`,
                 nvidia: `NVIDIA NVENC (${rec})`,
                 intel:  `Intel QSV (${rec})`,
                 amd:    `AMD VCE (${rec})`,
@@ -470,11 +499,11 @@ export function getConversionEncoderGroups(vendor, showAll, t) {
 
     // showAll = true: GPU group first (with translated label), then the rest
     if (gpuGroup) {
-        const others = ENCODER_GROUPS.filter(g => g !== gpuGroup)
+        const others = platformGroups.filter(g => g !== gpuGroup)
         const translateLabel = (g) => g.labelKey && t ? t(g.labelKey) : g.label
         return [gpuGroup, ...others].map(g => ({ ...g, label: translateLabel(g) }))
     }
-    return ENCODER_GROUPS.map(g => g.labelKey && t ? { ...g, label: t(g.labelKey) } : g)
+    return platformGroups.map(g => g.labelKey && t ? { ...g, label: t(g.labelKey) } : g)
 }
 
 // ─── WebM codec compatibility ─────────────────────────────────────────────────
@@ -488,6 +517,19 @@ export const NO_CRF_ENCODERS = new Set(['ffv1', 'huffyuv', 'prores_ks', 'dnxhd']
 
 // ─── Encoders that support alpha channel (transparency) ──────────────────────
 export const ALPHA_CAPABLE_ENCODERS = new Set(['vp9', 'vp9_10bit', 'ffv1', 'prores_ks', 'libaom_av1'])
+
+// Encoders for which the main process actually applies a second pass or a
+// vendor-specific multipass/lookahead mode. VideoToolbox and MediaFoundation
+// do not expose an equivalent through the FFmpeg options used by Gorex.
+export const MULTI_PASS_ENCODERS = new Set([
+    'x264', 'x264_10bit',
+    'x265', 'x265_10bit', 'x265_12bit',
+    'svt_av1', 'svt_av1_10bit',
+    'vp8', 'vp9', 'vp9_10bit', 'libaom_av1',
+    'nvenc_h264', 'nvenc_h265', 'nvenc_av1',
+    'qsv_h264', 'qsv_h265', 'qsv_av1',
+    'vce_h264', 'vce_h265', 'vce_av1',
+])
 
 // ─── Per-encoder disabled formats ─────────────────────────────────────────────────
 export const ENCODER_DISABLED_FORMATS = {
@@ -511,6 +553,7 @@ export const ENCODER_DISABLED_FORMATS = {
     qsv_h265:     new Set(['av_flv', 'av_ogg', 'av_3gp']),
     vce_h265:     new Set(['av_flv', 'av_ogg', 'av_3gp']),
     mf_h265:      new Set(['av_flv', 'av_ogg', 'av_3gp']),
+    vt_h265:      new Set(['av_flv', 'av_ogg', 'av_3gp']),
     // libaom AV1 — не подходит для legacy/специфичных контейнеров
     libaom_av1:   new Set(['av_avi', 'av_flv', 'av_3gp']),
     // MPEG-4 Part 2 — не работает в WebM и OGG
@@ -576,6 +619,7 @@ function getEncoderHelpText(encoder, t) {
         qsv_h264: 'helpEncQsvH264', qsv_h265: 'helpEncQsvH265', qsv_av1: 'helpEncQsvAv1',
         vce_h264: 'helpEncVceH264', vce_h265: 'helpEncVceH265', vce_av1: 'helpEncVceAv1',
         mf_h264: 'helpEncMfH264', mf_h265: 'helpEncMfH265',
+        vt_h264: 'helpEncVtH264', vt_h265: 'helpEncVtH265',
         libaom_av1: 'helpEncLibaomAv1',
         mpeg4: 'helpEncMpeg4', mpeg2video: 'helpEncMpeg2', mpeg1video: 'helpEncMpeg1',
         prores_ks: 'helpEncProres', dnxhd: 'helpEncDnxhd',
@@ -773,7 +817,7 @@ function Tooltip({ text }) {
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
-function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
+function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor, systemPlatform }) {
     const { t } = useLanguage()
     const [showCustomQuality, setShowCustomQuality] = useState(false)
     const [draftRF, setDraftRF] = useState(settings.customQuality)
@@ -782,7 +826,7 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
     const rfTable = CODEC_RF[settings.encoder] || CODEC_RF.x265
     const speedPresets = ENCODER_PRESETS[settings.encoder] ?? []
     const resOptions = getResolutionOptions(videos, t)
-    const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', showMoreCodecs, t)
+    const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', showMoreCodecs, t, systemPlatform)
     const audioOnly = isAudioOnlyOutputFormat(settings.format)
     const isAudioPassthru = (settings.audioCodec || 'av_aac').startsWith('copy')
 
@@ -828,13 +872,13 @@ function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor }) {
             }
         } else if (fmt === 'av_flv') {
             // FLV: only flv1 or x264 are valid; switch to flv1 if incompatible
-            if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264']).has(settings.encoder)) {
+            if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264']).has(settings.encoder)) {
                 patch.encoder = 'flv1'
                 patch.encoderSpeed = undefined
             }
         } else if (fmt === 'av_3gp') {
             // 3GP: only h263/h263p/h264 are valid
-            if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4']).has(settings.encoder)) {
+            if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264', 'mpeg4']).has(settings.encoder)) {
                 patch.encoder = 'h263p'
                 patch.encoderSpeed = undefined
             }
@@ -1140,6 +1184,8 @@ const COMPRESSION_RATIOS = {
     vce_av1:       [0.55, 0.37, 0.23, 0.11],
     mf_h264:       [0.87, 0.65, 0.41, 0.20],
     mf_h265:       [0.62, 0.43, 0.27, 0.13],
+    vt_h264:       [0.84, 0.61, 0.39, 0.19],
+    vt_h265:       [0.59, 0.40, 0.25, 0.12],
     theora:        [0.90, 0.70, 0.50, 0.24],
     libaom_av1:    [0.48, 0.32, 0.18, 0.08],
     mpeg4:         [0.88, 0.66, 0.44, 0.22],
@@ -1172,6 +1218,8 @@ const SPEED_MULT = {
     vce_h264:   { speed: 1.20, balanced: 1.05, quality: 1.00 },
     vce_h265:   { speed: 1.20, balanced: 1.05, quality: 1.00 },
     vce_av1:    { speed: 1.20, balanced: 1.05, quality: 1.00 },
+    vt_h264:    { speed: 1.12, balanced: 1.00, quality: 0.96 },
+    vt_h265:    { speed: 1.12, balanced: 1.00, quality: 0.96 },
     vp8:        { realtime: 1.30, good: 1.10, best: 1.00 },
     vp9:        { realtime: 1.30, good: 1.10, best: 1.00 },
 }

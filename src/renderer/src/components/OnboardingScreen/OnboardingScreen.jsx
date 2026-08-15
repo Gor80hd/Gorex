@@ -61,12 +61,18 @@ const LABELS = {
 }
 
 const GPU_META = {
+    apple:  { label: 'Apple Silicon', color: '#a3a3a3' },
     nvidia: { label: 'NVIDIA', color: '#76b900' },
     amd:    { label: 'AMD',    color: '#ed1c24' },
     intel:  { label: 'Intel',  color: '#0071c5' },
 }
 
 const CODEC_OPTIONS = {
+    apple: [
+        { value: 'vt_h265', label: 'H.265 VideoToolbox', desc: { en: 'Native hardware HEVC on Apple Silicon. Fast and efficient.', ru: 'Нативный аппаратный HEVC на Apple Silicon. Быстро и эффективно.' }, recommended: true },
+        { value: 'vt_h264', label: 'H.264 VideoToolbox', desc: { en: 'Native hardware H.264 with maximum device compatibility.', ru: 'Нативный аппаратный H.264 с максимальной совместимостью.' } },
+        { value: 'x265',    label: 'H.265 (x265)', desc: { en: 'Software H.265. Better compression quality, significantly slower.', ru: 'Программный H.265. Лучше сжатие, значительно медленнее.' } },
+    ],
     nvidia: [
         { value: 'nvenc_h265', label: 'H.265 NVENC', desc: { en: 'GPU-accelerated H.265. 10–20× faster than software encoding.', ru: 'H.265 на GPU NVIDIA. В 10–20× быстрее программного кодирования.' }, recommended: true },
         { value: 'nvenc_h264', label: 'H.264 NVENC', desc: { en: 'GPU-accelerated H.264. Maximum device compatibility.', ru: 'H.264 на GPU NVIDIA. Максимальная совместимость с устройствами.' } },
@@ -112,7 +118,7 @@ const SLIDES = {
             sub: 'Gorex gets out of the way and lets your hardware do the work.',
             points: [
                 { icon: 'bi-cpu',            text: 'Low-level libraries under the hood — the fastest encoding tools that exist' },
-                { icon: 'bi-gpu-card',       text: 'Direct hardware access — GPU encoding via NVENC, QSV and AMF' },
+                { icon: 'bi-gpu-card',       text: 'Direct hardware access — GPU encoding via VideoToolbox, NVENC, QSV and AMF' },
                 { icon: 'bi-sliders',        text: 'You choose the speed — pick a preset from fastest to best quality' },
             ],
         },
@@ -172,7 +178,7 @@ const SLIDES = {
             sub: 'Gorex уходит в сторону и даёт железу делать своё дело.',
             points: [
                 { icon: 'bi-cpu',       text: 'Низкоуровневые библиотеки под капотом — самые быстрые инструменты кодирования из существующих' },
-                { icon: 'bi-gpu-card',  text: 'Прямая работа с железом — GPU-кодирование через NVENC, QSV и AMF' },
+                { icon: 'bi-gpu-card',  text: 'Прямая работа с железом — GPU-кодирование через VideoToolbox, NVENC, QSV и AMF' },
                 { icon: 'bi-sliders',   text: 'Скорость выбираешь ты — от максимальной скорости до лучшего качества' },
             ],
         },
@@ -278,8 +284,10 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
 
     useEffect(() => {
         window.api.getGpuInfo().then(info => {
-            setGpuInfo(info)
-            const vendor = info?.vendor || 'unknown'
+            const vendor = info?.accelerationVendor
+                || (window.api.platform === 'darwin' ? 'apple' : info?.vendor)
+                || 'unknown'
+            setGpuInfo({ ...info, vendor })
             const opts = CODEC_OPTIONS[vendor] || CODEC_OPTIONS.unknown
             const rec = opts.find(o => o.recommended) || opts[0]
             setSelectedEncoder(rec?.value || null)
@@ -297,7 +305,8 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
     const slideIndex = isSlide ? step - 2 : 0
     const vendor = gpuInfo?.vendor || 'unknown'
     const codecOpts = CODEC_OPTIONS[vendor] || CODEC_OPTIONS.unknown
-    const gpuName = gpuInfo?.gpus?.[0]?.name || GPU_META[vendor]?.label || null
+    const firstGpu = gpuInfo?.gpus?.[0]
+    const gpuName = (typeof firstGpu === 'string' ? firstGpu : firstGpu?.name) || GPU_META[vendor]?.label || null
     const slide = isSlide ? slides[slideIndex] : null
 
     const go = (nextStep) => {

@@ -9,8 +9,11 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "pack": "electron-vite build && electron-builder --dir",
+    "pack:mac": "electron-vite build && electron-builder --mac --arm64 --dir",
     "predist": "node build/create-installer-bitmaps.js",
     "dist": "electron-vite build && electron-builder",
+    "dist:mac": "electron-vite build && electron-builder --mac dmg zip --arm64",
+    "dist:win": "electron-vite build && electron-builder --win nsis --x64",
     "installer-assets": "node build/create-installer-bitmaps.js",
     "make-installer": "node build/make-installer.js",
     "installer:start": "cd installer && electron ."
@@ -20,8 +23,8 @@
     "@electron-toolkit/utils": "^3.0.0",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "bootstrap-icons": "^1.13.1",
+    "@derhuerst/ffprobe-static": "5.3.0",
     "ffmpeg-static": "^5.3.0",
-    "ffprobe-static": "^3.1.0",
     "fluent-ffmpeg": "^2.1.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
@@ -39,12 +42,12 @@
     "productName": "Gorex",
     "icon": "resources/icon.png",
     "asarUnpack": [
-      "node_modules/ffmpeg-static/**",
-      "node_modules/ffprobe-static/**"
+      "node_modules/@derhuerst/ffprobe-static/**",
+      "node_modules/ffmpeg-static/**"
     ],
     "files": [
       "out/**",
-      "resources/**",
+      "resources/icon.png",
       "!installer/**",
       "!dist/**",
       "!build/**",
@@ -56,11 +59,42 @@
       "extraFiles": [
         {
           "from": "resources/ytdl",
-          "to": "resources/ytdl"
+          "to": "resources/ytdl",
+          "filter": [
+            "**/*",
+            "!yt-dlp_macos"
+          ]
         },
         {
           "from": "resources/twitch",
           "to": "resources/twitch"
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.video",
+      "minimumSystemVersion": "11.0.0",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "artifactName": "${productName}-${version}-macOS-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "resources/ytdl/yt-dlp_macos",
+          "to": "ytdl/yt-dlp_macos"
         }
       ]
     },

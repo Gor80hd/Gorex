@@ -53,6 +53,18 @@ test('selects the CLI release asset for the current platform', () => {
     assert.equal(selectTwitchDownloaderAsset(release, 'win32', 'x64').browser_download_url, 'win')
 })
 
+test('selects Apple Silicon CLI assets without falling back to another OS', () => {
+    const release = {
+        assets: [
+            { name: 'TwitchDownloaderCLI-1.56.4-Linux-arm64.zip', browser_download_url: 'linux-arm' },
+            { name: 'TwitchDownloaderCLI-1.56.4-MacOS-arm64.zip', browser_download_url: 'mac-arm' },
+        ],
+    }
+
+    assert.equal(selectTwitchDownloaderAsset(release, 'darwin', 'arm64').browser_download_url, 'mac-arm')
+    assert.equal(selectTwitchDownloaderAsset({ assets: release.assets.slice(0, 1) }, 'darwin', 'arm64'), null)
+})
+
 test('compares TwitchDownloader versions', () => {
     assert.equal(normalizeTwitchVersion('TwitchDownloaderCLI 1.56.4+7e8b587c9c57e660bf53bbdd9bc11ad5d25dc1d8'), '1.56.4')
     assert.equal(compareTwitchVersions('TwitchDownloaderCLI 1.56.4', '1.56.3'), 1)

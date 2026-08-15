@@ -585,7 +585,7 @@ function getYtdlResourceDir() {
     if (is.dev) {
         return join(app.getAppPath(), 'resources', 'ytdl')
     }
-    return join(dirname(process.execPath), 'resources', 'ytdl')
+    return join(process.resourcesPath, 'ytdl')
 }
 
 function getBundledYtdlPath() {
@@ -635,7 +635,7 @@ function getTwitchResourceDir() {
     if (is.dev) {
         return join(app.getAppPath(), 'resources', 'twitch')
     }
-    return join(dirname(process.execPath), 'resources', 'twitch')
+    return join(process.resourcesPath, 'twitch')
 }
 
 function getBundledTwitchPath() {
@@ -1313,16 +1313,43 @@ async function updateYtdlBinary(progressTarget = null) {
     }
 }
 
-// ─── ffmpeg binary resolver (bundled alongside yt-dlp) ──────────────────────────────────
-function getFfmpegPath() {
-    const bin = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
-    return join(getYtdlResourceDir(), bin)
+function getStaticPackageBinary(packageName) {
+    try {
+        const imported = require(packageName)
+        const packagePath = typeof imported === 'string' ? imported : imported?.path
+        if (!packagePath) return ''
+
+        // Native executables are unpacked by electron-builder and cannot be spawned
+        // from app.asar. Package entry points still resolve to their app.asar path.
+        return packagePath.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1')
+    } catch {
+        return ''
+    }
 }
 
-// ─── ffprobe binary resolver (same dir as ffmpeg) ───────────────────────────────────────
+function preferExistingBinary(primaryPath, fallbackPath) {
+    const fs = require('fs')
+    if (primaryPath && fs.existsSync(primaryPath)) return primaryPath
+    if (fallbackPath && fs.existsSync(fallbackPath)) return fallbackPath
+    return primaryPath || fallbackPath
+}
+
+// ─── ffmpeg binary resolver ──────────────────────────────────────────────────────────────
+function getFfmpegPath() {
+    const bin = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+    return preferExistingBinary(
+        join(getYtdlResourceDir(), bin),
+        getStaticPackageBinary('ffmpeg-static'),
+    )
+}
+
+// ─── ffprobe binary resolver ─────────────────────────────────────────────────────────────
 function getFfprobePath() {
     const bin = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe'
-    return join(getYtdlResourceDir(), bin)
+    return preferExistingBinary(
+        join(getYtdlResourceDir(), bin),
+        getStaticPackageBinary('@derhuerst/ffprobe-static'),
+    )
 }
 
 // ─── SponsorBlock: keyframe-aligned manual cutting ──────────────────────────────────────
@@ -1527,6 +1554,9 @@ function getDownloadDir(customOutputDir) {
     if (customOutputDir) return customOutputDir
     const s = readAppSettings()
     if (s.defaultOutputDir) return s.defaultOutputDir
+    // A macOS .app bundle is not a writable data directory. Keep default output
+    // in the user's Movies folder instead of Contents/MacOS/Downloaded.
+    if (process.platform === 'darwin') return app.getPath('videos')
     if (is.dev) {
         return join(app.getAppPath(), 'Downloaded')
     }
@@ -1596,8 +1626,8 @@ app.whenReady().then(async () => {
     protocol.handle('gorex-media', async (request) => {
         try {
             const urlPath = decodeURIComponent(new URL(request.url).pathname)
-            // On Windows /E:/path → E:/path
-            const filePath = urlPath.replace(/^\//, '')
+            // On Windows /E:/path → E:/path. POSIX paths must keep their root slash.
+            const filePath = process.platform === 'win32' ? urlPath.replace(/^\//, '') : urlPath
 
             if (!existsSync(filePath)) return new Response('Not found', { status: 404 })
 
@@ -1660,7 +1690,7 @@ app.whenReady().then(async () => {
         const fluentFfmpeg = require('fluent-ffmpeg')
 
         const ffmpegBin = getFfmpegPath()
-        const ffprobeBin = join(require('path').dirname(ffmpegBin), process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe')
+        const ffprobeBin = getFfprobePath()
 
         if (_fs.existsSync(ffmpegBin)) {
             fluentFfmpeg.setFfmpegPath(ffmpegBin)
@@ -1675,7 +1705,7 @@ app.whenReady().then(async () => {
             fluentFfmpeg.setFfprobePath(ffprobeBin)
         } else {
             try {
-                const ffprobeStatic = require('ffprobe-static')
+                const ffprobeStatic = require('@derhuerst/ffprobe-static')
                 const p = ffprobeStatic && (ffprobeStatic.path || ffprobeStatic)
                 if (p && _fs.existsSync(p)) fluentFfmpeg.setFfprobePath(p)
             } catch (_) {}
@@ -3079,6 +3109,8 @@ app.whenReady().then(async () => {
         vce_av1:       { high: 20, medium: 28, low: 38, potato: 51, lossless: 0  },
         mf_h264:       { high: 18, medium: 24, low: 32, potato: 51, lossless: 0  },
         mf_h265:       { high: 20, medium: 28, low: 38, potato: 51, lossless: 0  },
+        vt_h264:       { high: 18, medium: 26, low: 42, potato: 70, lossless: 0  },
+        vt_h265:       { high: 20, medium: 28, low: 44, potato: 70, lossless: 0  },
         theora:        { high: 8,  medium: 6,  low: 3,  potato: 0,  lossless: 10 },
         libaom_av1:    { high: 24, medium: 33, low: 45, potato: 63, lossless: 0  },
         mpeg4:         { high: 3,  medium: 8,  low: 18, potato: 31, lossless: 1  },
@@ -3119,6 +3151,8 @@ app.whenReady().then(async () => {
         vce_av1:       'av1_amf',
         mf_h264:       'h264_mf',
         mf_h265:       'hevc_mf',
+        vt_h264:       'h264_videotoolbox',
+        vt_h265:       'hevc_videotoolbox',
         theora:        'libtheora',
         // ── Additional / Legacy / Professional ─────────────────────────────────────────────────
         libaom_av1:    'libaom-av1',
@@ -3205,6 +3239,8 @@ app.whenReady().then(async () => {
             args.push('-hwaccel', 'nvdec')
         } else if (!audioOnlyConfig && settings.hwDecoding === 'qsv') {
             args.push('-hwaccel', 'qsv')
+        } else if (!audioOnlyConfig && settings.hwDecoding === 'videotoolbox') {
+            args.push('-hwaccel', 'videotoolbox')
         }
 
         // ── Input-side time seeking (fast, keyframe-accurate) ───────────────────────
@@ -3262,8 +3298,8 @@ app.whenReady().then(async () => {
         // ── Video codec ─────────────────────────────────────────────────────────────
         const WEBM_VIDEO = new Set(['vp8', 'vp9', 'vp9_10bit', 'svt_av1', 'svt_av1_10bit', 'nvenc_av1', 'qsv_av1', 'vce_av1', 'libaom_av1'])
         const OGG_VIDEO  = new Set(['theora', 'vp8', 'vp9', 'vp9_10bit'])
-        const FLV_VIDEO  = new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264'])
-        const GP3_VIDEO  = new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4'])
+        const FLV_VIDEO  = new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264'])
+        const GP3_VIDEO  = new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264', 'mpeg4'])
         let encoder = settings.encoder || 'x265'
         if (settings.format === 'av_webm' && !WEBM_VIDEO.has(encoder)) encoder = 'vp9'
         if (settings.format === 'av_ogg'  && !OGG_VIDEO.has(encoder))  encoder = 'theora'
@@ -3283,7 +3319,7 @@ app.whenReady().then(async () => {
             // sources (e.g. VP9 Profile 2 / H.265 Main10) don't cause "10 bit encode
             // not supported" failures at runtime.
             const EIGHT_BIT_ONLY_CODECS = new Set([
-                'libx264', 'h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_mf',
+                'libx264', 'h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_mf', 'h264_videotoolbox',
                 'libvpx', 'libtheora',
                 'mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263', 'h263p', 'flv',
             ])
@@ -3302,6 +3338,12 @@ app.whenReady().then(async () => {
                 args.push('-preset', settings.encoderSpeed)
             } else if (['h264_amf', 'hevc_amf', 'av1_amf'].includes(ffCodec)) {
                 args.push('-quality', settings.encoderSpeed)
+            } else if (['h264_videotoolbox', 'hevc_videotoolbox'].includes(ffCodec)) {
+                if (settings.encoderSpeed === 'quality') {
+                    args.push('-prio_speed', '0')
+                } else if (settings.encoderSpeed === 'speed') {
+                    args.push('-realtime', '1', '-prio_speed', '1')
+                }
             } else if (['libvpx', 'libvpx-vp9'].includes(ffCodec)) {
                 args.push('-deadline', settings.encoderSpeed)
             } else if (ffCodec === 'libaom-av1') {
@@ -3343,6 +3385,10 @@ app.whenReady().then(async () => {
             args.push('-rc', 'qvbr', '-qvbr_quality_level', String(rfValue))
         } else if (['h264_mf', 'hevc_mf'].includes(ffCodec)) {
             args.push('-q', String(rfValue))
+        } else if (['h264_videotoolbox', 'hevc_videotoolbox'].includes(ffCodec)) {
+            // VideoToolbox uses a 1–100 quality scale where higher is better.
+            // Gorex stores RF-like values where lower is better, so invert it.
+            args.push('-q:v', String(Math.max(1, 100 - rfValue)), '-allow_sw', '1')
         } else if (ffCodec === 'libtheora') {
             args.push('-q:v', String(rfValue))
         } else if (['mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263', 'h263p', 'flv'].includes(ffCodec)) {
@@ -3386,7 +3432,7 @@ app.whenReady().then(async () => {
         // Dynamic HDR metadata (HDR10+, Dolby Vision) is only meaningful for codecs
         // that can output at least 10-bit colour depth.
         const HDR_CAPABLE_CODECS = new Set([
-            'libx265',   'hevc_nvenc', 'hevc_qsv',  'hevc_amf',
+            'libx265',   'hevc_nvenc', 'hevc_qsv',  'hevc_amf', 'hevc_videotoolbox',
             'libsvtav1', 'av1_nvenc',  'av1_qsv',   'av1_amf', 'libaom-av1',
             'libvpx-vp9', 'ffv1', 'prores_ks', 'dnxhd',
         ])
@@ -3984,7 +4030,11 @@ app.whenReady().then(async () => {
     ipcMain.on('pause-all-cli', () => {
         for (const { child } of activeJobs.values()) {
             if (child.pid) {
-                exec(`powershell -Command "Suspend-Process -Id ${child.pid}"`)
+                if (process.platform === 'win32') {
+                    exec(`powershell -Command "Suspend-Process -Id ${child.pid}"`)
+                } else {
+                    try { child.kill('SIGSTOP') } catch {}
+                }
             }
         }
     })
@@ -3992,20 +4042,25 @@ app.whenReady().then(async () => {
     ipcMain.on('resume-all-cli', () => {
         for (const { child } of activeJobs.values()) {
             if (child.pid) {
-                exec(`powershell -Command "Resume-Process -Id ${child.pid}"`)
+                if (process.platform === 'win32') {
+                    exec(`powershell -Command "Resume-Process -Id ${child.pid}"`)
+                } else {
+                    try { child.kill('SIGCONT') } catch {}
+                }
             }
         }
     })
 
     ipcMain.handle('get-gpu-info', async () => {
-        const VENDOR_LABELS = { nvidia: 'NVIDIA', amd: 'AMD', intel: 'Intel' }
-        const priority = { nvidia: 3, amd: 2, intel: 1, unknown: 0 }
+        const VENDOR_LABELS = { apple: 'Apple', nvidia: 'NVIDIA', amd: 'AMD', intel: 'Intel' }
+        const priority = { apple: 4, nvidia: 3, amd: 2, intel: 1, unknown: 0 }
 
         const vendorOfName = (n) => {
             n = n.toLowerCase()
             if (n.includes('nvidia')) return 'nvidia'
             if (n.includes('amd') || n.includes('radeon')) return 'amd'
             if (n.includes('intel')) return 'intel'
+            if (n.includes('apple')) return 'apple'
             return 'unknown'
         }
 
@@ -4071,7 +4126,7 @@ app.whenReady().then(async () => {
 
         // If names yielded nothing, try Electron's built-in GPU info (PCI IDs)
         if (finalVendor === 'unknown') {
-            const VENDOR_IDS = { 4318: 'nvidia', 4098: 'amd', 32902: 'intel' } // 0x10DE, 0x1002, 0x8086
+            const VENDOR_IDS = { 4203: 'apple', 4318: 'nvidia', 4098: 'amd', 32902: 'intel' } // 0x106B, 0x10DE, 0x1002, 0x8086
             try {
                 const info = await app.getGPUInfo('basic')
                 const devices = info.gpuDevice || []
@@ -4093,7 +4148,15 @@ app.whenReady().then(async () => {
             || gpuList[0]
             || null
 
-        return { gpus: gpuList, vendor: finalVendor, primaryGpu }
+        return {
+            gpus: gpuList,
+            vendor: finalVendor,
+            // macOS uses VideoToolbox for hardware encode/decode even on Intel
+            // Macs; QSV is not the native FFmpeg acceleration path there.
+            accelerationVendor: process.platform === 'darwin' ? 'apple' : finalVendor,
+            platform: process.platform,
+            primaryGpu,
+        }
     })
 
     // Inject a Referer header for all YouTube requests so the embedded player

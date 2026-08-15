@@ -13,7 +13,7 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 - **Local file conversion** — drag files into the window or pick them via a dialog, configure encoding settings, and start the queue.
 - **Download & convert from the web** — paste a link from YouTube, TikTok, Twitter/X, Instagram, VK, Reddit, Twitch, Vimeo, Rutube, and dozens of other services. Gorex downloads the video and can convert it on the fly.
 - **Flexible encoding settings**:
-  - Video codecs: H.264, H.265/HEVC, AV1 (SVT-AV1), VP8, VP9 — software and hardware (NVIDIA NVENC, Intel QSV, AMD VCE/AMF, MediaFoundation).
+  - Video codecs: H.264, H.265/HEVC, AV1 (SVT-AV1), VP8, VP9 — software and hardware (Apple VideoToolbox, NVIDIA NVENC, Intel QSV, AMD VCE/AMF, MediaFoundation).
   - Full control over quality (RF/CQ), encoding speed, resolution, FPS, crop modes, and deinterlacing.
   - Audio codecs: AAC, HE-AAC, MP3, AC-3, E-AC-3, Vorbis, Opus, FLAC, passthru.
   - Subtitle and HDR metadata support.
@@ -54,7 +54,7 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
 - **Node.js** ≥ 18
 - **npm** ≥ 9
-- **Windows 10/11** (primary platform; macOS support in progress)
+- **Windows 10/11**, or **macOS 11+ on Apple Silicon**
 
 ---
 
@@ -80,13 +80,21 @@ The app window will open. Changes in `src/renderer` are applied instantly via Ho
 
 ```bash
 # Compile only (no installer)
-npm run pack
+npm run build
 
 # Full build with NSIS installer for Windows
-npm run dist
+npm run dist:win
+
+# Apple Silicon .app only
+npm run pack:mac
+
+# Apple Silicon DMG + ZIP
+npm run dist:mac
 ```
 
-The built installer will appear in the `dist/` folder.
+Build artifacts appear in the `dist/` folder. macOS builds made without an installed
+Developer ID certificate are ad-hoc signed for local testing; public releases should
+also be signed and notarized with Apple credentials.
 
 ---
 

@@ -3,6 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const api = {
+    platform: process.platform,
     runCli: (args) => ipcRenderer.send('run-cli', args),
     stopAll: () => ipcRenderer.send('stop-all-cli'),
     pauseAll: () => ipcRenderer.send('pause-all-cli'),

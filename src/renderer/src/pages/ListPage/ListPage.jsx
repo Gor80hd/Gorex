@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import './ListPage.scss'
-import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, ENCODER_GROUPS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS, NO_CRF_ENCODERS, ALPHA_CAPABLE_ENCODERS, getAudioFormatDefaults, getFormatOptionGroups, isAudioOnlyOutputFormat, isAudioCodecCompatibleWithFormat, normalizeEncoderSettings } from '../../components/GlobalSettings/GlobalSettings'
+import GlobalSettings, { GsSelect, estimateOutputSize, CODEC_RF, ENCODER_PRESETS, WEBM_COMPATIBLE_ENCODERS, WEBM_COMPATIBLE_AUDIO, ENCODER_DISABLED_FORMATS, NO_CRF_ENCODERS, ALPHA_CAPABLE_ENCODERS, MULTI_PASS_ENCODERS, getEncoderGroupsForPlatform, getAudioFormatDefaults, getFormatOptionGroups, isAudioOnlyOutputFormat, isAudioCodecCompatibleWithFormat, normalizeEncoderSettings } from '../../components/GlobalSettings/GlobalSettings'
 import { useLanguage } from '../../i18n'
 
 const EIGHT_BIT_ONLY_ENCODERS = new Set([
     'x264', 'x264_10bit',
-    'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264',
+    'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264',
     'vp8', 'theora',
     'mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263p', 'h263', 'flv1',
 ])
@@ -241,6 +241,7 @@ const ENCODER_SHORT = {
     qsv_h264: 'H.264 QSV', qsv_h265: 'H.265 QSV', qsv_av1: 'AV1 QSV',
     vce_h264: 'H.264 VCE', vce_h265: 'H.265 VCE', vce_av1: 'AV1 VCE',
     mf_h264: 'H.264 MF', mf_h265: 'H.265 MF',
+    vt_h264: 'H.264 VideoToolbox', vt_h265: 'H.265 VideoToolbox',
     theora: 'Theora',
     libaom_av1: 'AV1 libaom',
     mpeg4: 'MPEG-4', mpeg2video: 'MPEG-2', mpeg1video: 'MPEG-1',
@@ -830,8 +831,28 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
 // ─── Panel-scoped select (always opens downward) ───────────────────────────
 const PanelSelect = (props) => <GsSelect direction="down" {...props} />
 
+function normalizeSettingsForPlatform(settings, platform) {
+    const availableEncoders = platform === 'darwin'
+        ? new Set(getEncoderGroupsForPlatform(platform).flatMap(group => group.encoders.map(encoder => encoder.value)))
+        : null
+    const hasSupportedEncoder = !availableEncoders || availableEncoders.has(settings.encoder)
+    const platformSettings = {
+        ...settings,
+        ...(platform === 'darwin' ? { hwDecoding: 'videotoolbox' } : {}),
+        ...(!hasSupportedEncoder
+            ? { encoder: 'vt_h265', encoderSpeed: 'balanced', multiPass: false }
+            : {}),
+    }
+    const supportsMultiPass = MULTI_PASS_ENCODERS.has(platformSettings.encoder)
+        && !(platformSettings.quality === 'lossless' && (platformSettings.encoder || '').startsWith('nvenc_'))
+    return normalizeEncoderSettings({
+        ...platformSettings,
+        ...(!supportsMultiPass ? { multiPass: false } : {}),
+    })
+}
+
 // ─── Video Settings Panel ──────────────────────────────────────────────────────
-function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange, onLocalClipChange, onOpenSettings }) {
+function VideoSettingsPanel({ video, globalSettings, systemPlatform, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange, onLocalClipChange, onOpenSettings }) {
     const { t } = useLanguage()
     const VSP_TABS = [
         { id: 'video',     label: t('tabVideo'),     icon: 'bi-camera-video' },
@@ -850,7 +871,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     ]
     const isYtdl = !!video.isYtdlItem
     const tabs = isYtdl ? VSP_TABS_YTDL : VSP_TABS
-    const [draft, setDraft] = useState(() => normalizeEncoderSettings({
+    const [draft, setDraft] = useState(() => normalizeSettingsForPlatform({
         ...(video.customSettings || video.conversionSettings || { ...globalSettings }),
         noAudio: (video.customSettings || video.conversionSettings || {}).noAudio ?? false,
         _ytdlNoAudio:       video.ytdlNoAudio       ?? false,
@@ -876,7 +897,7 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
         _ytdlAudioFormat:        video.ytdlAudioFormat        ?? 'best',
         _ytdlSponsorBlock:       video.ytdlSponsorBlock       ?? false,
         _ytdlSponsorBlockCats:   video.ytdlSponsorBlockCats   ?? ['sponsor'],
-    }))
+    }, systemPlatform))
     const [activeTab, setActiveTab] = useState(isYtdl ? 'download' : 'video')
     const audioOnly = isAudioOnlyOutputFormat(draft.format)
 
@@ -885,6 +906,10 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             setActiveTab('audio')
         }
     }, [audioOnly, activeTab])
+
+    useEffect(() => {
+        setDraft(prev => normalizeSettingsForPlatform(prev, systemPlatform))
+    }, [systemPlatform])
 
     const update = (key, val) => setDraft(prev => ({ ...prev, [key]: val }))
 
@@ -927,12 +952,12 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                 patch.audioCodec = 'vorbis'
             }
         } else if (fmt === 'av_flv') {
-            if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264']).has(draft.encoder)) {
+            if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264']).has(draft.encoder)) {
                 patch.encoder = 'flv1'
                 patch.encoderSpeed = undefined
             }
         } else if (fmt === 'av_3gp') {
-            if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4']).has(draft.encoder)) {
+            if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264', 'mpeg4']).has(draft.encoder)) {
                 patch.encoder = 'h263p'
                 patch.encoderSpeed = undefined
             }
@@ -958,8 +983,11 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
     const rfTable = CODEC_RF[draft.encoder] || CODEC_RF.x265
     const speedPresets = ENCODER_PRESETS[draft.encoder] ?? []
     const isPassthru = (draft.audioCodec || 'av_aac').startsWith('copy')
-    const isHWEncoder = ['nvenc_', 'qsv_', 'vce_', 'mf_'].some(p => (draft.encoder || '').startsWith(p))
-    const encoderGroups = ENCODER_GROUPS.map(g => ({
+    const isHWEncoder = ['nvenc_', 'qsv_', 'vce_', 'mf_', 'vt_'].some(p => (draft.encoder || '').startsWith(p))
+    const isMac = systemPlatform === 'darwin'
+    const supportsMultiPass = MULTI_PASS_ENCODERS.has(draft.encoder)
+        && !(draft.quality === 'lossless' && (draft.encoder || '').startsWith('nvenc_'))
+    const encoderGroups = getEncoderGroupsForPlatform(systemPlatform).map(g => ({
         label: g.labelKey ? t(g.labelKey) : g.label,
         options: g.encoders.map(e => ({ value: e.value, label: e.label, desc: e.desc }))
     }))
@@ -985,9 +1013,9 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
             }
             // Strip internal flags before persisting as conversionSettings
             const { _convertAfterDownload: _, _ytdlNoAudio: __, _ytdlDownloadSubs: ___, _ytdlAutoSubs: ____, _ytdlSubLangs: _____, _ytdlSubFormat: ______, _ytdlAudioFormat: _______, _ytdlSponsorBlock: ________, _ytdlSponsorBlockCats: _________, ...cleanDraft } = draft
-            onSave(video.id, normalizeEncoderSettings(cleanDraft))
+            onSave(video.id, normalizeSettingsForPlatform(cleanDraft, systemPlatform))
         } else {
-            onSave(video.id, normalizeEncoderSettings(draft))
+            onSave(video.id, normalizeSettingsForPlatform(draft, systemPlatform))
         }
         onClose()
     }
@@ -1409,21 +1437,28 @@ function VideoSettingsPanel({ video, globalSettings, onClose, onSave, onReset, o
                                     />
                                 </VspRow>
 
-                                <VspSectionHeader icon="bi-lightning-charge" title={t('sectionHwAccel')} />
-                                <VspRow label={t('rowHwDecoding')} hint={t('hintHwDecodingVsp')}>
-                                    <PanelSelect
-                                        value={draft.hwDecoding || 'none'}
-                                        options={[
-                                            { value: 'none',  label: t('hwDecodingNone') },
-                                            { value: 'nvdec', label: 'NVDEC (NVIDIA)' },
-                                            { value: 'qsv',   label: 'Quick Sync (Intel)' },
-                                        ]}
-                                        onChange={v => update('hwDecoding', v)}
-                                    />
-                                </VspRow>
-                                <VspRow label={t('rowMultiPass')} hint={t('hintMultiPass')}>
-                                    <VspToggle value={!!draft.multiPass} onChange={v => update('multiPass', v)} />
-                                </VspRow>
+                                {(!isMac || supportsMultiPass) && (
+                                    <VspSectionHeader icon="bi-lightning-charge" title={t('sectionHwAccel')} />
+                                )}
+                                {!isMac && (
+                                    <VspRow label={t('rowHwDecoding')} hint={t('hintHwDecodingVsp')}>
+                                        <PanelSelect
+                                            value={draft.hwDecoding || 'none'}
+                                            options={[
+                                                { value: 'none',  label: t('hwDecodingNone') },
+                                                { value: 'videotoolbox', label: 'VideoToolbox (Apple)' },
+                                                { value: 'nvdec', label: 'NVDEC (NVIDIA)' },
+                                                { value: 'qsv',   label: 'Quick Sync (Intel)' },
+                                            ]}
+                                            onChange={v => update('hwDecoding', v)}
+                                        />
+                                    </VspRow>
+                                )}
+                                {supportsMultiPass && (
+                                    <VspRow label={t('rowMultiPass')} hint={t('hintMultiPass')}>
+                                        <VspToggle value={!!draft.multiPass} onChange={v => update('multiPass', v)} />
+                                    </VspRow>
+                                )}
 
                                 {/* ── Time trim for local file conversion ── */}
                                 {!isYtdl && !audioOnly && (video.durationSecs || 0) > 0 && (
@@ -1782,7 +1817,7 @@ function ListPage({
     twitchChannelPicker, onTwitchAddChannelVideos, onTwitchCloseChannelPicker, onTwitchOpenChat, onTwitchConvertToggle, onTwitchQualityChange,
     onLocalClipChange,
     isDraggingOnList, onListDragEnter, onListDragLeave, onListDragOver, onListDrop,
-    gpuVendor, encodingStartTime, onOpenSettings, onOpenOutputLocation
+    gpuVendor, systemPlatform, encodingStartTime, onOpenSettings, onOpenOutputLocation
 }) {
     const [editingId, setEditingId] = useState(null)
     const [editingValue, setEditingValue] = useState('')
@@ -2454,6 +2489,7 @@ function ListPage({
                         videos={videos.filter(v => !isDownloadVideo(v))}
                         disabled={isEncoding || !globalSettingsActive}
                         gpuVendor={gpuVendor}
+                        systemPlatform={systemPlatform}
                     />
                 </div>
 
@@ -2566,6 +2602,7 @@ function ListPage({
                 <VideoSettingsPanel
                     video={editingVideo}
                     globalSettings={settings}
+                    systemPlatform={systemPlatform}
                     onClose={() => setEditingVideoId(null)}
                     onSave={isDownloadVideo(editingVideo) ? onYtdlConversionSettings : onVideoSettingsChange}
                     onReset={(id) => isDownloadVideo(editingVideo) ? onYtdlConversionSettings(id, null) : onVideoSettingsChange(id, null)}

@@ -4,7 +4,6 @@ import {
     DEFAULT_SETTINGS,
     CODEC_RF,
     ENCODER_PRESETS,
-    ENCODER_GROUPS,
     initDefaultSettings,
     getDefaultSettingsForGpu,
     WEBM_COMPATIBLE_ENCODERS,
@@ -12,6 +11,8 @@ import {
     ENCODER_DISABLED_FORMATS,
     NO_CRF_ENCODERS,
     ALPHA_CAPABLE_ENCODERS,
+    MULTI_PASS_ENCODERS,
+    getEncoderGroupsForPlatform,
     normalizeEncoderSettings,
 } from '../../components/GlobalSettings/GlobalSettings'
 import { useLanguage } from '../../i18n'
@@ -47,6 +48,7 @@ const AUDIO_CODECS = [
 
 // ─── GPU vendor → primary encoder groups ─────────────────────────────────────
 const GPU_VENDOR_LABEL = {
+    apple:  { label: 'Apple',  icon: 'bi-cpu',      color: '#a3a3a3' },
     nvidia: { label: 'NVIDIA', icon: 'bi-gpu-card', color: '#76b900' },
     amd:    { label: 'AMD',    icon: 'bi-gpu-card', color: '#ed1c24' },
     intel:  { label: 'Intel',  icon: 'bi-gpu-card', color: '#0071c5' },
@@ -55,6 +57,7 @@ const GPU_VENDOR_LABEL = {
 
 function getGpuMeta(gpuName) {
     const n = gpuName.toLowerCase()
+    if (n.includes('apple')) return GPU_VENDOR_LABEL.apple
     if (n.includes('nvidia')) return GPU_VENDOR_LABEL.nvidia
     if (n.includes('amd') || n.includes('radeon')) return GPU_VENDOR_LABEL.amd
     if (n.includes('intel')) return GPU_VENDOR_LABEL.intel
@@ -63,7 +66,7 @@ function getGpuMeta(gpuName) {
 
 const EIGHT_BIT_ONLY_ENCODERS = new Set([
     'x264', 'x264_10bit',
-    'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264',
+    'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264',
     'vp8', 'theora',
     'mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263p', 'h263', 'flv1',
 ])
@@ -268,7 +271,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     const { t, lang, setLang } = useLanguage()
     const [activeSection, setActiveSection] = useState(initialTab || 'app')
     const [savedFlash, setSavedFlash] = useState(false)
-    const [gpuInfo, setGpuInfo] = useState({ gpus: [], vendor: 'unknown' })
+    const [gpuInfo, setGpuInfo] = useState({ gpus: [], vendor: 'unknown', platform: window.api.platform || 'unknown' })
 
     const TABS = TABS_IDS.map(tab => ({
         ...tab,
@@ -333,9 +336,30 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
         window.api.getGpuInfo().then(info => {
             setGpuInfo(info)
             // Auto-enable hw decoding when GPU is detected and setting is at default
-            const decoderMap = { nvidia: 'nvdec', intel: 'qsv' }
-            const decoder = decoderMap[info.vendor]
-            if (decoder) setEnc(prev => prev.hwDecoding === 'none' ? { ...prev, hwDecoding: decoder } : prev)
+            const decoderMap = { apple: 'videotoolbox', nvidia: 'nvdec', intel: 'qsv' }
+            const accelerationVendor = info.accelerationVendor || info.vendor
+            const decoder = decoderMap[accelerationVendor]
+            setEnc(prev => {
+                const availableEncoders = new Set(
+                    getEncoderGroupsForPlatform(info.platform).flatMap(group => group.encoders.map(encoder => encoder.value))
+                )
+                const fallback = getDefaultSettingsForGpu(accelerationVendor)
+                const next = {
+                    ...prev,
+                    ...(decoder && (info.platform === 'darwin' || prev.hwDecoding === 'none')
+                        ? { hwDecoding: decoder }
+                        : {}),
+                    ...(!availableEncoders.has(prev.encoder)
+                        ? { encoder: fallback.encoder, encoderSpeed: fallback.encoderSpeed, multiPass: false }
+                        : {}),
+                }
+                const supportsMultiPass = MULTI_PASS_ENCODERS.has(next.encoder)
+                    && !(next.quality === 'lossless' && (next.encoder || '').startsWith('nvenc_'))
+                return normalizeEncoderSettings({
+                    ...next,
+                    ...(!supportsMultiPass ? { multiPass: false } : {}),
+                })
+            })
         }).catch(() => {})
     }, [])
 
@@ -457,7 +481,13 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     }, [getYtdlUpdateStageText, ytdlTool])
 
     const handleSave = () => {
-        const normalizedEnc = normalizeEncoderSettings(enc)
+        const supportsMultiPass = MULTI_PASS_ENCODERS.has(enc.encoder)
+            && !(enc.quality === 'lossless' && (enc.encoder || '').startsWith('nvenc_'))
+        const normalizedEnc = normalizeEncoderSettings({
+            ...enc,
+            ...(gpuInfo.platform === 'darwin' ? { hwDecoding: 'videotoolbox' } : {}),
+            ...(!supportsMultiPass ? { multiPass: false } : {}),
+        })
         setEnc(normalizedEnc)
         onSave(normalizedEnc, appConfig)
         window.api.setBackgroundMode(appConfig.backgroundMode !== false)
@@ -466,9 +496,9 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     }
 
     const handleReset = () => {
-        const decoderMap = { nvidia: 'nvdec', intel: 'qsv' }
-        const decoder = decoderMap[gpuInfo.vendor] || 'none'
-        const vendor = gpuInfo?.vendor || null
+        const decoderMap = { apple: 'videotoolbox', nvidia: 'nvdec', intel: 'qsv' }
+        const vendor = gpuInfo?.accelerationVendor || gpuInfo?.vendor || null
+        const decoder = decoderMap[vendor] || 'none'
         const base = vendor ? getDefaultSettingsForGpu(vendor) : { ...DEFAULT_SETTINGS }
         setEnc({ ...base, hwDecoding: decoder })
     }
@@ -631,7 +661,11 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     // Derived values for video tab
     const rfTable = CODEC_RF[enc.encoder] || CODEC_RF.x265
     const speedPresets = ENCODER_PRESETS[enc.encoder] ?? []
-    const isHWEncoder = ['nvenc', 'qsv', 'vce', 'mf'].some(p => (enc.encoder || '').startsWith(p))
+    const isMac = gpuInfo.platform === 'darwin'
+    const platformEncoderGroups = getEncoderGroupsForPlatform(gpuInfo.platform)
+    const supportsMultiPass = MULTI_PASS_ENCODERS.has(enc.encoder)
+        && !(enc.quality === 'lossless' && (enc.encoder || '').startsWith('nvenc_'))
+    const isHWEncoder = ['nvenc', 'qsv', 'vce', 'mf', 'vt_'].some(p => (enc.encoder || '').startsWith(p))
     const isPassthru = (enc.audioCodec || 'av_aac').startsWith('copy')
     const effectiveYtdlInfo = ytdlTool?.info || ytdlInfo
     const effectiveYtdlUpdateState = ytdlTool ? {
@@ -926,12 +960,12 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                                             patch.audioCodec = 'vorbis'
                                         }
                                     } else if (v === 'av_flv') {
-                                        if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264']).has(enc.encoder)) {
+                                        if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264']).has(enc.encoder)) {
                                             patch.encoder = 'flv1'
                                             patch.encoderSpeed = undefined
                                         }
                                     } else if (v === 'av_3gp') {
-                                        if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'mpeg4']).has(enc.encoder)) {
+                                        if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264', 'mpeg4']).has(enc.encoder)) {
                                             patch.encoder = 'h263p'
                                             patch.encoderSpeed = undefined
                                         }
@@ -945,7 +979,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                         <Row label={t('rowVideoCodec')} hint={t('hintVideoCodec')}>
                             <GsSelect
                                 value={enc.encoder}
-                                groups={ENCODER_GROUPS.map(g => ({
+                                groups={platformEncoderGroups.map(g => ({
                                     label: g.labelKey ? t(g.labelKey) : g.label,
                                     options: g.encoders.map(e => ({
                                         value: e.value,
@@ -1064,21 +1098,28 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                             />
                         </Row>
 
-                        <SectionHeader icon="bi-lightning-charge" title={t('sectionHwAccel')} />
-                        <Row label={t('rowHwDecoding')} hint={t('hintHwDecoding')}>
-                            <GsSelect
-                                value={enc.hwDecoding || 'none'}
-                                options={[
-                                    { value: 'none',  label: t('hwDecodingNone') },
-                                    { value: 'nvdec', label: 'NVDEC (NVIDIA)' },
-                                    { value: 'qsv',   label: 'Quick Sync (Intel)' },
-                                ]}
-                                onChange={v => updateEnc('hwDecoding', v)}
-                            />
-                        </Row>
-                        <Row label={t('rowMultiPass')} hint={t('hintMultiPass')}>
-                            <Toggle value={!!enc.multiPass} onChange={v => updateEnc('multiPass', v)} />
-                        </Row>
+                        {(!isMac || supportsMultiPass) && (
+                            <SectionHeader icon="bi-lightning-charge" title={t('sectionHwAccel')} />
+                        )}
+                        {!isMac && (
+                            <Row label={t('rowHwDecoding')} hint={t('hintHwDecoding')}>
+                                <GsSelect
+                                    value={enc.hwDecoding || 'none'}
+                                    options={[
+                                        { value: 'none',  label: t('hwDecodingNone') },
+                                        { value: 'videotoolbox', label: 'VideoToolbox (Apple)' },
+                                        { value: 'nvdec', label: 'NVDEC (NVIDIA)' },
+                                        { value: 'qsv',   label: 'Quick Sync (Intel)' },
+                                    ]}
+                                    onChange={v => updateEnc('hwDecoding', v)}
+                                />
+                            </Row>
+                        )}
+                        {supportsMultiPass && (
+                            <Row label={t('rowMultiPass')} hint={t('hintMultiPass')}>
+                                <Toggle value={!!enc.multiPass} onChange={v => updateEnc('multiPass', v)} />
+                            </Row>
+                        )}
 
                         <SectionHeader icon="bi-layers" title={t('rowAlphaChannel')} />
                         <Row

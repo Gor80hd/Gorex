@@ -22,6 +22,9 @@ import gradientBlack from './assets/images/Gradient_Black.webm'
 import gradientWhite from './assets/images/Gradient_White.webm'
 
 function getEncoderErrorHint(stderr, t) {
+    if (/videotoolbox|compression session.*-\d+/i.test(stderr)) {
+        return t('gpuErrHwUnavailable')
+    }
     if (/No capable devices found/i.test(stderr)) {
         if (/av1_nvenc/i.test(stderr)) return t('gpuErrNvencAv1')
         if (/h265_nvenc|hevc_nvenc/i.test(stderr)) return t('gpuErrNvencH265')
@@ -332,6 +335,7 @@ function App() {
     })
     const [appSettings, setAppSettings] = useState(null)
     const [gpuVendor, setGpuVendor] = useState('unknown')
+    const [systemPlatform, setSystemPlatform] = useState(() => window.api.platform || 'unknown')
     const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gorex-onboarding-done'))
     const [appVersion, setAppVersion] = useState('')
     const [showWhatsNew, setShowWhatsNew] = useState(false)
@@ -1382,12 +1386,29 @@ function App() {
         window.api.getAppSettings().then(s => { if (s) setAppSettings(s) })
         window.api.getGpuInfo().then(info => {
             if (info && info.vendor) {
-                setGpuVendor(info.vendor)
-                saveGpuVendor(info.vendor)
+                const accelerationVendor = info.accelerationVendor || info.vendor
+                setGpuVendor(accelerationVendor)
+                setSystemPlatform(info.platform || 'unknown')
+                saveGpuVendor(accelerationVendor)
                 // Apply GPU-specific encoder only if user has no saved settings
                 const hasSaved = !!localStorage.getItem('gorex-default-settings')
                 if (!hasSaved) {
-                    setSelectedSettings(getDefaultSettingsForGpu(info.vendor))
+                    setSelectedSettings(getDefaultSettingsForGpu(accelerationVendor))
+                } else if (info.platform === 'darwin') {
+                    // Hardware decoding has no alternate backend on macOS, and
+                    // hardware encoders from other platforms cannot run there.
+                    setSelectedSettings(prev => {
+                        const unsupportedEncoder = /^(nvenc_|qsv_|vce_|mf_)/.test(prev.encoder || '')
+                        const fallback = getDefaultSettingsForGpu('apple')
+                        return normalizeEncoderSettings({
+                            ...prev,
+                            hwDecoding: 'videotoolbox',
+                            ...(unsupportedEncoder
+                                ? { encoder: fallback.encoder, encoderSpeed: fallback.encoderSpeed, multiPass: false }
+                                : {}),
+                            ...((prev.encoder || '').startsWith('vt_') ? { multiPass: false } : {}),
+                        })
+                    })
                 }
             }
         }).catch(() => {})
@@ -1570,6 +1591,7 @@ function App() {
                         isEncoding={isEncoding}
                         theme={theme}
                         gpuVendor={gpuVendor}
+                        systemPlatform={systemPlatform}
                         encodingStartTime={encodingStartTime}
                         onSettingsChange={setSelectedSettings}
                         onStartEncoding={startEncoding}

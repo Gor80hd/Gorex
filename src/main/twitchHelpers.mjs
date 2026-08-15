@@ -241,10 +241,10 @@ export function sanitizeTwitchOutputName(name, fallback = 'twitch_video') {
         .trim() || fallback
 }
 
-function assetPlatformNeedle(platform) {
-    if (platform === 'win32') return 'windows'
-    if (platform === 'darwin') return 'macos'
-    return 'linux'
+function assetPlatformNeedles(platform) {
+    if (platform === 'win32') return ['windows', 'win32']
+    if (platform === 'darwin') return ['macos', 'darwin', 'osx']
+    return ['linux']
 }
 
 function assetArchNeedles(arch) {
@@ -255,7 +255,7 @@ function assetArchNeedles(arch) {
 
 export function selectTwitchDownloaderAsset(release, platform = process.platform, arch = process.arch) {
     const assets = Array.isArray(release?.assets) ? release.assets : []
-    const platformNeedle = assetPlatformNeedle(platform)
+    const platformNeedles = assetPlatformNeedles(platform)
     const archNeedles = assetArchNeedles(arch)
 
     const isCliZip = (asset) => {
@@ -264,11 +264,15 @@ export function selectTwitchDownloaderAsset(release, platform = process.platform
     }
 
     const scored = assets
-        .filter(isCliZip)
+        .filter(asset => {
+            if (!isCliZip(asset)) return false
+            const name = String(asset.name || '').toLowerCase()
+            return platformNeedles.some(needle => name.includes(needle))
+        })
         .map(asset => {
             const name = String(asset.name || '').toLowerCase()
             let score = 0
-            if (name.includes(platformNeedle)) score += 20
+            if (platformNeedles.some(needle => name.includes(needle))) score += 20
             if (archNeedles.some(needle => name.includes(needle))) score += 10
             if (!name.includes('wpf') && !name.includes('gui')) score += 4
             if (name.includes('self-contained') || name.includes('portable')) score += 2

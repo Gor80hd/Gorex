@@ -13,7 +13,7 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 - **Конвертация локальных файлов** — перетащи файлы в окно или выбери через диалог, настрой параметры и запусти очередь.
 - **Загрузка видео из сети** — вставь ссылку из YouTube, TikTok, Twitter/X, Instagram, VK, Reddit, Twitch, Vimeo, Rutube и ещё десятков сервисов. Gorex скачает видео и при желании сразу конвертирует на лету.
 - **Гибкие настройки кодирования**:
-  - Видеокодеки: H.264, H.265/HEVC, AV1 (SVT-AV1), VP8, VP9 — программные и аппаратные (NVIDIA NVENC, Intel QSV, AMD VCE/AMF, MediaFoundation).
+  - Видеокодеки: H.264, H.265/HEVC, AV1 (SVT-AV1), VP8, VP9 — программные и аппаратные (Apple VideoToolbox, NVIDIA NVENC, Intel QSV, AMD VCE/AMF, MediaFoundation).
   - Полный контроль качества (RF/CQ), скорости кодирования, разрешения, FPS, кроп-режимов, деинтерлейсинга.
   - Аудиокодеки: AAC, HE-AAC, MP3, AC-3, E-AC-3, Vorbis, Opus, FLAC, passthru.
   - Поддержка субтитров и HDR-метаданных.
@@ -52,7 +52,7 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
 - **Node.js** ≥ 18
 - **npm** ≥ 9
-- **Windows 10/11** (основная платформа; macOS-поддержка в разработке)
+- **Windows 10/11** или **macOS 11+ на Apple Silicon**
 
 ---
 
@@ -78,13 +78,21 @@ npm run dev
 
 ```bash
 # Только компиляция (без установщика)
-npm run pack
+npm run build
 
 # Полная сборка с NSIS-установщиком для Windows
-npm run dist
+npm run dist:win
+
+# Только .app для Apple Silicon
+npm run pack:mac
+
+# DMG + ZIP для Apple Silicon
+npm run dist:mac
 ```
 
-Собранный установщик появится в папке `dist/`.
+Артефакты появятся в папке `dist/`. Без установленного сертификата Developer ID
+macOS-сборка получает ad-hoc подпись для локального тестирования. Публичный релиз
+следует дополнительно подписать и нотаризовать через Apple.
 
 ---
 
