@@ -909,13 +909,21 @@ $dur: 0.5s;
 }
 
 .open-output-btn {
-    left: calc(50% - 42px);
+    left: auto;
+    right: calc(50% + 4px);
     transform: translateY(-50%);
 }
 
 .delete-video-btn {
     left: 50%;
     transform: translate(-50%, -50%);
+}
+
+// When both actions are present, keep them as two distinct 36px targets with
+// an 8px gap. A lone delete action remains centered by the rule above.
+.video-size:has(.open-output-btn) .delete-video-btn {
+    left: calc(50% + 4px);
+    transform: translateY(-50%);
 }
 
 .video-item:hover .open-output-btn,

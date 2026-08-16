@@ -1,6 +1,6 @@
 {
   "name": "gorex",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Gorex - FFmpeg / yt-dlp GUI with Electron + Vite + React",
   "main": "./out/main/index.js",
   "author": "Akhmatyarov",
@@ -48,6 +48,7 @@
     "files": [
       "out/**",
       "resources/icon.png",
+      "resources/Mac/16.png",
       "!installer/**",
       "!dist/**",
       "!build/**",
@@ -72,6 +73,7 @@
       ]
     },
     "mac": {
+      "icon": "resources/Mac/Gorex.icns",
       "target": [
         {
           "target": "dmg",

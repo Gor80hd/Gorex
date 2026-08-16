@@ -55,11 +55,11 @@ const YTDL_STAGE_LABELS = {
 const WHATS_NEW_STORAGE_KEY = 'gorex-whats-new-version'
 
 const WHATS_NEW_ITEMS = [
-    { icon: 'bi-cloud-arrow-down-fill', titleKey: 'whatsNewDownloadTitle', textKey: 'whatsNewDownloadText' },
-    { icon: 'bi-music-note-beamed', titleKey: 'whatsNewAudioTitle', textKey: 'whatsNewAudioText' },
-    { icon: 'bi-folder2-open', titleKey: 'whatsNewQueueTitle', textKey: 'whatsNewQueueText' },
-    { icon: 'bi-youtube', titleKey: 'whatsNewAuthTitle', textKey: 'whatsNewAuthText' },
-    { icon: 'bi-arrow-repeat', titleKey: 'whatsNewUpdatesTitle', textKey: 'whatsNewUpdatesText' },
+    { icon: 'bi-twitch', titleKey: 'whatsNewTwitchTitle', textKey: 'whatsNewTwitchText' },
+    { icon: 'bi-chat-square-text-fill', titleKey: 'whatsNewChatPreviewTitle', textKey: 'whatsNewChatPreviewText' },
+    { icon: 'bi-arrow-down-circle-fill', titleKey: 'whatsNewReliableDownloadsTitle', textKey: 'whatsNewReliableDownloadsText' },
+    { icon: 'bi-sliders', titleKey: 'whatsNewQueueSettingsTitle', textKey: 'whatsNewQueueSettingsText' },
+    { icon: 'bi-arrow-repeat', titleKey: 'whatsNewToolsTitle', textKey: 'whatsNewToolsText' },
 ]
 
 function createYtdlToolState(overrides = {}) {
@@ -281,7 +281,8 @@ function cleanYtdlToolError(message) {
     return text
 }
 function App() {
-    const { t } = useLanguage()
+    const { t, lang } = useLanguage()
+    const isMac = window.api.platform === 'darwin'
     const [view, setView] = useState('source')
     const [settingsInitialTab, setSettingsInitialTab] = useState('app')
     const [videos, setVideos] = useState([])
@@ -1553,6 +1554,48 @@ function App() {
         }
     }
 
+    const macMenuHandlersRef = useRef({})
+    macMenuHandlersRef.current = {
+        'open-source': () => {
+            setView('source')
+            handleSelectFiles()
+        },
+        'clear-queue': handleClearQueue,
+        'start-encoding': startEncoding,
+        'toggle-pause': handlePause,
+        stop: handleStop,
+        'debug-console': () => setShowCliConsole(value => !value),
+        settings: () => setView('settings'),
+        about: () => setView('about'),
+    }
+
+    useEffect(() => {
+        if (window.api.platform !== 'darwin' || !window.api.onNativeMenuAction) return undefined
+        return window.api.onNativeMenuAction(action => macMenuHandlersRef.current[action]?.())
+    }, [])
+
+    useEffect(() => {
+        if (window.api.platform !== 'darwin' || !window.api.updateNativeMenu) return
+        window.api.updateNativeMenu({
+            hasVideos: videos.length > 0,
+            isEncoding,
+            isPaused,
+            labels: {
+                file: t('menuFile'),
+                settings: t('navSettings'),
+                about: t('navAbout'),
+                openSource: t('menuOpenSource'),
+                clearQueue: t('menuClearQueue'),
+                startEncoding: t('menuStartEncoding'),
+                pause: t('menuPause'),
+                resume: t('menuResume'),
+                stop: t('menuStop'),
+                debugConsole: t('menuDebugConsole'),
+                exit: t('menuExit'),
+            },
+        })
+    }, [lang, videos.length, isEncoding, isPaused, t])
+
     const renderPage = () => {
         switch (view) {
             case 'about':
@@ -1644,7 +1687,7 @@ function App() {
     }
 
     return (
-        <div className={`app-wrapper ${theme}`}>
+        <div className={`app-wrapper ${theme}${isMac ? ' platform-mac' : ''}`}>
             {(isEncoding || isLoading) && (
                 <div className="bg-video-wrap">
                     <video
@@ -1699,7 +1742,7 @@ function App() {
                         <button className="whats-new-close" onClick={handleDismissWhatsNew} title={t('close')}>
                             <i className="bi bi-x-lg"></i>
                         </button>
-                        <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '2.3.0')}</div>
+                        <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '2.4.0')}</div>
                         <h2 id="whats-new-title" className="whats-new-title">{t('whatsNewTitle')}</h2>
                         <p className="whats-new-subtitle">{t('whatsNewSubtitle')}</p>
                         <div className="whats-new-list">
@@ -1715,6 +1758,10 @@ function App() {
                                 </div>
                             ))}
                         </div>
+                        <p className="whats-new-mac-note">
+                            <i className="bi bi-apple" aria-hidden="true"></i>
+                            {t('whatsNewMacNote')}
+                        </p>
                         <div className="whats-new-footer">
                             <button className="whats-new-primary" onClick={handleDismissWhatsNew}>
                                 {t('whatsNewDone')}
