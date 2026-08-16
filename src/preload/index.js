@@ -36,6 +36,12 @@ const api = {
     maximize: () => ipcRenderer.send('window-maximize'),
     close: () => ipcRenderer.send('window-close'),
     quit: () => ipcRenderer.send('app-quit'),
+    updateNativeMenu: (state) => ipcRenderer.send('native-menu-state', state),
+    onNativeMenuAction: (callback) => {
+        const listener = (_, action) => callback(action)
+        ipcRenderer.on('native-menu-action', listener)
+        return () => ipcRenderer.removeListener('native-menu-action', listener)
+    },
     openDevTools: () => ipcRenderer.send('open-devtools'),
     ytdlGetFormats: (url, options = {}) => ipcRenderer.invoke('ytdl-get-formats', { url, ...options }),
     ytdlCancelFetch: () => ipcRenderer.send('ytdl-cancel-fetch'),
