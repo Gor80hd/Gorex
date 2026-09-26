@@ -55,10 +55,10 @@ const YTDL_STAGE_LABELS = {
 const WHATS_NEW_STORAGE_KEY = 'gorex-whats-new-version'
 
 const WHATS_NEW_ITEMS = [
-    { icon: 'bi-cloud-arrow-down-fill', titleKey: 'whatsNewDownloadTitle', textKey: 'whatsNewDownloadText' },
-    { icon: 'bi-music-note-beamed', titleKey: 'whatsNewAudioTitle', textKey: 'whatsNewAudioText' },
-    { icon: 'bi-folder2-open', titleKey: 'whatsNewQueueTitle', textKey: 'whatsNewQueueText' },
-    { icon: 'bi-youtube', titleKey: 'whatsNewAuthTitle', textKey: 'whatsNewAuthText' },
+    { icon: 'bi-apple', titleKey: 'whatsNewMacTitle', textKey: 'whatsNewMacText' },
+    { icon: 'bi-twitch', titleKey: 'whatsNewTwitchTitle', textKey: 'whatsNewTwitchText' },
+    { icon: 'bi-chat-square-text', titleKey: 'whatsNewChatTitle', textKey: 'whatsNewChatText' },
+    { icon: 'bi-list-task', titleKey: 'whatsNewQueueTitle', textKey: 'whatsNewQueueText' },
     { icon: 'bi-arrow-repeat', titleKey: 'whatsNewUpdatesTitle', textKey: 'whatsNewUpdatesText' },
 ]
 
@@ -1699,7 +1699,7 @@ function App() {
                         <button className="whats-new-close" onClick={handleDismissWhatsNew} title={t('close')}>
                             <i className="bi bi-x-lg"></i>
                         </button>
-                        <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '2.3.0')}</div>
+                        <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '2.4.0')}</div>
                         <h2 id="whats-new-title" className="whats-new-title">{t('whatsNewTitle')}</h2>
                         <p className="whats-new-subtitle">{t('whatsNewSubtitle')}</p>
                         <div className="whats-new-list">
