@@ -462,8 +462,144 @@ const activeJobs = new Map() // id -> child process
 let mainWindow = null
 let tray = null
 let isQuitting = false
+let macMenuState = {
+    hasVideos: false,
+    isEncoding: false,
+    isPaused: false,
+    labels: null,
+}
 const TWITCH_CHAT_PREVIEW_MINUTES = 15
 const twitchChatMemoryCache = new Map()
+
+function getDefaultMacMenuLabels() {
+    const isRussian = app.getLocale().toLowerCase().startsWith('ru')
+    return isRussian
+        ? {
+            file: 'Файл',
+            settings: 'Настройки',
+            about: 'О программе',
+            openSource: 'Открыть источник',
+            clearQueue: 'Очистить очередь',
+            startEncoding: 'Начать кодирование',
+            pause: 'Пауза',
+            resume: 'Продолжить',
+            stop: 'Стоп',
+            debugConsole: 'Консоль отладки',
+            exit: 'Выход',
+            hide: 'Скрыть Gorex',
+            hideOthers: 'Скрыть остальные',
+            showAll: 'Показать все',
+        }
+        : {
+            file: 'File',
+            settings: 'Settings',
+            about: 'About',
+            openSource: 'Open source',
+            clearQueue: 'Clear queue',
+            startEncoding: 'Start encoding',
+            pause: 'Pause',
+            resume: 'Resume',
+            stop: 'Stop',
+            debugConsole: 'Debug console',
+            exit: 'Quit Gorex',
+            hide: 'Hide Gorex',
+            hideOthers: 'Hide Others',
+            showAll: 'Show All',
+        }
+}
+
+function sendMacMenuAction(action) {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (!mainWindow.isVisible()) mainWindow.show()
+    mainWindow.focus()
+    mainWindow.webContents.send('native-menu-action', action)
+}
+
+function installMacApplicationMenu() {
+    if (process.platform !== 'darwin') return
+
+    const labels = { ...getDefaultMacMenuLabels(), ...(macMenuState.labels || {}) }
+    const template = [
+        {
+            label: 'Gorex',
+            submenu: [
+                { label: labels.hide, role: 'hide' },
+                { label: labels.hideOthers, role: 'hideOthers' },
+                { label: labels.showAll, role: 'unhide' },
+                { type: 'separator' },
+                {
+                    label: labels.exit,
+                    accelerator: 'Cmd+Q',
+                    click: () => {
+                        isQuitting = true
+                        app.quit()
+                    },
+                },
+            ],
+        },
+        {
+            label: labels.file,
+            submenu: [
+                {
+                    label: labels.openSource,
+                    accelerator: 'Cmd+O',
+                    click: () => sendMacMenuAction('open-source'),
+                },
+                {
+                    label: labels.clearQueue,
+                    enabled: macMenuState.hasVideos && !macMenuState.isEncoding,
+                    click: () => sendMacMenuAction('clear-queue'),
+                },
+                { type: 'separator' },
+                {
+                    label: labels.startEncoding,
+                    enabled: macMenuState.hasVideos && !macMenuState.isEncoding,
+                    click: () => sendMacMenuAction('start-encoding'),
+                },
+                {
+                    label: macMenuState.isPaused ? labels.resume : labels.pause,
+                    enabled: macMenuState.isEncoding,
+                    click: () => sendMacMenuAction('toggle-pause'),
+                },
+                {
+                    label: labels.stop,
+                    enabled: macMenuState.isEncoding,
+                    click: () => sendMacMenuAction('stop'),
+                },
+                { type: 'separator' },
+                {
+                    label: labels.debugConsole,
+                    click: () => sendMacMenuAction('debug-console'),
+                },
+            ],
+        },
+        {
+            label: labels.settings,
+            submenu: [
+                {
+                    label: labels.settings,
+                    accelerator: 'Cmd+,',
+                    click: () => sendMacMenuAction('settings'),
+                },
+            ],
+        },
+        {
+            label: labels.about,
+            submenu: [
+                {
+                    label: labels.about,
+                    click: () => sendMacMenuAction('about'),
+                },
+            ],
+        },
+        { role: 'editMenu' },
+        { role: 'viewMenu' },
+        { role: 'windowMenu' },
+        { role: 'help' },
+    ]
+
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
 
 function getTwitchChatCacheDir() {
     return join(app.getPath('userData'), 'twitch-chat-cache')
@@ -499,9 +635,17 @@ let _lastTrayPercent = -2 // sentinel so first update always fires
 let _trayColor = '#7c3aed' // purple = download, orange = conversion
 
 function createStaticTrayIcon() {
-    const iconPath = join(__dirname, '../../resources/icon.png')
+    const isMac = process.platform === 'darwin'
+    const iconPath = join(
+        __dirname,
+        isMac ? '../../resources/Mac/16.png' : '../../resources/icon.png'
+    )
     try {
-        return nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+        const icon = nativeImage.createFromPath(iconPath)
+        // The macOS asset is already the supplied 16px menu-bar icon. It has
+        // an opaque background, so marking it as a template turns its entire
+        // canvas into a solid square instead of showing the logo.
+        return isMac ? icon : icon.resize({ width: 16, height: 16 })
     } catch {
         return nativeImage.createEmpty()
     }
@@ -514,6 +658,14 @@ async function updateTrayProgress(percent) {
     _lastTrayPercent = rounded
 
     tray.setToolTip(rounded !== null ? `Gorex — ${rounded}%` : 'Gorex')
+
+    // Keep the macOS status item as a native template icon. The coloured
+    // progress badge is appropriate for Windows but conflicts with macOS's
+    // menu-bar conventions.
+    if (process.platform === 'darwin') {
+        tray.setImage(createStaticTrayIcon())
+        return
+    }
 
     if (rounded !== null && mainWindow && !mainWindow.isDestroyed()) {
         try {
@@ -1564,6 +1716,8 @@ function getDownloadDir(customOutputDir) {
 }
 
 function createWindow() {
+    const isMac = process.platform === 'darwin'
+
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 850,
@@ -1571,8 +1725,18 @@ function createWindow() {
         minHeight: 650,
         show: false,
         autoHideMenuBar: true,
-        frame: false, // Frameless window
-        icon: join(__dirname, '../../resources/icon.png'),
+        // Keep native traffic-light controls on macOS, while letting the custom
+        // renderer title bar fill the rest of the top area. Windows keeps the
+        // existing frameless window and renderer-provided controls.
+        ...(isMac
+            ? {
+                titleBarStyle: 'hidden',
+                trafficLightPosition: { x: 17, y: 11 },
+            }
+            : { frame: false }),
+        // On macOS the app bundle's ICNS is the source of truth for the Dock;
+        // BrowserWindow's PNG icon is only needed on Windows and Linux.
+        ...(isMac ? {} : { icon: join(__dirname, '../../resources/icon.png') }),
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
             sandbox: false
@@ -1615,6 +1779,14 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.akhmatyarov.gorex')
+
+    // A packaged app gets its Dock icon from the ICNS embedded in the bundle.
+    // In development, point the Dock at the same Retina source asset.
+    if (process.platform === 'darwin' && is.dev) {
+        const dockIcon = nativeImage.createFromPath(join(__dirname, '../../resources/Mac/512@2x.png'))
+        if (!dockIcon.isEmpty()) app.dock.setIcon(dockIcon)
+    }
+
     migrateManagedYoutubeCookiesStorage()
     clearTwitchChatSessionCache()
 
@@ -1735,6 +1907,16 @@ app.whenReady().then(async () => {
     ipcMain.on('app-quit', () => {
         isQuitting = true
         app.quit()
+    })
+    ipcMain.on('native-menu-state', (_, state = {}) => {
+        if (process.platform !== 'darwin') return
+        macMenuState = {
+            hasVideos: Boolean(state.hasVideos),
+            isEncoding: Boolean(state.isEncoding),
+            isPaused: Boolean(state.isPaused),
+            labels: state.labels && typeof state.labels === 'object' ? state.labels : null,
+        }
+        installMacApplicationMenu()
     })
 
     ipcMain.handle('set-background-mode', (event, enabled) => {
@@ -4182,6 +4364,7 @@ app.whenReady().then(async () => {
     })
 
     createWindow()
+    installMacApplicationMenu()
     createTray()
 
     // Intercept native window close button (Alt+F4, taskbar close etc.)

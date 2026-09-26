@@ -48,6 +48,7 @@
     "files": [
       "out/**",
       "resources/icon.png",
+      "resources/Mac/16.png",
       "!installer/**",
       "!dist/**",
       "!build/**",
@@ -72,6 +73,7 @@
       ]
     },
     "mac": {
+      "icon": "resources/Mac/Gorex.icns",
       "target": [
         {
           "target": "dmg",

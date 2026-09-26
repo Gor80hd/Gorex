@@ -28,6 +28,7 @@ function TitleBar({
     const [fileMenuOpen, setFileMenuOpen] = useState(false)
     const fileMenuRef = useRef(null)
     const { t } = useLanguage()
+    const isMac = window.api?.platform === 'darwin'
 
     const handleToggle = useCallback(() => {
         setToggling(true)
@@ -83,14 +84,15 @@ function TitleBar({
         },
     ]
     return (
-        <div className="titlebar">
+        <div className={`titlebar${isMac ? ' titlebar--mac' : ''}`}>
             <div className="titlebar-drag-region"></div>
             <div className="titlebar-content">
-                <div className="titlebar-left">
-                    <div className="titlebar-logo">
-                        <img src={theme === 'dark' ? logoWhite : logoDark} alt="Logo" />
-                    </div>
-                    <nav className="titlebar-menu">
+                {!isMac && (
+                    <div className="titlebar-left">
+                        <div className="titlebar-logo">
+                            <img src={theme === 'dark' ? logoWhite : logoDark} alt="Logo" />
+                        </div>
+                        <nav className="titlebar-menu">
                         <div className="tb-file-menu" ref={fileMenuRef}>
                             <button
                                 className={fileMenuOpen ? 'active' : ''}
@@ -153,8 +155,9 @@ function TitleBar({
                         >
                             {t('navAbout')}
                         </button>
-                    </nav>
-                </div>
+                        </nav>
+                    </div>
+                )}
 
                 <div className="titlebar-right">
                     <div className="tb-tools-wrap">
@@ -199,17 +202,19 @@ function TitleBar({
                             <i className="bi bi-moon toggle-icon-moon"></i>
                         </div>
                     </div>
-                    <div className="window-controls">
-                        <button className="control-btn" onClick={() => window.api.minimize()}>
-                            <i className="bi bi-dash-lg"></i>
-                        </button>
-                        <button className="control-btn" onClick={() => window.api.maximize()}>
-                            <i className="bi bi-square"></i>
-                        </button>
-                        <button className="control-btn close" onClick={() => window.api.close()}>
-                            <i className="bi bi-x-lg"></i>
-                        </button>
-                    </div>
+                    {!isMac && (
+                        <div className="window-controls">
+                            <button className="control-btn" onClick={() => window.api.minimize()}>
+                                <i className="bi bi-dash-lg"></i>
+                            </button>
+                            <button className="control-btn" onClick={() => window.api.maximize()}>
+                                <i className="bi bi-square"></i>
+                            </button>
+                            <button className="control-btn close" onClick={() => window.api.close()}>
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

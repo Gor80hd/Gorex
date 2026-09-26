@@ -281,7 +281,8 @@ function cleanYtdlToolError(message) {
     return text
 }
 function App() {
-    const { t } = useLanguage()
+    const { t, lang } = useLanguage()
+    const isMac = window.api.platform === 'darwin'
     const [view, setView] = useState('source')
     const [settingsInitialTab, setSettingsInitialTab] = useState('app')
     const [videos, setVideos] = useState([])
@@ -1553,6 +1554,48 @@ function App() {
         }
     }
 
+    const macMenuHandlersRef = useRef({})
+    macMenuHandlersRef.current = {
+        'open-source': () => {
+            setView('source')
+            handleSelectFiles()
+        },
+        'clear-queue': handleClearQueue,
+        'start-encoding': startEncoding,
+        'toggle-pause': handlePause,
+        stop: handleStop,
+        'debug-console': () => setShowCliConsole(value => !value),
+        settings: () => setView('settings'),
+        about: () => setView('about'),
+    }
+
+    useEffect(() => {
+        if (!isMac || !window.api.onNativeMenuAction) return undefined
+        return window.api.onNativeMenuAction(action => macMenuHandlersRef.current[action]?.())
+    }, [isMac])
+
+    useEffect(() => {
+        if (!isMac || !window.api.updateNativeMenu) return
+        window.api.updateNativeMenu({
+            hasVideos: videos.length > 0,
+            isEncoding,
+            isPaused,
+            labels: {
+                file: t('menuFile'),
+                settings: t('navSettings'),
+                about: t('navAbout'),
+                openSource: t('menuOpenSource'),
+                clearQueue: t('menuClearQueue'),
+                startEncoding: t('menuStartEncoding'),
+                pause: t('menuPause'),
+                resume: t('menuResume'),
+                stop: t('menuStop'),
+                debugConsole: t('menuDebugConsole'),
+                exit: t('menuExit'),
+            },
+        })
+    }, [isMac, lang, videos.length, isEncoding, isPaused, t])
+
     const renderPage = () => {
         switch (view) {
             case 'about':
@@ -1644,7 +1687,7 @@ function App() {
     }
 
     return (
-        <div className={`app-wrapper ${theme}`}>
+        <div className={`app-wrapper ${theme}${isMac ? ' platform-mac' : ''}`}>
             {(isEncoding || isLoading) && (
                 <div className="bg-video-wrap">
                     <video
