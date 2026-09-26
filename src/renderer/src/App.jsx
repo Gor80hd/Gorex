@@ -55,11 +55,11 @@ const YTDL_STAGE_LABELS = {
 const WHATS_NEW_STORAGE_KEY = 'gorex-whats-new-version'
 
 const WHATS_NEW_ITEMS = [
-    { icon: 'bi-apple', titleKey: 'whatsNewMacTitle', textKey: 'whatsNewMacText' },
     { icon: 'bi-twitch', titleKey: 'whatsNewTwitchTitle', textKey: 'whatsNewTwitchText' },
-    { icon: 'bi-chat-square-text', titleKey: 'whatsNewChatTitle', textKey: 'whatsNewChatText' },
-    { icon: 'bi-list-task', titleKey: 'whatsNewQueueTitle', textKey: 'whatsNewQueueText' },
-    { icon: 'bi-arrow-repeat', titleKey: 'whatsNewUpdatesTitle', textKey: 'whatsNewUpdatesText' },
+    { icon: 'bi-chat-square-text-fill', titleKey: 'whatsNewChatPreviewTitle', textKey: 'whatsNewChatPreviewText' },
+    { icon: 'bi-arrow-down-circle-fill', titleKey: 'whatsNewReliableDownloadsTitle', textKey: 'whatsNewReliableDownloadsText' },
+    { icon: 'bi-sliders', titleKey: 'whatsNewQueueSettingsTitle', textKey: 'whatsNewQueueSettingsText' },
+    { icon: 'bi-arrow-repeat', titleKey: 'whatsNewToolsTitle', textKey: 'whatsNewToolsText' },
 ]
 
 function createYtdlToolState(overrides = {}) {
@@ -1758,6 +1758,10 @@ function App() {
                                 </div>
                             ))}
                         </div>
+                        <p className="whats-new-mac-note">
+                            <i className="bi bi-apple" aria-hidden="true"></i>
+                            {t('whatsNewMacNote')}
+                        </p>
                         <div className="whats-new-footer">
                             <button className="whats-new-primary" onClick={handleDismissWhatsNew}>
                                 {t('whatsNewDone')}

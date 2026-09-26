@@ -909,13 +909,20 @@ $dur: 0.5s;
 }
 
 .open-output-btn {
-    left: calc(50% - 42px);
+    left: auto;
+    right: calc(50% + 4px);
     transform: translateY(-50%);
 }
 
 .delete-video-btn {
     left: 50%;
     transform: translate(-50%, -50%);
+}
+
+// Keep both 36px actions separate when they appear together.
+.video-size:has(.open-output-btn) .delete-video-btn {
+    left: calc(50% + 4px);
+    transform: translateY(-50%);
 }
 
 .video-item:hover .open-output-btn,
