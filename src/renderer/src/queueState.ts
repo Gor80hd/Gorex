@@ -5,10 +5,11 @@ export const ACTIVE_STATUSES = [
 
 export type ActiveStatus = (typeof ACTIVE_STATUSES)[number]
 export type TaskId = string | number
+export type TaskStatus = 'ready' | 'format_select' | ActiveStatus | 'done' | 'error'
 
 export interface QueueTask {
   id: TaskId
-  status: string
+  status: TaskStatus
   progress: number
   startTime?: number
   endTime?: number

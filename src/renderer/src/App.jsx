@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import TitleBar from './components/TitleBar/TitleBar'
 import CliConsole from './components/CliConsole/CliConsole'
+import CliErrorDialog from './components/CliErrorDialog/CliErrorDialog'
 import TwitchChatViewer from './components/TwitchChatViewer'
 import { applyJobProgress, finishJob, hasActiveJobs, startConversion } from './queueState'
 import { useLanguage } from './i18n'
@@ -76,7 +77,6 @@ function App() {
     const [isPaused, setIsPaused] = useState(false)
     const [encodingStartTime, setEncodingStartTime] = useState(null)
     const [cliErrors, setCliErrors] = useState([])
-    const [copiedIdx, setCopiedIdx] = useState(null)
     const [cliLogs, setCliLogs] = useState([])
     const [showCliConsole, setShowCliConsole] = useState(false)
     const [ytdlFetchError, setYtdlFetchError] = useState(null)
@@ -1554,65 +1554,7 @@ function App() {
                 t={t}
             />
             {cliErrors.length > 0 && (
-                <div className={`cli-error-overlay ${theme}`} onClick={() => setCliErrors([])}>
-                    <div className="cli-error-popup" onClick={e => e.stopPropagation()}>
-                        <div className="cli-error-header">
-                            <i className="bi bi-exclamation-triangle-fill cli-error-icon"></i>
-                            <span className="cli-error-title">
-                                {cliErrors.length === 1 ? t('encodingError') : `${t('encodingErrors')} (${cliErrors.length})`}
-                            </span>
-                            <button className="cli-error-close" onClick={() => setCliErrors([])}>
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-                        <div className="cli-error-body">
-                            {cliErrors.map((err, i) => (
-                                <div key={i} className="cli-error-item">
-                                    <div className="cli-error-item-header">
-                                        <div className="cli-error-item-title">{err.title}</div>
-                                        <button
-                                            className={`cli-error-copy${copiedIdx === i ? ' copied' : ''}`}
-                                            title={t('copyToClipboard')}
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(err.stderr)
-                                                setCopiedIdx(i)
-                                                setTimeout(() => setCopiedIdx(c => c === i ? null : c), 1500)
-                                            }}
-                                        >
-                                            <i className={`bi ${copiedIdx === i ? 'bi-check-lg' : 'bi-clipboard'}`}></i>
-                                        </button>
-                                    </div>
-                                    {err.hint && (
-                                        <div className="cli-error-hint">
-                                            <i className="bi bi-lightbulb-fill"></i>
-                                            {err.hint}
-                                        </div>
-                                    )}
-                                    <pre className="cli-error-log">{err.stderr}</pre>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="cli-error-footer">
-                            {cliErrors.length > 1 && (
-                                <button
-                                    className={`cli-error-copy-all${copiedIdx === 'all' ? ' copied' : ''}`}
-                                    onClick={() => {
-                                        const all = cliErrors.map((e, i) => `[${i + 1}] ${e.title}\n${e.stderr}`).join('\n\n')
-                                        navigator.clipboard.writeText(all)
-                                        setCopiedIdx('all')
-                                        setTimeout(() => setCopiedIdx(c => c === 'all' ? null : c), 1500)
-                                    }}
-                                >
-                                    <i className={`bi ${copiedIdx === 'all' ? 'bi-check-lg' : 'bi-clipboard'}`}></i>
-                                    {copiedIdx === 'all' ? t('copied') : t('copyAll')}
-                                </button>
-                            )}
-                            <button className="cli-error-dismiss" onClick={() => setCliErrors([])}>
-                                {t('close')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <CliErrorDialog errors={cliErrors} theme={theme} onDismiss={() => setCliErrors([])} />
             )}
             {ytdlFetchError && (
                 <div className={`cli-error-overlay ${theme}`} onClick={() => setYtdlFetchError(null)}>
