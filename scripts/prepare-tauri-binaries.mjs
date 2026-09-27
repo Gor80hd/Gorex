@@ -17,9 +17,17 @@ const FFMPEG_ASSETS = {
     ffprobe: 'fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6',
   },
   'win32-x64': {
-    version: '8.1.2-gyan-full',
-    url: 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-full_build.7z',
-    sha256: '0fff188997a499b5382e0f66e845d4556c48c54f0113ebed4853d556dbdd7059',
+    version: '8.1.2-gyan-full-ffprobe-essentials',
+    ffmpeg: {
+      url: 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-full_build.7z',
+      sha256: '0fff188997a499b5382e0f66e845d4556c48c54f0113ebed4853d556dbdd7059',
+      folder: 'ffmpeg-8.1.2-full_build',
+    },
+    ffprobe: {
+      url: 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.7z',
+      sha256: 'e25b682664025d49034c981afb4bae36238a40f29a3cc1c713ad9a8b5b3528f6',
+      folder: 'ffmpeg-8.1.2-essentials_build',
+    },
   },
 }
 
@@ -106,13 +114,15 @@ function installFFmpeg(target) {
       // This upstream binary targets macOS 12; macOS 11 remains a release gate.
       console.warn('FFmpeg macOS minimum version is 12.0; macOS 11 release parity is pending')
     } else {
-      const archive = join(scratch, 'ffmpeg.7z')
-      downloadVerified(asset.url, archive, asset.sha256)
-      const bin = `ffmpeg-8.1.2-full_build/bin`
-      const unpack = spawnSync(require('7zip-bin').path7za, ['x', '-y', `-o${scratch}`, archive, `${bin}/ffmpeg.exe`, `${bin}/ffprobe.exe`], { stdio: 'inherit' })
-      if (unpack.status !== 0) throw new Error('Could not extract Windows FFmpeg archive')
-      copyTool(join(scratch, bin, 'ffmpeg.exe'), 'ffmpeg.exe')
-      copyTool(join(scratch, bin, 'ffprobe.exe'), 'ffprobe.exe')
+      for (const name of ['ffmpeg', 'ffprobe']) {
+        const source = asset[name]
+        const archive = join(scratch, `${name}.7z`)
+        downloadVerified(source.url, archive, source.sha256)
+        const binary = `${source.folder}/bin/${name}.exe`
+        const unpack = spawnSync(require('7zip-bin').path7za, ['x', '-y', `-o${scratch}`, archive, binary], { stdio: 'inherit' })
+        if (unpack.status !== 0) throw new Error(`Could not extract Windows ${name}`)
+        copyTool(join(scratch, binary), `${name}.exe`)
+      }
     }
     verifyFFmpeg(ffmpeg)
     writeFileSync(marker, asset.version)

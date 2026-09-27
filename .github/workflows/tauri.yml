@@ -33,6 +33,7 @@ jobs:
           workspaces: src-tauri
       - run: npm ci
       - run: npm run prepare:tauri-binaries
+      - run: node scripts/smoke-tauri-media-tools.mjs
       - run: npm run typecheck
       - run: node --test test/*.test.mjs
         shell: bash
