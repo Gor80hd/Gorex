@@ -1,7 +1,36 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { useLanguage } from '../../i18n'
 import logoWhite from '../../assets/images/logo_white.svg'
 import logoColor from '../../assets/images/logo.svg'
+
+type Language = 'ru' | 'en'
+
+interface CodecOption {
+    value: string
+    label: string
+    desc: Record<Language, string>
+    recommended?: boolean
+}
+
+interface GpuInfo {
+    vendor: string
+    gpus: Array<string | { name?: string }>
+}
+
+interface OnboardingSettings {
+    outputDir: string
+    backgroundMode: boolean
+    encoder: string | null
+}
+
+interface OnboardingProps {
+    theme: 'dark' | 'light'
+    themeMode: string
+    accentTheme: string
+    onThemeModeChange: (mode: string) => void
+    onAccentThemeChange: (accent: string) => void
+    onDone: (settings: OnboardingSettings | null) => void
+}
 
 // ─── Settings labels ────────────────────────────────────────────────────────
 
@@ -60,14 +89,14 @@ const LABELS = {
     },
 }
 
-const GPU_META = {
+const GPU_META: Record<string, { label: string; color: string }> = {
     apple:  { label: 'Apple Silicon', color: '#a3a3a3' },
     nvidia: { label: 'NVIDIA', color: '#76b900' },
     amd:    { label: 'AMD',    color: '#ed1c24' },
     intel:  { label: 'Intel',  color: '#0071c5' },
 }
 
-const CODEC_OPTIONS = {
+const CODEC_OPTIONS: Record<string, CodecOption[]> = {
     apple: [
         { value: 'vt_h265', label: 'H.265 VideoToolbox', desc: { en: 'Native hardware HEVC on Apple Silicon. Fast and efficient.', ru: 'Нативный аппаратный HEVC на Apple Silicon. Быстро и эффективно.' }, recommended: true },
         { value: 'vt_h264', label: 'H.264 VideoToolbox', desc: { en: 'Native hardware H.264 with maximum device compatibility.', ru: 'Нативный аппаратный H.264 с максимальной совместимостью.' } },
@@ -230,7 +259,7 @@ const TITLE_SPEED = 32   // ms per character
 
 // ─── Animated text helpers ───────────────────────────────────────────────────
 
-function TypewriterTitle({ text }) {
+function TypewriterTitle({ text }: { text: string }) {
     const [shown, setShown] = useState('')
     const [done, setDone] = useState(false)
     useEffect(() => {
@@ -251,7 +280,7 @@ function TypewriterTitle({ text }) {
     )
 }
 
-function AnimatedSub({ text, delay }) {
+function AnimatedSub({ text, delay }: { text: string; delay: number }) {
     return (
         <p className="onboarding-sub">
             {text.split(' ').map((word, i) => (
@@ -265,29 +294,32 @@ function AnimatedSub({ text, delay }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function OnboardingScreen({ theme, themeMode, accentTheme, onThemeModeChange, onAccentThemeChange, onDone }) {
+export default function OnboardingScreen({ theme, themeMode, accentTheme, onThemeModeChange, onAccentThemeChange, onDone }: OnboardingProps) {
     const { setLang } = useLanguage()
     const [step, setStep] = useState(1)
-    const [selectedLang, setSelectedLang] = useState('en')
+    const [selectedLang, setSelectedLang] = useState<Language>('en')
     const [animKey, setAnimKey] = useState(0)
     const [dir, setDir] = useState(1)
 
-    const [gpuInfo, setGpuInfo] = useState(null)
+    const [gpuInfo, setGpuInfo] = useState<GpuInfo | null>(null)
     const [gpuLoading, setGpuLoading] = useState(true)
-    const [selectedEncoder, setSelectedEncoder] = useState(null)
+    const [selectedEncoder, setSelectedEncoder] = useState<string | null>(null)
 
     const [outputDir, setOutputDir] = useState('')
     const [defaultDirPath, setDefaultDirPath] = useState('')
     const [backgroundMode, setBackgroundMode] = useState(true)
 
-    const handleNextRef = useRef(null)
+    const handleNextRef = useRef<(() => void) | null>(null)
 
     useEffect(() => {
         window.api.getGpuInfo().then(info => {
-            const vendor = info?.accelerationVendor
-                || (window.api.platform === 'darwin' ? 'apple' : info?.vendor)
+            const vendor = (typeof info.accelerationVendor === 'string' && info.accelerationVendor)
+                || (window.api.platform === 'darwin' ? 'apple' : (typeof info.vendor === 'string' ? info.vendor : ''))
                 || 'unknown'
-            setGpuInfo({ ...info, vendor })
+            const gpus = Array.isArray(info.gpus)
+                ? info.gpus.filter((gpu): gpu is string | { name: string } => typeof gpu === 'string' || (gpu !== null && typeof gpu === 'object' && typeof gpu.name === 'string'))
+                : []
+            setGpuInfo({ vendor, gpus })
             const opts = CODEC_OPTIONS[vendor] || CODEC_OPTIONS.unknown
             const rec = opts.find(o => o.recommended) || opts[0]
             setSelectedEncoder(rec?.value || null)
@@ -309,7 +341,7 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
     const gpuName = (typeof firstGpu === 'string' ? firstGpu : firstGpu?.name) || GPU_META[vendor]?.label || null
     const slide = isSlide ? slides[slideIndex] : null
 
-    const go = (nextStep) => {
+    const go = (nextStep: number) => {
         setDir(nextStep > step ? 1 : -1)
         setAnimKey(k => k + 1)
         setStep(nextStep)
@@ -327,7 +359,7 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
 
     useEffect(() => {
         if (!isSlide) return
-        const id = setTimeout(() => handleNextRef.current(), AUTO_MS)
+        const id = setTimeout(() => handleNextRef.current?.(), AUTO_MS)
         return () => clearTimeout(id)
     }, [step])
 
@@ -383,7 +415,7 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
                     {/* Steps 2–6 — Feature slides */}
                     {isSlide && slide && (
                         <>
-                            <div className="ob-slide-icon" style={{ '--ob-accent': slide.accent }}>
+                            <div className="ob-slide-icon" style={{ '--ob-accent': slide.accent } as CSSProperties}>
                                 <i className={`bi ${slide.icon}`} />
                             </div>
                             <TypewriterTitle key={animKey} text={slide.title} />
@@ -391,7 +423,7 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
                             <ul className="ob-points">
                                 {slide.points.map((p, i) => (
                                     <li key={i} className="ob-point" style={{ animationDelay: `${subDelay + 200 + i * 90}ms` }}>
-                                        <span className="ob-point-icon" style={{ '--ob-accent': slide.accent }}>
+                                        <span className="ob-point-icon" style={{ '--ob-accent': slide.accent } as CSSProperties}>
                                             <i className={`bi ${p.icon}`} />
                                         </span>
                                         <span className="ob-point-text">{p.text}</span>

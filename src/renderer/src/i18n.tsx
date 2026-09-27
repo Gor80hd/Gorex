@@ -1,8 +1,16 @@
 import { appStorage } from './storage'
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
+
+type Language = 'ru' | 'en'
+
+interface LanguageContextValue {
+    lang: Language
+    setLang: (language: Language) => void
+    t: (key: string) => string
+}
 
 // ─── Translation dictionaries ──────────────────────────────────────────────────
-const TRANSLATIONS = {
+const TRANSLATIONS: Record<Language, Record<string, string>> = {
     ru: {
         // Common
         back: 'Назад',
@@ -1435,24 +1443,24 @@ const TRANSLATIONS = {
 }
 
 // ─── Context ───────────────────────────────────────────────────────────────────
-const LanguageContext = createContext({
+const LanguageContext = createContext<LanguageContextValue>({
     lang: 'ru',
     setLang: () => {},
-    t: (k) => k,
+    t: (key: string) => key,
 })
 
-export function LanguageProvider({ children }) {
-    const [lang, setLangState] = useState(() => {
+export function LanguageProvider({ children }: { children: ReactNode }) {
+    const [lang, setLangState] = useState<Language>(() => {
         const saved = appStorage.getItem('gorex-language')
         return saved === 'ru' ? 'ru' : 'en'
     })
 
-    const setLang = (newLang) => {
+    const setLang = (newLang: Language) => {
         appStorage.setItem('gorex-language', newLang)
         setLangState(newLang)
     }
 
-    const t = (key) => TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS.ru[key] ?? key
+    const t = (key: string) => TRANSLATIONS[lang][key] ?? TRANSLATIONS.ru[key] ?? key
 
     return (
         <LanguageContext.Provider value={{ lang, setLang, t }}>

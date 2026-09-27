@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, type DragEvent, type MouseEvent, type KeyboardEvent, type ChangeEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import logoWhite from '../../assets/images/logo_white.svg'
 import logoDark from '../../assets/images/logo.svg'
@@ -6,7 +6,23 @@ import { useLanguage } from '../../i18n'
 import './SourcePage.scss'
 
 // Supported services: hostname (without www.) → { name, color }
-const SERVICE_MAP = {
+interface DownloadService {
+    name: string
+    color: string
+}
+
+interface SourcePageProps {
+    theme: 'dark' | 'light'
+    isDragging: boolean
+    onSelectFiles: () => void | Promise<void>
+    onDragOver: (event: DragEvent<HTMLDivElement>) => void
+    onDragLeave: (event: DragEvent<HTMLDivElement>) => void
+    onDrop: (event: DragEvent<HTMLDivElement>) => void
+    onDownload: (url: string, service: DownloadService | null) => Promise<void>
+    isLoading: boolean
+}
+
+const SERVICE_MAP: Record<string, DownloadService> = {
     'youtube.com':     { name: 'YouTube',      color: '#ff0000' },
     'youtu.be':        { name: 'YouTube',      color: '#ff0000' },
     'twitter.com':     { name: 'Twitter / X',  color: '#ffffff' },
@@ -43,7 +59,7 @@ const SERVICE_MAP = {
     'streamable.com':  { name: 'Streamable',   color: '#41b883' },
 }
 
-function detectService(raw) {
+function detectService(raw: string): DownloadService | null {
     if (!raw) return null
     try {
         const u = new URL(raw)
@@ -54,12 +70,13 @@ function detectService(raw) {
     }
 }
 
-function isValidUrl(raw) {
+function isValidUrl(raw: string): boolean {
     try { new URL(raw); return true } catch { return false }
 }
 
-function FaviconImg({ url, className }) {
+function FaviconImg({ url, className }: { url: string; className?: string }) {
     const [failed, setFailed] = useState(false)
+    useEffect(() => setFailed(false), [url])
     let hostname = ''
     try { hostname = new URL(url).hostname } catch { return <i className="bi bi-link-45deg dl-icon--placeholder" /> }
     if (failed) return <i className="bi bi-globe2 dl-icon--placeholder" />
@@ -73,15 +90,14 @@ function FaviconImg({ url, className }) {
     )
 }
 
-function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave, onDrop, onDownload, isLoading }) {
+function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave, onDrop, onDownload, isLoading }: SourcePageProps) {
     const [url, setUrl] = useState('')
     const [isDownloading, setIsDownloading] = useState(false)
     const [dlError, setDlError] = useState('')
-    const [dlHint, setDlHint] = useState('')
     const { t } = useLanguage()
-    const inputRef = useRef(null)
+    const inputRef = useRef<HTMLInputElement>(null)
     const downloadIdRef = useRef(0)
-    const [ctxMenu, setCtxMenu] = useState(null) // { x, y }
+    const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
 
     const trimmed = url.trim()
     const isUrl = isValidUrl(trimmed)
@@ -99,7 +115,7 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
         }
     }, [ctxMenu])
 
-    const handleContextMenu = useCallback((e) => {
+    const handleContextMenu = useCallback((e: MouseEvent<HTMLInputElement>) => {
         e.preventDefault()
         setCtxMenu({ x: e.clientX, y: e.clientY })
     }, [])
@@ -107,7 +123,8 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
     const handleCtxCut = useCallback(() => {
         const el = inputRef.current
         if (!el) return
-        const { selectionStart: s, selectionEnd: e } = el
+        const s = el.selectionStart ?? 0
+        const e = el.selectionEnd ?? s
         const text = el.value.substring(s, e)
         if (text) {
             navigator.clipboard.writeText(text)
@@ -122,7 +139,8 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
     const handleCtxCopy = useCallback(() => {
         const el = inputRef.current
         if (!el) return
-        const { selectionStart: s, selectionEnd: e } = el
+        const s = el.selectionStart ?? 0
+        const e = el.selectionEnd ?? s
         const text = el.value.substring(s, e)
         if (text) navigator.clipboard.writeText(text)
         setCtxMenu(null)
@@ -134,7 +152,8 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
             const text = await navigator.clipboard.readText()
             const el = inputRef.current
             if (!el || !text) return
-            const { selectionStart: s, selectionEnd: e } = el
+            const s = el.selectionStart ?? 0
+            const e = el.selectionEnd ?? s
             const next = el.value.slice(0, s) + text + el.value.slice(e)
             setUrl(next)
             setDlError('')
@@ -162,29 +181,27 @@ function SourcePage({ theme, isDragging, onSelectFiles, onDragOver, onDragLeave,
         if (!trimmed || (isDownloading && isLoading)) return
         const myId = ++downloadIdRef.current
         setDlError('')
-        setDlHint('')
         setIsDownloading(true)
         try {
             await onDownload(trimmed, service)
             if (downloadIdRef.current === myId) setUrl('')
         } catch (err) {
-            setDlError(err?.message || t('dlErrorDefault'))
+            setDlError(err instanceof Error ? err.message : t('dlErrorDefault'))
         } finally {
             setIsDownloading(false)
         }
     }
 
-    const handleChange = (e) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         setUrl(e.target.value)
         setDlError('')
-        setDlHint('')
     }
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') handleDownload()
     }
 
-    let iconEl
+    let iconEl: ReactNode
     if (isDownloading && isLoading) {
         iconEl = <span className="dl-spinner" />
     } else if (isUrl) {
