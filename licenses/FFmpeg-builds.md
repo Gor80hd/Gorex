@@ -9,4 +9,4 @@ The Tauri test packages bundle separate GPLv3 command-line programs. Gorex commu
 
 The GPLv3 text is in `GPL-3.0.txt`. Both build providers publish package hashes, which the preparation script checks. The Windows archive also contains its own license and build configuration. The upstream FFmpeg source and the libraries enabled in each binary have their own licenses and corresponding source requirements; these must be audited before public release.
 
-**macOS compatibility gate:** The current macOS binaries declare macOS 12.0 as their minimum version. The product target remains macOS 11.0, so these test packages do not yet meet that target. A build targeting macOS 11.0 and runtime validation on a macOS 11 machine are required before release.
+**macOS compatibility gate:** The current macOS binaries declare macOS 12.0 as their minimum version, and test packages declare the same minimum. The product target remains macOS 11.0, so these test packages do not yet meet that target. Compatible tool builds and runtime validation on a macOS 11 machine are required before release.

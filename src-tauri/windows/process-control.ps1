@@ -34,10 +34,14 @@ for ($index = 0; $index -lt $targetIds.Count; $index++) {
     }
 }
 
+$controlledThreads = 0
+$seenProcess = $false
 foreach ($targetId in $targetIds) {
     $process = Get-Process -Id ([int]$targetId) -ErrorAction SilentlyContinue
     if ($null -eq $process) { continue }
-    foreach ($thread in @($process.Threads)) {
+    $seenProcess = $true
+    try { $threads = @($process.Threads) } catch { continue }
+    foreach ($thread in $threads) {
         $handle = [GorexThreadControl]::OpenThread(0x0002, $false, [uint32]$thread.Id)
         if ($handle -eq [IntPtr]::Zero) { continue }
         try {
@@ -49,8 +53,12 @@ foreach ($targetId in $targetIds) {
             if ($result -eq [uint32]::MaxValue) {
                 throw "Could not $GorexControlAction thread $($thread.Id) in process $targetId"
             }
+            $controlledThreads++
         } finally {
             [void][GorexThreadControl]::CloseHandle($handle)
         }
     }
+}
+if ($seenProcess -and $controlledThreads -eq 0) {
+    throw "Could not $GorexControlAction any process threads"
 }

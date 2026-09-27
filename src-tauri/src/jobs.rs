@@ -6,6 +6,7 @@ use tokio::{io::AsyncReadExt, process::Command};
 pub struct Job {
     pid: u32,
     cancelled: AtomicBool,
+    paused: AtomicBool,
     paths: Vec<PathBuf>,
 }
 
@@ -133,7 +134,7 @@ pub async fn run(app: AppHandle, jobs: Arc<Jobs>, spec: RunSpec) -> Result<RunOu
     }
     let mut child = command.spawn().map_err(|error| error.to_string())?;
     let pid = child.id().ok_or("Process ID unavailable")?;
-    let job = Arc::new(Job { pid, cancelled: AtomicBool::new(false), paths: spec.cleanup_paths });
+    let job = Arc::new(Job { pid, cancelled: AtomicBool::new(false), paused: AtomicBool::new(false), paths: spec.cleanup_paths });
     let key = spec.id.to_string();
     if let Err(error) = jobs.insert(&key, job.clone()) {
         let _ = child.kill().await;
@@ -200,8 +201,12 @@ fn signal(pid: u32, action: &str) -> Result<(), String> {
 fn control(jobs: &Jobs, action: &str) -> Result<(), String> {
     let running = jobs.running.lock().map_err(|error| error.to_string())?;
     for job in running.values() {
+        if action == "pause" && job.paused.load(Ordering::SeqCst) { continue; }
+        if action == "resume" && !job.paused.load(Ordering::SeqCst) { continue; }
         if action == "stop" { job.cancelled.store(true, Ordering::SeqCst); }
         signal(job.pid, action)?;
+        if action == "pause" { job.paused.store(true, Ordering::SeqCst); }
+        if action == "resume" { job.paused.store(false, Ordering::SeqCst); }
     }
     Ok(())
 }

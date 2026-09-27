@@ -16,6 +16,7 @@ import ListPage from './pages/ListPage/ListPage'
 import AboutPage from './pages/AboutPage/AboutPage'
 import SettingsPage from './pages/SettingsPage/SettingsPage'
 import OnboardingScreen from './components/OnboardingScreen/OnboardingScreen'
+import WhatsNewDialog from './components/WhatsNewDialog/WhatsNewDialog'
 import { initDefaultSettings, saveGpuVendor, getDefaultSettingsForGpu, normalizeEncoderSettings } from './components/GlobalSettings/GlobalSettings'
 import gradientPPL from './assets/images/Gradient_PPL.webm'
 import gradientBlack from './assets/images/Gradient_Black.webm'
@@ -33,14 +34,6 @@ const YTDL_STAGE_LABELS = {
 }
 
 const WHATS_NEW_STORAGE_KEY = 'gorex-whats-new-version'
-
-const WHATS_NEW_ITEMS = [
-    { icon: 'bi-twitch', titleKey: 'whatsNewTwitchTitle', textKey: 'whatsNewTwitchText' },
-    { icon: 'bi-chat-square-text-fill', titleKey: 'whatsNewChatPreviewTitle', textKey: 'whatsNewChatPreviewText' },
-    { icon: 'bi-arrow-down-circle-fill', titleKey: 'whatsNewReliableDownloadsTitle', textKey: 'whatsNewReliableDownloadsText' },
-    { icon: 'bi-sliders', titleKey: 'whatsNewQueueSettingsTitle', textKey: 'whatsNewQueueSettingsText' },
-    { icon: 'bi-arrow-repeat', titleKey: 'whatsNewToolsTitle', textKey: 'whatsNewToolsText' },
-]
 
 function createYtdlToolState(overrides = {}) {
     return {
@@ -1527,39 +1520,7 @@ function App() {
                 </div>
             )}
             {showWhatsNew && !showOnboarding && (
-                <div className={`whats-new-overlay ${theme}`} role="dialog" aria-modal="true" aria-labelledby="whats-new-title" onClick={handleDismissWhatsNew}>
-                    <div className="whats-new-card" onClick={e => e.stopPropagation()}>
-                        <button className="whats-new-close" onClick={handleDismissWhatsNew} title={t('close')}>
-                            <i className="bi bi-x-lg"></i>
-                        </button>
-                            <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '3.0.0')}</div>
-                        <h2 id="whats-new-title" className="whats-new-title">{t('whatsNewTitle')}</h2>
-                        <p className="whats-new-subtitle">{t('whatsNewSubtitle')}</p>
-                        <div className="whats-new-list">
-                            {WHATS_NEW_ITEMS.map((item, index) => (
-                                <div key={item.titleKey} className="whats-new-item" style={{ animationDelay: `${index * 45}ms` }}>
-                                    <span className="whats-new-item-icon">
-                                        <i className={`bi ${item.icon}`}></i>
-                                    </span>
-                                    <span className="whats-new-item-copy">
-                                        <span className="whats-new-item-title">{t(item.titleKey)}</span>
-                                        <span className="whats-new-item-text">{t(item.textKey)}</span>
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                        <p className="whats-new-mac-note">
-                            <i className="bi bi-apple" aria-hidden="true"></i>
-                            {t('whatsNewMacNote')}
-                        </p>
-                        <div className="whats-new-footer">
-                            <button className="whats-new-primary" onClick={handleDismissWhatsNew}>
-                                {t('whatsNewDone')}
-                                <i className="bi bi-check2"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <WhatsNewDialog theme={theme} version={appVersion || '3.0.0'} onDismiss={handleDismissWhatsNew} />
             )}
             <main className="container">
                 {renderPage()}
