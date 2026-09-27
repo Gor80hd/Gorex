@@ -3,7 +3,9 @@ import { existsSync, mkdirSync, mkdtempSync, copyFileSync, chmodSync, rmSync, re
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 
+const require = createRequire(import.meta.url)
 const root = resolve(import.meta.dirname, '..')
 const destination = join(root, 'src-tauri', 'binaries')
 
@@ -107,7 +109,7 @@ function installFFmpeg(target) {
       const archive = join(scratch, 'ffmpeg.7z')
       downloadVerified(asset.url, archive, asset.sha256)
       const bin = `ffmpeg-8.1.2-full_build/bin`
-      const unpack = spawnSync('tar', ['-xf', archive, '-C', scratch, `${bin}/ffmpeg.exe`, `${bin}/ffprobe.exe`], { stdio: 'inherit' })
+      const unpack = spawnSync(require('7zip-bin').path7za, ['x', '-y', `-o${scratch}`, archive, `${bin}/ffmpeg.exe`, `${bin}/ffprobe.exe`], { stdio: 'inherit' })
       if (unpack.status !== 0) throw new Error('Could not extract Windows FFmpeg archive')
       copyTool(join(scratch, bin, 'ffmpeg.exe'), 'ffmpeg.exe')
       copyTool(join(scratch, bin, 'ffprobe.exe'), 'ffprobe.exe')

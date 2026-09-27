@@ -1,4 +1,8 @@
 import { appStorage } from './storage'
+import { getEncoderErrorHint } from './features/encoding/encoderErrorHint'
+import { isDownloadItem } from './features/queue/queueItem'
+import { getTwitchQualityLabel, isTwitchUrl, normalizeTwitchSelectedQuality } from './features/twitch/twitchQueue'
+import { cleanYtdlToolError, isTwitchToolUpdateAvailable, isYtdlUpdateAvailable } from './features/tools/updateHelpers'
 import { useState, useEffect, useRef } from 'react'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import TitleBar from './components/TitleBar/TitleBar'
@@ -16,26 +20,6 @@ import { initDefaultSettings, saveGpuVendor, getDefaultSettingsForGpu, normalize
 import gradientPPL from './assets/images/Gradient_PPL.webm'
 import gradientBlack from './assets/images/Gradient_Black.webm'
 import gradientWhite from './assets/images/Gradient_White.webm'
-
-function getEncoderErrorHint(stderr, t) {
-    if (/videotoolbox|compression session.*-\d+/i.test(stderr)) {
-        return t('gpuErrHwUnavailable')
-    }
-    if (/No capable devices found/i.test(stderr)) {
-        if (/av1_nvenc/i.test(stderr)) return t('gpuErrNvencAv1')
-        if (/h265_nvenc|hevc_nvenc/i.test(stderr)) return t('gpuErrNvencH265')
-        if (/nvenc/i.test(stderr)) return t('gpuErrNvenc')
-        if (/av1_amf|av1_vce/i.test(stderr)) return t('gpuErrVceAv1')
-        if (/av1_qsv/i.test(stderr)) return t('gpuErrQsvAv1')
-        return t('gpuErrHwUnavailable')
-    }
-    if (/avcodec_open failed|Failure to initialise thread/i.test(stderr)) {
-        if (/nvenc/i.test(stderr)) return t('gpuErrNvencInit')
-        if (/qsv/i.test(stderr)) return t('gpuErrQsvInit')
-        if (/vce|amf/i.test(stderr)) return t('gpuErrVceInit')
-    }
-    return null
-}
 
 const YTDL_STAGE_LABELS = {
     preparing: 'ytdlUpdateStagePreparing',
@@ -86,100 +70,6 @@ function createTwitchToolState(overrides = {}) {
     }
 }
 
-function isTwitchUrl(raw) {
-    try {
-        const host = new URL(raw).hostname.replace(/^www\./, '').replace(/^m\./, '').toLowerCase()
-        return host === 'twitch.tv' || host === 'clips.twitch.tv'
-    } catch {
-        return false
-    }
-}
-
-function isDownloadItem(video) {
-    return !!(video?.isYtdlItem || video?.isTwitchItem)
-}
-
-function getTwitchQualityLabel(options, value) {
-    const list = Array.isArray(options) ? options : []
-    const found = list.find(option => option?.value === value)
-    return found?.label || value || ''
-}
-
-function normalizeTwitchQualityOptions(options) {
-    const clean = Array.isArray(options) ? options.filter(option => option?.value && option?.label) : []
-    return clean.length ? clean : [{ value: 'Source', label: 'Source', source: true }]
-}
-
-function normalizeTwitchSelectedQuality(info) {
-    const options = normalizeTwitchQualityOptions(info?.qualityOptions)
-    const selected = info?.twitchQuality || options[0]?.value || 'Source'
-    return {
-        options,
-        selected,
-        label: getTwitchQualityLabel(options, selected),
-    }
-}
-
-function normalizeTwitchToolVersion(version) {
-    const text = String(version || '').trim().replace(/^TwitchDownloader(?:CLI)?\s*/i, '').replace(/^v/i, '')
-    const match = text.match(/\d+(?:\.\d+)+(?:[-+][0-9A-Za-z.-]+)?/)
-    return match ? match[0].split('+')[0] : ''
-}
-
-function compareTwitchToolVersions(a, b) {
-    const pa = normalizeTwitchToolVersion(a).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
-    const pb = normalizeTwitchToolVersion(b).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
-    const len = Math.max(pa.length, pb.length)
-    for (let i = 0; i < len; i += 1) {
-        const diff = (pa[i] || 0) - (pb[i] || 0)
-        if (diff !== 0) return diff > 0 ? 1 : -1
-    }
-    return 0
-}
-
-function isTwitchToolUpdateAvailable(currentVersion, latestVersion) {
-    if (!currentVersion || !latestVersion) return false
-    return compareTwitchToolVersions(latestVersion, currentVersion) > 0
-}
-
-function normalizeYtdlVersion(version) {
-    return String(version || '').trim().replace(/^yt-dlp\s+/i, '').replace(/^v/i, '')
-}
-
-function compareYtdlVersions(a, b) {
-    const pa = normalizeYtdlVersion(a).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
-    const pb = normalizeYtdlVersion(b).split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
-    const len = Math.max(pa.length, pb.length)
-    for (let i = 0; i < len; i += 1) {
-        const diff = (pa[i] || 0) - (pb[i] || 0)
-        if (diff !== 0) return diff > 0 ? 1 : -1
-    }
-    return 0
-}
-
-function isYtdlUpdateAvailable(currentVersion, latestVersion) {
-    if (!currentVersion || !latestVersion) return false
-    return compareYtdlVersions(latestVersion, currentVersion) > 0
-}
-
-function cleanYtdlToolError(message) {
-    const text = String(message || '')
-        .replace(/^Error invoking remote method '[-a-z]+':\s*/i, '')
-        .replace(/^Error:\s*/i, '')
-        .trim()
-
-    if (/net::ERR_CONNECTION_RESET/i.test(text)) {
-        return 'Соединение с GitHub было сброшено. Проверьте сеть или попробуйте позже.'
-    }
-    if (/net::ERR_INTERNET_DISCONNECTED|ENOTFOUND|EAI_AGAIN/i.test(text)) {
-        return 'Нет соединения с GitHub. Проверьте интернет и попробуйте позже.'
-    }
-    if (/net::ERR_TIMED_OUT|timeout/i.test(text)) {
-        return 'GitHub не ответил вовремя. Попробуйте обновить yt-dlp позже.'
-    }
-
-    return text
-}
 function App() {
     const { t, lang } = useLanguage()
     const isMac = window.api.platform === 'darwin'
