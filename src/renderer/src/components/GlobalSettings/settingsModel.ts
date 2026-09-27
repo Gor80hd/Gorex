@@ -1,11 +1,22 @@
 import { appStorage } from '../../storage'
-import { useState, useRef, useEffect } from 'react'
-import { useLanguage } from '../../i18n'
 import {
     getDefaultEncoderSpeed as resolveDefaultEncoderSpeed,
     normalizeEncoderSettings as normalizeSettingsForEncoder,
 } from './settingsNormalization.mjs'
-import './GlobalSettings.scss'
+
+type Translate = (key: string) => string
+type EncoderSettings = { encoder?: string; encoderSpeed?: string; [key: string]: unknown }
+type QualityTable = { high: number; medium: number; low: number; potato: number; min: number; max: number }
+type EstimateVideo = { size?: string; resolution?: string; fps?: string; duration?: string; bitrate?: string }
+type EstimateSettings = {
+    encoder?: string
+    quality?: string
+    customQuality?: number
+    encoderSpeed?: string
+    resolution?: string
+    fps?: string
+    audioBitrate?: string
+}
 
 // ─── RF quality tables per encoder ────────────────────────────────────────────
 export const CODEC_RF = {
@@ -186,11 +197,11 @@ export const ENCODER_PRESETS = {
     flv1:         [],
 }
 
-export function getDefaultEncoderSpeed(encoder, fallback = 'medium') {
+export function getDefaultEncoderSpeed(encoder: string, fallback = 'medium') {
     return resolveDefaultEncoderSpeed(encoder, ENCODER_PRESETS, fallback)
 }
 
-export function normalizeEncoderSettings(settings, fallback = 'medium') {
+export function normalizeEncoderSettings<T extends EncoderSettings>(settings: T, fallback = 'medium'): T {
     return normalizeSettingsForEncoder(settings, ENCODER_PRESETS, fallback)
 }
 
@@ -268,21 +279,21 @@ export const AUDIO_SAMPLE_RATE_OPTIONS = [
     { value: '96',    label: '96 kHz' },
 ]
 
-export function isAudioOnlyOutputFormat(format) {
+export function isAudioOnlyOutputFormat(format: string) {
     return AUDIO_ONLY_FORMATS.has(format)
 }
 
-export function getAudioFormatDefaults(format) {
-    return AUDIO_ONLY_FORMAT_DEFAULTS[format] || null
+export function getAudioFormatDefaults(format: string) {
+    return (AUDIO_ONLY_FORMAT_DEFAULTS as Record<string, { audioCodec: string }>)[format] || null
 }
 
-export function isAudioCodecCompatibleWithFormat(format, codec) {
+export function isAudioCodecCompatibleWithFormat(format: string, codec?: string) {
     if (!isAudioOnlyOutputFormat(format)) return true
-    const allowed = AUDIO_ONLY_COMPATIBLE_CODECS[format]
+    const allowed = (AUDIO_ONLY_COMPATIBLE_CODECS as Record<string, Set<string>>)[format]
     return !allowed || allowed.has(codec || '')
 }
 
-export function getFormatOptionGroups(t) {
+export function getFormatOptionGroups(t?: Translate) {
     return [
         { label: t ? t('formatGroupVideo') : 'Video', options: VIDEO_FORMAT_OPTIONS },
         { label: t ? t('formatGroupAudio') : 'Audio', options: AUDIO_FORMAT_OPTIONS },
@@ -339,15 +350,15 @@ const GPU_ENCODER_MAP = {
     intel:  { encoder: 'qsv_h264',   encoderSpeed: 'balanced' },
 }
 
-export function getDefaultSettingsForGpu(vendor) {
-    return normalizeEncoderSettings({ ...DEFAULT_SETTINGS, ...(GPU_ENCODER_MAP[vendor] || {}) })
+export function getDefaultSettingsForGpu(vendor: string) {
+    return normalizeEncoderSettings({ ...DEFAULT_SETTINGS, ...((GPU_ENCODER_MAP as Record<string, Partial<typeof DEFAULT_SETTINGS>>)[vendor] || {}) })
 }
 
 export function getStoredGpuVendor() {
     try { return appStorage.getItem('gorex-gpu-vendor') || null } catch { return null }
 }
 
-export function saveGpuVendor(vendor) {
+export function saveGpuVendor(vendor: string) {
     try { appStorage.setItem('gorex-gpu-vendor', vendor) } catch {}
 }
 
@@ -453,13 +464,13 @@ export const ENCODER_GROUPS = [
 // Platform-specific hardware encoders are not useful on macOS. VideoToolbox is
 // the native hardware path there; software and intermediate codecs stay
 // available on every platform.
-export function getEncoderGroupsForPlatform(platform) {
+export function getEncoderGroupsForPlatform(platform: string) {
     if (platform !== 'darwin') return ENCODER_GROUPS
     return ENCODER_GROUPS.filter(group => !['nvenc', 'qsv', 'vce', 'mf'].includes(group.id))
 }
 
 // ─── Encoder groups for conversion page (GPU-aware) ───────────────────────────
-export function getConversionEncoderGroups(vendor, showAll, t, platform = 'unknown') {
+export function getConversionEncoderGroups(vendor: string, showAll: boolean, t?: Translate, platform = 'unknown') {
     const platformGroups = getEncoderGroupsForPlatform(platform)
     const software   = platformGroups.find(g => g.id === 'software')
     const nvenc      = platformGroups.find(g => g.id === 'nvenc')
@@ -468,7 +479,7 @@ export function getConversionEncoderGroups(vendor, showAll, t, platform = 'unkno
     const videotoolbox = platformGroups.find(g => g.id === 'videotoolbox')
 
     const gpuGroupMap = { apple: videotoolbox, nvidia: nvenc, intel: qsv, amd: vce }
-    const gpuGroup = gpuGroupMap[vendor]
+    const gpuGroup = (gpuGroupMap as Record<string, typeof software>)[vendor]
 
     const rec = t ? t('recommended') : 'рекомендован'
     const swLabel = t ? t('softwareEncoders') : (software?.label || 'Программные')
@@ -489,7 +500,7 @@ export function getConversionEncoderGroups(vendor, showAll, t, platform = 'unkno
                 nvidia: `NVIDIA NVENC (${rec})`,
                 intel:  `Intel QSV (${rec})`,
                 amd:    `AMD VCE (${rec})`,
-            }[vendor]
+            }[vendor as 'apple' | 'nvidia' | 'intel' | 'amd']
             return [
                 { label: gpuLabel, encoders: gpuGroup.encoders },
                 softwarePrimary,
@@ -501,7 +512,7 @@ export function getConversionEncoderGroups(vendor, showAll, t, platform = 'unkno
     // showAll = true: GPU group first (with translated label), then the rest
     if (gpuGroup) {
         const others = platformGroups.filter(g => g !== gpuGroup)
-        const translateLabel = (g) => g.labelKey && t ? t(g.labelKey) : g.label
+        const translateLabel = (g: (typeof platformGroups)[number]) => g.labelKey && t ? t(g.labelKey) : g.label
         return [gpuGroup, ...others].map(g => ({ ...g, label: translateLabel(g) }))
     }
     return platformGroups.map(g => g.labelKey && t ? { ...g, label: t(g.labelKey) } : g)
@@ -583,581 +594,6 @@ export const ENCODER_DISABLED_FORMATS = {
     flv1:         new Set(['av_mp4', 'av_mkv', 'av_mov', 'av_webm', 'av_ts', 'av_ogg', 'av_3gp', 'av_avi']),
 }
 
-// ─── Help texts (i18n-based lookups) ──────────────────────────────────────────
-function getFormatHelp(format, t) {
-    const key = {
-        av_mp4:  'helpFmtMp4',
-        av_mkv:  'helpFmtMkv',
-        av_webm: 'helpFmtWebm',
-        av_mov:  'helpFmtMov',
-        av_avi:  'helpFmtAvi',
-        av_flv:  'helpFmtFlv',
-        av_ts:   'helpFmtTs',
-        av_ogg:  'helpFmtOgg',
-        av_3gp:  'helpFmt3gp',
-    }[format]
-    return key ? t(key) : t('hintFormat')
-}
-function getResolutionHelp(res, t) {
-    const key = { source: 'helpResSource', '4k': 'helpRes4k', '1440p': 'helpRes1440p', '1080p': 'helpRes1080p', '720p': 'helpRes720p', '480p': 'helpRes480p' }[res]
-    return key ? t(key) : t('hintResolution')
-}
-function getFpsHelp(fps, t) {
-    const key = { source: 'helpFpsSource', '60': 'helpFps60', '30': 'helpFps30', '25': 'helpFps25', '24': 'helpFps24', '23.976': 'helpFps23976' }[fps]
-    return key ? t(key) : t('hintFps')
-}
-function getQualityHelp(quality, t) {
-    const key = { lossless: 'helpQualLossless', high: 'helpQualHigh', medium: 'helpQualMedium', low: 'helpQualLow', potato: 'helpQualPotato', custom: 'helpQualCustom' }[quality]
-    return key ? t(key) : t('hintQualityMode')
-}
-function getEncoderHelpText(encoder, t) {
-    const key = {
-        x265: 'helpEncX265', x265_10bit: 'helpEncX265_10bit', x265_12bit: 'helpEncX265_12bit',
-        x264: 'helpEncX264', x264_10bit: 'helpEncX264_10bit',
-        svt_av1: 'helpEncSvtAv1', svt_av1_10bit: 'helpEncSvtAv1_10bit',
-        vp9: 'helpEncVp9', vp9_10bit: 'helpEncVp9_10bit', vp8: 'helpEncVp8', theora: 'helpEncTheora',
-        nvenc_h264: 'helpEncNvencH264', nvenc_h265: 'helpEncNvencH265', nvenc_av1: 'helpEncNvencAv1',
-        qsv_h264: 'helpEncQsvH264', qsv_h265: 'helpEncQsvH265', qsv_av1: 'helpEncQsvAv1',
-        vce_h264: 'helpEncVceH264', vce_h265: 'helpEncVceH265', vce_av1: 'helpEncVceAv1',
-        mf_h264: 'helpEncMfH264', mf_h265: 'helpEncMfH265',
-        vt_h264: 'helpEncVtH264', vt_h265: 'helpEncVtH265',
-        libaom_av1: 'helpEncLibaomAv1',
-        mpeg4: 'helpEncMpeg4', mpeg2video: 'helpEncMpeg2', mpeg1video: 'helpEncMpeg1',
-        prores_ks: 'helpEncProres', dnxhd: 'helpEncDnxhd',
-        ffv1: 'helpEncFfv1', huffyuv: 'helpEncHuffyuv',
-        mjpeg: 'helpEncMjpeg', wmv2: 'helpEncWmv2', wmv1: 'helpEncWmv1',
-        h263p: 'helpEncH263p', h263: 'helpEncH263', flv1: 'helpEncFlv1',
-    }[encoder]
-    return key ? t(key) : t('hintVideoCodec')
-}
-
-// ─── Helper: resolution options ────────────────────────────────────────────────
-function getResolutionOptions(videos, t) {
-    const srcLabel = t ? t('resSource') : 'По исходному'
-    const opts = [{ value: 'source', label: srcLabel }]
-
-    let isPortrait = false
-    let maxDim = 0
-
-    if (videos && videos.length > 0) {
-        const portraitCount = videos.filter(v => {
-            if (!v.resolution) return false
-            const [w, h] = v.resolution.split('x').map(Number)
-            return h > w
-        }).length
-        isPortrait = portraitCount > videos.length / 2
-
-        videos.forEach(v => {
-            if (!v.resolution) return
-            const [w, h] = v.resolution.split('x').map(Number)
-            maxDim = Math.max(maxDim, w, h)
-        })
-    }
-
-    const p = t ? t('resPortrait') : 'вертикально'
-    const standard = [
-        { value: '4k',    label: isPortrait ? `4K ${p} (2160p)` : '4K (2160p)',  short: 2160 },
-        { value: '1440p', label: isPortrait ? `2K ${p} (1440p)` : '2K (1440p)',  short: 1440 },
-        { value: '1080p', label: isPortrait ? `1080p ${p}`       : '1080p',       short: 1080 },
-        { value: '720p',  label: isPortrait ? `720p ${p}`        : '720p',        short: 720  },
-        { value: '480p',  label: isPortrait ? `480p ${p}`        : '480p',        short: 480  },
-    ]
-
-    standard.forEach(r => {
-        if (maxDim === 0 || r.short <= maxDim + 20) {
-            opts.push(r)
-        }
-    })
-
-    return opts
-}
-
-function getEncoderLabel(encoder) {
-    for (const g of ENCODER_GROUPS) {
-        const found = g.encoders.find(e => e.value === encoder)
-        if (found) return found.label
-    }
-    return encoder
-}
-
-// ─── Custom dropdown ─────────────────────────────────────────────────────────
-export function GsSelect({ value, onChange, options, groups, disabled, className, onSpecial, direction = 'up', footer }) {
-    const [open, setOpen] = useState(false)
-    const ref = useRef(null)
-    const { t, lang } = useLanguage()
-
-    const resolveDesc = (desc) => {
-        if (!desc) return null
-        if (typeof desc === 'object') return desc[lang] || desc.en || desc.ru || null
-        return desc
-    }
-
-    useEffect(() => {
-        if (!open) return
-        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
-    }, [open])
-
-    let currentLabel = value
-    if (options) {
-        const found = options.find(o => o.value === value)
-        if (found) currentLabel = found.label
-    }
-    if (groups) {
-        outer: for (const g of groups) {
-            for (const o of g.options) {
-                if (o.value === value) { currentLabel = o.label; break outer }
-            }
-        }
-    }
-
-    const handleSelect = (optValue, special, optDisabled) => {
-        if (optDisabled) return
-        setOpen(false)
-        if (special && onSpecial) { onSpecial(optValue); return }
-        onChange(optValue)
-    }
-
-    return (
-        <div
-            className={`gs-dropdown${disabled ? ' gs-dropdown--disabled' : ''}${open ? ' gs-dropdown--open' : ''}${direction === 'down' ? ' gs-dropdown--down' : ''}${className ? ' ' + className : ''}`}
-            ref={ref}
-        >
-            <button
-                className="gs-dropdown-trigger"
-                type="button"
-                onClick={() => { if (!disabled) setOpen(v => !v) }}
-            >
-                <span className="gs-dropdown-value">{currentLabel}</span>
-                <i className="bi bi-chevron-down gs-dropdown-chevron"></i>
-            </button>
-            {open && (
-                <div className="gs-dropdown-menu">
-                    <div className="gs-dropdown-menu-scroll">
-                    {options && options.map(o => (
-                        <button
-                            key={o.value}
-                            type="button"
-                            disabled={!!o.disabled}
-                            className={`gs-dropdown-item${o.value === value ? ' active' : ''}${o.special ? ' gs-dropdown-item--special' : ''}${o.disabled ? ' gs-dropdown-item--disabled' : ''}${o.tags && o.tags.length ? ' gs-dropdown-item--with-tags' : ''}`}
-                            onClick={() => handleSelect(o.value, o.special, o.disabled)}
-                        >
-                            <span className="gs-dropdown-item-main">
-                                {o.label}
-                            {o.recommended && <span className="gs-dropdown-item-badge">{t('recommended')}</span>}
-                            </span>
-                            {o.tags && o.tags.length > 0 && (
-                                <span className="gs-dropdown-item-tags">
-                                    {o.tags.map(tag => (
-                                        <span key={tag.key} className={`gs-item-tag ${tag.cls}`}>
-                                            <i className={`bi ${tag.icon}`}></i>{tag.label}
-                                        </span>
-                                    ))}
-                                </span>
-                            )}
-                            {o.desc && <span className="gs-dropdown-item-desc">{resolveDesc(o.desc)}</span>}
-                        </button>
-                    ))}
-                    {groups && groups.map((g, gi) => (
-                        <div key={g.label} className={`gs-dropdown-group${gi > 0 ? ' gs-dropdown-group--sep' : ''}`}>
-                            <div className="gs-dropdown-group-label">{g.label}</div>
-                            {g.options.map(o => (
-                                <button
-                                    key={o.value}
-                                    type="button"
-                                    disabled={!!o.disabled}
-                                    className={`gs-dropdown-item${o.value === value ? ' active' : ''}${o.disabled ? ' gs-dropdown-item--disabled' : ''}${o.tags && o.tags.length ? ' gs-dropdown-item--with-tags' : ''}`}
-                                    onClick={() => handleSelect(o.value, false, o.disabled)}
-                                >
-                                    <span className="gs-dropdown-item-main">{o.label}</span>
-                                    {o.tags && o.tags.length > 0 && (
-                                        <span className="gs-dropdown-item-tags">
-                                            {o.tags.map(t => (
-                                                <span key={t.key} className={`gs-item-tag ${t.cls}`}>
-                                                    <i className={`bi ${t.icon}`}></i>{t.label}
-                                                </span>
-                                            ))}
-                                        </span>
-                                    )}
-                                    {o.desc && <span className="gs-dropdown-item-desc">{resolveDesc(o.desc)}</span>}
-                                </button>
-                            ))}
-                        </div>
-                    ))}
-                    </div>
-                    {footer && (
-                        <div className="gs-dropdown-footer">{footer}</div>
-                    )}
-                </div>
-            )}
-        </div>
-    )
-}
-
-// ─── Tooltip component ─────────────────────────────────────────────────────────
-function Tooltip({ text }) {
-    const [visible, setVisible] = useState(false)
-
-    return (
-        <span className="gs-tooltip-wrap">
-            <button
-                className="gs-help-btn"
-                onMouseEnter={() => setVisible(true)}
-                onMouseLeave={() => setVisible(false)}
-                onClick={e => { e.stopPropagation(); setVisible(v => !v) }}
-                tabIndex={-1}
-            >
-                <i className="bi bi-question-circle"></i>
-            </button>
-            {visible && (
-                <span className="gs-tooltip">{text}</span>
-            )}
-        </span>
-    )
-}
-
-// ─── Main component ────────────────────────────────────────────────────────────
-function GlobalSettings({ settings, onChange, videos, disabled, gpuVendor, systemPlatform }) {
-    const { t } = useLanguage()
-    const [showCustomQuality, setShowCustomQuality] = useState(false)
-    const [draftRF, setDraftRF] = useState(settings.customQuality)
-    const [showMoreCodecs, setShowMoreCodecs] = useState(false)
-
-    const rfTable = CODEC_RF[settings.encoder] || CODEC_RF.x265
-    const speedPresets = ENCODER_PRESETS[settings.encoder] ?? []
-    const resOptions = getResolutionOptions(videos, t)
-    const encoderGroups = getConversionEncoderGroups(gpuVendor || 'unknown', showMoreCodecs, t, systemPlatform)
-    const audioOnly = isAudioOnlyOutputFormat(settings.format)
-    const isAudioPassthru = (settings.audioCodec || 'av_aac').startsWith('copy')
-
-    const update = (key, value) => onChange({ ...settings, [key]: value })
-
-    const handleFormatChange = (fmt) => {
-        const audioDefaults = getAudioFormatDefaults(fmt)
-        if (audioDefaults) {
-            onChange({
-                ...settings,
-                format: fmt,
-                ...audioDefaults,
-                noAudio: false,
-                subtitleMode: 'none',
-                subtitleBurn: false,
-                subtitleExternalFile: '',
-                alphaChannel: false,
-                hwDecoding: 'none',
-                multiPass: false,
-            })
-            return
-        }
-        const patch = { format: fmt }
-        if (fmt === 'av_webm') {
-            if (!WEBM_COMPATIBLE_ENCODERS.has(settings.encoder)) {
-                const speeds = ENCODER_PRESETS.vp9
-                patch.encoder = 'vp9'
-                patch.encoderSpeed = speeds[Math.floor(speeds.length / 2)]?.value ?? 'good'
-            }
-            const audioCodec = settings.audioCodec || 'av_aac'
-            if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
-                patch.audioCodec = 'opus'
-            }
-        } else if (fmt === 'av_ogg') {
-            // OGG: auto-switch to Theora if current encoder is not OGG-compatible
-            if (!new Set(['theora', 'vp8', 'vp9', 'vp9_10bit']).has(settings.encoder)) {
-                patch.encoder = 'theora'
-                patch.encoderSpeed = undefined
-            }
-            const audioCodec = settings.audioCodec || 'av_aac'
-            if (!WEBM_COMPATIBLE_AUDIO.has(audioCodec) && !audioCodec.startsWith('copy')) {
-                patch.audioCodec = 'vorbis'
-            }
-        } else if (fmt === 'av_flv') {
-            // FLV: only flv1 or x264 are valid; switch to flv1 if incompatible
-            if (!new Set(['flv1', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264']).has(settings.encoder)) {
-                patch.encoder = 'flv1'
-                patch.encoderSpeed = undefined
-            }
-        } else if (fmt === 'av_3gp') {
-            // 3GP: only h263/h263p/h264 are valid
-            if (!new Set(['h263', 'h263p', 'x264', 'x264_10bit', 'nvenc_h264', 'qsv_h264', 'vce_h264', 'mf_h264', 'vt_h264', 'mpeg4']).has(settings.encoder)) {
-                patch.encoder = 'h263p'
-                patch.encoderSpeed = undefined
-            }
-        } else {
-            const disabledFormats = ENCODER_DISABLED_FORMATS[settings.encoder]
-            if (disabledFormats?.has(fmt)) {
-                const speeds = ENCODER_PRESETS.x265
-                patch.encoder = 'x265'
-                patch.encoderSpeed = speeds?.find(s => s.value === 'slow')?.value
-                    ?? speeds?.[Math.floor((speeds?.length ?? 0) / 2)]?.value ?? 'slow'
-            }
-            if (fmt === 'av_mp4' || fmt === 'av_mov' || fmt === 'av_avi' || fmt === 'av_ts' || fmt === 'av_flv' || fmt === 'av_3gp') {
-                const audioCodec = settings.audioCodec || 'av_aac'
-                const containerUnsafeAudio = new Set(['vorbis', 'opus', 'flac16', 'flac24', 'pcm_s16le', 'pcm_s24le', 'pcm_f32le', 'alac', 'wmav2'])
-                if ((WEBM_COMPATIBLE_AUDIO.has(audioCodec) || containerUnsafeAudio.has(audioCodec)) && !audioCodec.startsWith('copy')) {
-                    patch.audioCodec = 'av_aac'
-                }
-            }
-        }
-        onChange({ ...settings, ...patch })
-    }
-
-    const openCustomQuality = () => {
-        setDraftRF(settings.quality === 'custom' ? settings.customQuality : rfTable[settings.quality] ?? rfTable.medium)
-        setShowCustomQuality(true)
-    }
-
-    const confirmCustomQuality = () => {
-        onChange({ ...settings, quality: 'custom', customQuality: draftRF })
-        setShowCustomQuality(false)
-    }
-
-    const handleEncoderChange = (enc) => {
-        onChange(normalizeEncoderSettings({ ...settings, encoder: enc }))
-    }
-
-    const qualityPresets = [
-        { key: 'high',   label: t('qualityHigh'),   rf: rfTable.high },
-        { key: 'medium', label: t('qualityMedium'),  rf: rfTable.medium },
-        { key: 'low',    label: t('qualityLow'),     rf: rfTable.low },
-        { key: 'potato', label: t('qualityPotato'),  rf: rfTable.potato },
-    ]
-
-    const currentQualityRF = settings.quality === 'custom'
-        ? settings.customQuality
-        : rfTable[settings.quality]
-
-    const currentFormatHelp  = getFormatHelp(settings.format, t)
-    const currentResHelp     = getResolutionHelp(settings.resolution, t)
-    const currentFpsHelp     = getFpsHelp(settings.fps, t)
-    const currentQualityHelp = getQualityHelp(settings.quality === 'custom' ? 'custom' : settings.quality, t)
-    const currentEncHelp     = getEncoderHelpText(settings.encoder, t)
-
-    return (
-        <>
-            <div className={`global-settings${audioOnly ? ' global-settings--audio-only' : ''}`}>
-
-                {/* ── Format ── */}
-                <div className="gs-card gs-card--format">
-                    <div className="gs-card-header">
-                        <i className="bi bi-file-earmark-play gs-icon"></i>
-                        <span className="gs-card-label">{t('rowFormat')}</span>
-                        <Tooltip text={currentFormatHelp} />
-                    </div>
-                    {/* Format dropdown */}
-                    <GsSelect
-                        value={settings.format}
-                        groups={getFormatOptionGroups(t)}
-                        onChange={handleFormatChange}
-                        disabled={disabled}
-                    />
-                </div>
-                {audioOnly && (
-                    <>
-                        <div className="gs-card gs-card--audio-codec">
-                            <div className="gs-card-header">
-                                <i className="bi bi-music-note-beamed gs-icon"></i>
-                                <span className="gs-card-label">{t('rowAudioCodec')}</span>
-                            </div>
-                            <GsSelect
-                                value={settings.audioCodec || 'av_aac'}
-                                options={GLOBAL_AUDIO_CODEC_OPTIONS.map(o => ({
-                                    ...o,
-                                    disabled: !isAudioCodecCompatibleWithFormat(settings.format, o.value),
-                                }))}
-                                onChange={v => update('audioCodec', v)}
-                                disabled={disabled}
-                            />
-                        </div>
-                        {!isAudioPassthru && (
-                            <div className="gs-card gs-card--audio-bitrate">
-                                <div className="gs-card-header">
-                                    <i className="bi bi-speaker gs-icon"></i>
-                                    <span className="gs-card-label">{t('rowBitrate')}</span>
-                                </div>
-                                <GsSelect
-                                    value={settings.audioBitrate || '160'}
-                                    options={AUDIO_BITRATE_OPTIONS}
-                                    onChange={v => update('audioBitrate', v)}
-                                    disabled={disabled}
-                                />
-                            </div>
-                        )}
-                        <div className="gs-card gs-card--audio-sample-rate">
-                            <div className="gs-card-header">
-                                <i className="bi bi-soundwave gs-icon"></i>
-                                <span className="gs-card-label">{t('rowSampleRate')}</span>
-                            </div>
-                            <GsSelect
-                                value={settings.audioSampleRate || 'auto'}
-                                options={AUDIO_SAMPLE_RATE_OPTIONS.map(o => o.value === 'auto' ? { ...o, label: t('srAuto') } : o)}
-                                onChange={v => update('audioSampleRate', v)}
-                                disabled={disabled}
-                            />
-                        </div>
-                    </>
-                )}
-
-
-                {/* ── Resolution ── */}
-                <div className="gs-card gs-card--resolution">
-                    <div className="gs-card-header">
-                        <i className="bi bi-aspect-ratio gs-icon"></i>
-                        <span className="gs-card-label">{t('rowResolution')}</span>
-                        <Tooltip text={currentResHelp} />
-                    </div>
-                    <GsSelect
-                        value={settings.resolution}
-                        options={resOptions.map(o => ({ value: o.value, label: o.label }))}
-                        onChange={v => update('resolution', v)}
-                        disabled={disabled}
-                    />
-                </div>
-
-                {/* ── FPS ── */}
-                <div className="gs-card gs-card--fps">
-                    <div className="gs-card-header">
-                        <i className="bi bi-camera-video gs-icon"></i>
-                        <span className="gs-card-label">FPS</span>
-                        <Tooltip text={currentFpsHelp} />
-                    </div>
-                    <GsSelect
-                        value={settings.fps}
-                        options={[
-                            { value: 'source', label: t('fpsSource') },
-                            { value: '60',     label: '60 fps' },
-                            { value: '30',     label: '30 fps' },
-                            { value: '25',     label: '25 fps' },
-                            { value: '24',     label: '24 fps' },
-                            { value: '23.976', label: '23.976 fps' },
-                        ]}
-                        onChange={v => update('fps', v)}
-                        disabled={disabled}
-                    />
-                </div>
-
-                {/* ── Quality ── */}
-                <div className="gs-card gs-card--quality">
-                    <div className="gs-card-header">
-                        <i className="bi bi-sliders2 gs-icon"></i>
-                        <span className="gs-card-label">{t('sectionQuality')}</span>
-                        <Tooltip text={currentQualityHelp} />
-                    </div>
-                    {NO_CRF_ENCODERS.has(settings.encoder) ? (
-                        <div className="gs-notice">
-                            <i className="bi bi-info-circle"></i>
-                            {['ffv1', 'huffyuv'].includes(settings.encoder)
-                                ? t('noCrfNoticeLossless')
-                                : t('noCrfNoticeProfile')
-                            }
-                        </div>
-                    ) : (
-                    <GsSelect
-                        value={settings.quality}
-                        options={[
-                            { value: 'lossless', label: `${t('qualityMaxQual')} (RF ${rfTable.min})` },
-                            ...qualityPresets.map(p => ({ value: p.key, label: `${p.label} (RF ${p.rf})` })),
-                            { value: 'custom', label: settings.quality === 'custom' ? `${t('qualityCustomLabel')} (RF ${settings.customQuality})` : t('qualityCustomEmpty'), special: true },
-                        ]}
-                        onChange={v => update('quality', v)}
-                        onSpecial={() => openCustomQuality()}
-                        disabled={disabled}
-                    />
-                    )}
-                </div>
-
-                {/* ── Codec ── */}
-                <div className="gs-card gs-card--codec">
-                    <div className="gs-card-header">
-                        <i className="bi bi-cpu gs-icon"></i>
-                        <span className="gs-card-label">{t('gsCodecCard')}</span>
-                        <Tooltip text={currentEncHelp} />
-                    </div>
-                    <div className="gs-codec-row">
-                        <GsSelect
-                            value={settings.encoder}
-                            groups={encoderGroups.map(g => ({ label: g.label, options: g.encoders.map(e => ({
-                                value: e.value,
-                                label: e.label,
-                                desc: e.desc,
-                                disabled: ENCODER_DISABLED_FORMATS[e.value]?.has(settings.format) ||
-                                    (settings.format === 'av_webm' && !WEBM_COMPATIBLE_ENCODERS.has(e.value)),
-                            })) }))
-                            }
-                            onChange={handleEncoderChange}
-                            disabled={disabled}
-                            className="gs-dropdown--encoder"
-                            footer={
-                                <button
-                                    type="button"
-                                    className="gs-show-more-codecs"
-                                    onMouseDown={e => e.stopPropagation()}
-                                    onClick={e => { e.stopPropagation(); setShowMoreCodecs(v => !v) }}
-                                >
-                                    <i className={`bi bi-chevron-${showMoreCodecs ? 'up' : 'down'}`}></i>
-                                    {showMoreCodecs ? t('collapseCodecs') : t('expandCodecs')}
-                                </button>
-                            }
-                        />
-                        {speedPresets.length > 0 && (
-                            <GsSelect
-                                value={settings.encoderSpeed}
-                                options={speedPresets}
-                                onChange={v => update('encoderSpeed', v)}
-                                disabled={disabled}
-                                className="gs-dropdown--speed"
-                            />
-                        )}
-                    </div>
-                </div>
-
-            </div>
-
-            {/* ── Custom quality popup ── */}
-            {showCustomQuality && (
-                <div className="gs-quality-overlay" onClick={() => setShowCustomQuality(false)}>
-                    <div className="gs-quality-popup" onClick={e => e.stopPropagation()}>
-                        <div className="gs-qpopup-title">
-                            <i className="bi bi-sliders2"></i>
-                            {t('gsCustomQualityTitle')}
-                        </div>
-                        <p className="gs-qpopup-subtitle">
-                            RF {rfTable.min} = {t('gsQualityBest')} &nbsp;·&nbsp; RF {rfTable.max} = {t('gsQualityWorst')}
-                        </p>
-                        <div className="gs-qpopup-value">RF {draftRF}</div>
-                        <input
-                            type="range"
-                            className="gs-quality-slider"
-                            min={rfTable.min}
-                            max={rfTable.max}
-                            step={1}
-                            value={draftRF}
-                            onChange={e => setDraftRF(Number(e.target.value))}
-                        />
-                        <div className="gs-qpopup-labels">
-                            <span>{t('rfBetter')}</span>
-                            <span>{t('rfWorse')}</span>
-                        </div>
-                        <div className="gs-qpopup-hint">
-                            {t('helpQualCustom')}
-                        </div>
-                        <div className="gs-qpopup-actions">
-                            <button className="gs-qpopup-cancel" onClick={() => setShowCustomQuality(false)}>
-                                {t('cancel')}
-                            </button>
-                            <button className="gs-qpopup-confirm" onClick={confirmCustomQuality}>
-                                {t('apply')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    )
-}
-
-export default GlobalSettings
-
 // ─── Size estimation ───────────────────────────────────────────────────────────
 const COMPRESSION_RATIOS = {
     // [high, medium, low, potato] — fraction of source VIDEO size.
@@ -1225,7 +661,7 @@ const SPEED_MULT = {
     vp9:        { realtime: 1.30, good: 1.10, best: 1.00 },
 }
 
-function parseSizeMB(str) {
+function parseSizeMB(str?: string) {
     if (!str || str === '—') return null
     const m = str.match(/([\d.]+)\s*(GB|MB)/i)
     if (!m) return null
@@ -1233,13 +669,13 @@ function parseSizeMB(str) {
     return m[2].toLowerCase() === 'gb' ? v * 1024 : v
 }
 
-function fmtMB(mb) {
+function fmtMB(mb: number) {
     if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB'
     return Math.round(mb) + ' MB'
 }
 
 // Parse "HH:MM:SS" or "MM:SS" → total seconds
-function parseDurationSec(str) {
+function parseDurationSec(str?: string) {
     if (!str || str === '—') return null
     const parts = str.split(':').map(Number)
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
@@ -1248,7 +684,7 @@ function parseDurationSec(str) {
 }
 
 // Parse "5.2 Mbps" or "1500 kbps" → numeric kbps
-function parseBitrateKbps(str) {
+function parseBitrateKbps(str?: string) {
     if (!str || str === '—') return null
     const m = str.match(/([\d.]+)\s*(Mbps|kbps)/i)
     if (!m) return null
@@ -1256,16 +692,17 @@ function parseBitrateKbps(str) {
     return m[2].toLowerCase() === 'mbps' ? v * 1000 : v
 }
 
-function getSpeedMult(encoder, speed) {
+function getSpeedMult(encoder: string, speed?: string) {
     const base = encoder.replace(/_10bit|_12bit/, '')
-    const table = SPEED_MULT[encoder] || SPEED_MULT[base]
+    const multipliers = SPEED_MULT as Record<string, Record<string, number>>
+    const table = multipliers[encoder] || multipliers[base]
     return (table && speed != null && table[speed] != null) ? table[speed] : 1.0
 }
 
 // Interpolate compression ratio for a custom RF using the four quality anchor points.
 // Works for both normal scales (higher RF = worse quality, e.g. x265) and
 // inverted scales (higher value = better quality, e.g. theora).
-function getRatioForCustomRF(customRF, rfTable, ratios) {
+function getRatioForCustomRF(customRF: number, rfTable: QualityTable, ratios: number[]) {
     const anchors = [
         { rf: rfTable.high,   ratio: ratios[0] },
         { rf: rfTable.medium, ratio: ratios[1] },
@@ -1285,22 +722,22 @@ function getRatioForCustomRF(customRF, rfTable, ratios) {
     return ratios[1]
 }
 
-export function estimateOutputSize(video, settings) {
+export function estimateOutputSize(video: EstimateVideo | null, settings: EstimateSettings | null): string | null {
     if (!video || !settings || settings.quality === 'lossless') return null
     const sourceMB = parseSizeMB(video.size)
     if (!sourceMB || sourceMB <= 0) return null
 
     const encoder = settings.encoder || 'x265'
-    const ratios = COMPRESSION_RATIOS[encoder] || COMPRESSION_RATIOS.x265
-    const rfTable = CODEC_RF[encoder] || CODEC_RF.x265
+    const ratios = (COMPRESSION_RATIOS as Record<string, number[]>)[encoder] || COMPRESSION_RATIOS.x265
+    const rfTable = (CODEC_RF as Record<string, QualityTable>)[encoder] || CODEC_RF.x265
 
     // 1. Base video compression ratio for the selected quality level
     let videoRatio
     if (settings.quality === 'custom') {
-        videoRatio = getRatioForCustomRF(settings.customQuality, rfTable, ratios)
+        videoRatio = getRatioForCustomRF(settings.customQuality ?? rfTable.medium, rfTable, ratios)
     } else {
-        const idx = { high: 0, medium: 1, low: 2, potato: 3 }
-        videoRatio = ratios[idx[settings.quality] ?? 1]
+        const idx: Record<string, number> = { high: 0, medium: 1, low: 2, potato: 3 }
+        videoRatio = ratios[idx[settings.quality || ''] ?? 1]
     }
 
     // 2. Speed preset multiplier
@@ -1308,7 +745,7 @@ export function estimateOutputSize(video, settings) {
 
     // 3. Resolution scaling (affects video portion only)
     if (settings.resolution && settings.resolution !== 'source' && video.resolution) {
-        const PX = { '4k': 3840*2160, '1440p': 2560*1440, '1080p': 1920*1080, '720p': 1280*720, '480p': 854*480 }
+        const PX: Record<string, number> = { '4k': 3840*2160, '1440p': 2560*1440, '1080p': 1920*1080, '720p': 1280*720, '480p': 854*480 }
         const [w, h] = video.resolution.split('x').map(Number)
         const srcPx = w * h
         const tgtPx = PX[settings.resolution]
@@ -1333,7 +770,7 @@ export function estimateOutputSize(video, settings) {
         const srcVideoMB = Math.max(sourceMB - srcAudioMB, sourceMB * 0.80)
 
         const outVideoMB = srcVideoMB * videoRatio
-        const outAudioKbps = parseInt(settings.audioBitrate) || 160
+        const outAudioKbps = parseInt(settings.audioBitrate || '') || 160
         const outAudioMB = outAudioKbps * 1000 * durationSec / (8 * 1024 * 1024)
 
         return fmtMB(outVideoMB + outAudioMB)
