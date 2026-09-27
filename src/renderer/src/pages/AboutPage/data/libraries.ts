@@ -1,5 +1,15 @@
-export const LIBRARIES = [
-    { name: 'FFmpeg',           url: 'https://ffmpeg.org/',                                         license: 'L-GPL v2.1' },
+export type LibraryRuntime = 'tauri' | 'electron'
+
+export interface LibraryCredit {
+    name: string
+    url: string
+    license: string
+    runtime?: LibraryRuntime
+}
+
+export const LIBRARIES: LibraryCredit[] = [
+    { name: 'FFmpeg',           url: 'https://ffmpeg.org/',                                         license: 'GPL v3', runtime: 'tauri' },
+    { name: 'FFmpeg',           url: 'https://ffmpeg.org/',                                         license: 'See bundled build', runtime: 'electron' },
     { name: 'yt-dlp',           url: 'https://github.com/yt-dlp/yt-dlp',                            license: 'Unlicense' },
     { name: 'libx264',          url: 'https://www.videolan.org/developers/x264.html',               license: 'GPL v2' },
     { name: 'libx265',          url: 'http://x265.org/',                                            license: 'GPL v2' },
@@ -32,7 +42,10 @@ export const LIBRARIES = [
     // Web UI specific
     { name: 'React',            url: 'https://react.dev/',                                          license: 'MIT' },
     { name: 'Vite',             url: 'https://vitejs.dev/',                                         license: 'MIT' },
-    { name: 'Electron',         url: 'https://www.electronjs.org/',                                 license: 'MIT' },
-    { name: 'fluent-ffmpeg',    url: 'https://github.com/fluent-ffmpeg/node-fluent-ffmpeg',         license: 'MIT' },
+    { name: 'Tauri',            url: 'https://tauri.app/',                                          license: 'MIT / Apache-2.0', runtime: 'tauri' },
+    { name: 'Deno',             url: 'https://deno.com/',                                           license: 'MIT', runtime: 'tauri' },
+    { name: 'TwitchDownloader', url: 'https://github.com/lay295/TwitchDownloader',                 license: 'MIT', runtime: 'tauri' },
+    { name: 'Electron',         url: 'https://www.electronjs.org/',                                 license: 'MIT', runtime: 'electron' },
+    { name: 'fluent-ffmpeg',    url: 'https://github.com/fluent-ffmpeg/node-fluent-ffmpeg',         license: 'MIT', runtime: 'electron' },
     { name: 'Bootstrap Icons',  url: 'https://icons.getbootstrap.com/',                             license: 'MIT' },
 ]

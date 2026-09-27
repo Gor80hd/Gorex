@@ -1501,6 +1501,7 @@ function App() {
                 return (
                     <AboutPage
                         theme={theme}
+                        appVersion={appVersion}
                         onBack={() => setView(videos.length > 0 ? 'list' : 'source')}
                     />
                 )
@@ -1641,7 +1642,7 @@ function App() {
                         <button className="whats-new-close" onClick={handleDismissWhatsNew} title={t('close')}>
                             <i className="bi bi-x-lg"></i>
                         </button>
-                        <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '2.4.0')}</div>
+                            <div className="whats-new-kicker">{t('whatsNewKicker').replace('{v}', appVersion || '3.0.0')}</div>
                         <h2 id="whats-new-title" className="whats-new-title">{t('whatsNewTitle')}</h2>
                         <p className="whats-new-subtitle">{t('whatsNewSubtitle')}</p>
                         <div className="whats-new-list">

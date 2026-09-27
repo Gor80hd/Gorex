@@ -15,9 +15,16 @@ const THANKS = [
     { nameKey: 'thanksName5', tg: null,        url: null },
 ]
 
-function AboutPage({ theme, onBack }) {
+interface AboutPageProps {
+    theme: 'dark' | 'light'
+    appVersion: string
+    onBack: () => void
+}
+
+function AboutPage({ theme, appVersion, onBack }: AboutPageProps) {
     const [activeTab, setActiveTab] = useState('me')
     const { t } = useLanguage()
+    const runtime = '__TAURI_INTERNALS__' in window ? 'tauri' : 'electron'
 
     const TABS = [
         { id: 'me',        label: t('aboutTabMe'),        icon: 'bi-person-circle' },
@@ -37,7 +44,7 @@ function AboutPage({ theme, onBack }) {
                 </div>
                 <div className="about-title-block">
                     <h1>Gorex</h1>
-                    <p className="version-info">Version 2.4.0 · Desktop Edition · GPLv2</p>
+                    <p className="version-info">Version {appVersion || '3.0.0'} · Desktop Edition · GPLv2</p>
                 </div>
             </div>
 
@@ -176,7 +183,7 @@ distribute copies of the software, or if you modify it.
                         <p className="thanks-intro">{t('aboutThanksIntro')}</p>
                         <div className="thanks-grid">
                             {THANKS.map(person => (
-                                <div key={person.name} className="thanks-item">
+                                <div key={person.nameKey} className="thanks-item">
                                     <div className="thanks-icon">
                                         <i className="bi bi-telegram"></i>
                                     </div>
@@ -199,7 +206,7 @@ distribute copies of the software, or if you modify it.
                 {activeTab === 'libraries' && (
                     <div className="about-section">
                         <div className="libraries-grid">
-                            {LIBRARIES.map(lib => (
+                            {LIBRARIES.filter(lib => !lib.runtime || lib.runtime === runtime).map(lib => (
                                 <a
                                     key={lib.name}
                                     className="library-item"

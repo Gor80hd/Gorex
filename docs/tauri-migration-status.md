@@ -19,6 +19,7 @@ This document tracks the migration until the Electron runtime can be removed. Th
 - The extension API returned `200` for a Chrome extension origin and `403` for an unrelated web origin.
 - `cargo test --manifest-path src-tauri/Cargo.toml --lib`, `node --test test/*.test.mjs`, `npm run typecheck`, and `npm run build:web` pass.
 - macOS `.app` and `.dmg` 3.0.0 build. The generated `.dmg` has not been signed or notarized.
+- GitHub Actions completed both macOS `.dmg` and Windows NSIS build jobs for commit `dcb54de`. The Windows package has not been run on Windows.
 
 ## Size and idle memory sample
 
@@ -34,6 +35,8 @@ The same conversion file and a controlled cold-launch timing have not yet been m
 
 ## Remaining release gates
 
+- The earlier macOS test bundle inherited FFmpeg/ffprobe with `--enable-nonfree`. The bundling script now uses GPLv3 builds without `--enable-nonfree`, with license texts bundled. A full source/license audit is still required before public distribution.
+- The product declares macOS 11.0, but the current FFmpeg, ffprobe, Deno, and TwitchDownloaderCLI binaries declare macOS 12.0. Compatible binaries and runtime validation on macOS 11 are required. Existing package size and memory measurements above used the earlier binaries and must be repeated.
 - Build and exercise the NSIS installer on Windows 10/11 x64, including migration over GorexSetup, Chrome extension behavior, hardware encoding, media preview, cookies, tray, and repeated launch.
 - Test the same full scenario matrix on macOS, especially Twitch VOD and chat, subtitle files, YouTube login and cookie export, and installation over the old app.
 - Move queue ownership fully into Rust and complete strict TypeScript conversion of the remaining JSX modules. Electron and its build scripts remain until parity is established.

@@ -1,17 +1,45 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, type CSSProperties } from 'react'
 import logoWhite from '../../assets/images/logo_white.svg'
 import logoDark from '../../assets/images/logo.svg'
 import { useLanguage } from '../../i18n'
 import './TitleBar.scss'
 
-function formatToolDate(value) {
+interface ToolState {
+    status?: string
+    message?: string
+    stageMessage?: string
+    progress?: number | null
+    info?: { version?: string } | null
+    latest?: { latestVersion?: string; publishedAt?: string } | null
+}
+
+interface Props {
+    onOpen: () => void
+    theme: 'dark' | 'light'
+    toggleTheme: () => void
+    onViewChange: (view: string) => void
+    currentView: string
+    isEncoding: boolean
+    isPaused: boolean
+    hasVideos: boolean
+    onStartEncoding: () => void
+    onPause: () => void
+    onStop: () => void
+    onClearQueue: () => void
+    onOpenCliConsole: () => void
+    ytdlTool: ToolState | null
+    twitchTool: ToolState | null
+    onOpenYtdlSettings: () => void
+}
+
+function formatToolDate(value?: string) {
     if (!value) return ''
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return ''
     return date.toLocaleDateString()
 }
 
-function getToolStatusText(tool, status, t, readyKey) {
+function getToolStatusText(tool: ToolState | null, status: string, t: (key: string) => string, readyKey: string) {
     if (tool?.message) return tool.message
     if (tool?.stageMessage) return tool.stageMessage
     if (status === 'update-available') return t('toolUpdateAvailable')
@@ -23,23 +51,29 @@ function TitleBar({
     onOpen, theme, toggleTheme, onViewChange, currentView,
     isEncoding, isPaused, hasVideos,
     onStartEncoding, onPause, onStop, onClearQueue, onOpenCliConsole, ytdlTool, twitchTool, onOpenYtdlSettings
-}) {
+}: Props) {
     const [toggling, setToggling] = useState(false)
     const [fileMenuOpen, setFileMenuOpen] = useState(false)
-    const fileMenuRef = useRef(null)
+    const fileMenuRef = useRef<HTMLDivElement>(null)
+    const toggleResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const { t } = useLanguage()
     const isMac = window.api?.platform === 'darwin'
 
     const handleToggle = useCallback(() => {
         setToggling(true)
         toggleTheme()
-        setTimeout(() => setToggling(false), 450)
+        if (toggleResetTimer.current) clearTimeout(toggleResetTimer.current)
+        toggleResetTimer.current = setTimeout(() => setToggling(false), 450)
     }, [toggleTheme])
+
+    useEffect(() => () => {
+        if (toggleResetTimer.current) clearTimeout(toggleResetTimer.current)
+    }, [])
 
     useEffect(() => {
         if (!fileMenuOpen) return
-        const handler = (e) => {
-            if (fileMenuRef.current && !fileMenuRef.current.contains(e.target)) {
+        const handler = (e: MouseEvent) => {
+            if (fileMenuRef.current && e.target instanceof Node && !fileMenuRef.current.contains(e.target)) {
                 setFileMenuOpen(false)
             }
         }
@@ -47,14 +81,14 @@ function TitleBar({
         return () => document.removeEventListener('mousedown', handler)
     }, [fileMenuOpen])
 
-    const menuAction = (fn) => {
+    const menuAction = (fn: () => void) => {
         setFileMenuOpen(false)
         fn()
     }
 
     const ytdlStatus = ytdlTool?.status || 'checking'
     const ytdlVersion = ytdlTool?.info?.version || ytdlTool?.latest?.latestVersion || '...'
-    const ytdlProgress = Number.isFinite(ytdlTool?.progress)
+    const ytdlProgress = typeof ytdlTool?.progress === 'number' && Number.isFinite(ytdlTool.progress)
         ? Math.max(0, Math.min(100, ytdlTool.progress))
         : (ytdlStatus === 'updating' ? 35 : 100)
     const ytdlBadgeClass = `tb-ytdl-badge tb-ytdl-badge--${ytdlStatus}`
@@ -164,7 +198,7 @@ function TitleBar({
                         <button
                             type="button"
                             className={ytdlBadgeClass}
-                            style={{ '--ytdl-progress': `${ytdlProgress}%` }}
+                            style={{ '--ytdl-progress': `${ytdlProgress}%` } as CSSProperties}
                             title={ytdlBadgeTitle}
                             aria-label={ytdlBadgeTitle}
                             onClick={onOpenYtdlSettings}

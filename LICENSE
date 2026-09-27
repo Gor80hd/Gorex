@@ -2,12 +2,13 @@ Gorex License
 
 Copyright (C) 2026 Egor Akhmatyarov
 
-Gorex (the Electron/React application source code) is licensed under the
+Gorex application source code is licensed under the
 GNU General Public License Version 2 (GPLv2). See the file COPYING for
 the full license text.
 
-This license applies to all original source code in this repository
-(src/, build/, installer/ directories and related configuration files).
+This license applies to all original source code in this repository,
+including src/, src-tauri/, build/, installer/, scripts/, and related
+configuration files.
 
 -------------------------------------------------------------------------------
 
@@ -22,8 +23,18 @@ packages. Each component retains its own license:
     Source:  https://github.com/yt-dlp/yt-dlp
 
   ffmpeg / ffprobe
-    License: GNU Lesser General Public License Version 2.1 (or later)
+    License: GNU General Public License Version 3 (bundled builds)
     Source:  https://ffmpeg.org
+    Build and source details: licenses/FFmpeg-builds.md
+    License text: licenses/GPL-3.0.txt
+
+  Deno
+    License: MIT
+    Source:  https://github.com/denoland/deno
+
+  TwitchDownloaderCLI
+    License: MIT
+    Source:  https://github.com/lay295/TwitchDownloader
 
 -------------------------------------------------------------------------------
 
@@ -32,4 +43,3 @@ Graphic assets
 
 Original graphic assets created for Gorex (logos, icons) are covered by
 Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
-

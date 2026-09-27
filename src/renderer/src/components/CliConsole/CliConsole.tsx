@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import './CliConsole.scss'
 
-export default function CliConsole({ logs, onClear, onClose, theme }) {
-    const bodyRef = useRef(null)
+export interface CliLogEntry {
+    type: 'out' | 'err' | 'ytdl' | 'twitch'
+    text: string
+}
+
+interface Props {
+    logs: CliLogEntry[]
+    onClear: () => void
+    onClose: () => void
+    theme: string
+}
+
+export default function CliConsole({ logs, onClear, onClose, theme }: Props) {
+    const bodyRef = useRef<HTMLDivElement>(null)
+    const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const [autoScroll, setAutoScroll] = useState(true)
     const [copied, setCopied] = useState(false)
 
@@ -19,11 +32,16 @@ export default function CliConsole({ logs, onClear, onClose, theme }) {
         setAutoScroll(atBottom)
     }
 
-    const handleCopy = () => {
+    useEffect(() => () => {
+        if (copyResetTimer.current) clearTimeout(copyResetTimer.current)
+    }, [])
+
+    const handleCopy = async () => {
         const text = logs.map(l => l.text).join('')
-        navigator.clipboard.writeText(text)
+        await navigator.clipboard.writeText(text)
         setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
+        if (copyResetTimer.current) clearTimeout(copyResetTimer.current)
+        copyResetTimer.current = setTimeout(() => setCopied(false), 1500)
     }
 
     return (
