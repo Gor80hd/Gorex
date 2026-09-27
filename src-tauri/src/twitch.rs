@@ -127,6 +127,15 @@ fn safe_name(raw: &str) -> String {
 #[tauri::command]
 pub async fn twitch_run(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
     let id = request["id"].clone();
+    let result = twitch_run_inner(app.clone(), jobs, request).await;
+    if let Err(error) = &result {
+        let _ = app.emit("twitch-exit", json!({"id": id, "code": 1, "error": error, "stderr": error, "outputPath": null}));
+    }
+    result
+}
+
+async fn twitch_run_inner(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
+    let id = request["id"].clone();
     if id.is_null() { return Err("Job ID is required".into()); }
     let kind = field(&request, "type", "vod");
     let mode = match kind { "vod" => "videodownload", "clip" => "clipdownload", _ => return Err("Unsupported Twitch item".into()) };
@@ -157,8 +166,9 @@ pub async fn twitch_run(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Val
     let final_path = unique_output(&dir, &format!("{}_converted", name.trim_end_matches("_converted")), encoding::output_extension(field(settings,"format","av_mp4")));
     let args = encoding::build_args(&result.output_path.to_string_lossy(), &final_path.to_string_lossy(), settings, request["videoResolution"].as_str(), None, None);
     let convert_spec = RunSpec { id, program: ffmpeg, args, output_path: final_path.clone(), cleanup_paths: vec![final_path], event_prefix: "cli", duration: None, discover_output: None, emit_exit: true };
-    let converted = jobs::run(app, jobs.inner().clone(), convert_spec).await?;
-    if converted.code == 0 { let _ = std::fs::remove_file(result.output_path); }
+    let converted = jobs::run(app, jobs.inner().clone(), convert_spec).await;
+    let _ = std::fs::remove_file(result.output_path);
+    converted?;
     Ok(())
 }
 

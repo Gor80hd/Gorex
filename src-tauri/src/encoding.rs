@@ -222,6 +222,15 @@ async fn duration(app: &AppHandle, path: &str) -> Option<f64> {
 #[tauri::command]
 pub async fn run_cli(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
     let id = request["id"].clone();
+    let result = run_cli_inner(app.clone(), jobs, request).await;
+    if let Err(error) = &result {
+        let _ = app.emit("cli-exit", json!({"id": id, "code": 1, "stderr": error, "outputPath": null}));
+    }
+    result
+}
+
+async fn run_cli_inner(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
+    let id = request["id"].clone();
     if id.is_null() { return Err("Job ID is required".into()); }
     let input = request["filePath"].as_str().ok_or("Input path is required")?;
     if !Path::new(input).is_file() { return Err("Input file does not exist".into()); }
@@ -242,10 +251,7 @@ pub async fn run_cli(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value)
     let full_duration = duration(&app, input).await;
     let effective_duration = full_duration.map(|full| end.unwrap_or(full) - start.unwrap_or_default()).filter(|time| *time > 0.0);
     let spec = RunSpec { id: id.clone(), program: locate(&app, Tool::Ffmpeg)?, args, output_path: output_path.clone(), cleanup_paths: vec![output_path], event_prefix: "cli", duration: effective_duration, discover_output: None, emit_exit: true };
-    if let Err(error) = jobs::run(app.clone(), jobs.inner().clone(), spec).await {
-        let _ = app.emit("cli-exit", json!({"id": id, "code": 1, "stderr": error, "outputPath": null}));
-        return Err(error);
-    }
+    jobs::run(app, jobs.inner().clone(), spec).await?;
     Ok(())
 }
 

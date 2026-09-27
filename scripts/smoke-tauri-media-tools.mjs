@@ -26,6 +26,12 @@ try {
   if (data.streams?.[0]?.codec_name !== 'h264' || Number(data.format?.duration) <= 0) {
     throw new Error(`ffprobe did not read the encoded sample: ${JSON.stringify(data)}`)
   }
+  const av1Sample = join(scratch, 'probe-av1.mkv')
+  run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=64x64:r=1', '-frames:v', '1', '-c:v', 'libsvtav1', '-preset', '12', av1Sample])
+  const av1 = JSON.parse(run('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_name', '-of', 'json', av1Sample]))
+  if (av1.streams?.[0]?.codec_name !== 'av1') {
+    throw new Error(`ffprobe did not recognize SVT-AV1 output: ${JSON.stringify(av1)}`)
+  }
   console.log(`FFmpeg and ffprobe smoke passed (${process.platform}-${process.arch})`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })

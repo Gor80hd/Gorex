@@ -137,6 +137,15 @@ pub fn ytdl_cancel_fetch(state: State<'_, FormatFetchState>) {
 #[tauri::command]
 pub async fn ytdl_run(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
     let id = request["id"].clone();
+    let result = ytdl_run_inner(app.clone(), jobs, request).await;
+    if let Err(error) = &result {
+        let _ = app.emit("ytdl-exit", json!({"id": id, "code": 1, "error": error, "stderr": error, "outputPath": null}));
+    }
+    result
+}
+
+async fn ytdl_run_inner(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
+    let id = request["id"].clone();
     if id.is_null() { return Err("Job ID is required".into()); }
     let url = text(&request, "url", "");
     if !(url.starts_with("https://") || url.starts_with("http://")) { return Err("Only HTTP and HTTPS video links are supported".into()); }
@@ -161,7 +170,6 @@ pub async fn ytdl_run(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value
         Ok(result) => result,
         Err(error) => {
             let _ = std::fs::remove_dir_all(&download_dir);
-            let _ = app.emit("ytdl-exit", json!({"id":id,"code":1,"error":error,"stderr":error,"outputPath":null}));
             return Err(error);
         }
     };
@@ -176,7 +184,7 @@ pub async fn ytdl_run(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value
         match moved {
             Ok(output) => { let _ = app.emit("ytdl-exit", json!({"id":id,"code":0,"stderr":result.stderr,"outputPath":output})); }
             Err(error) => {
-                let _ = app.emit("ytdl-exit", json!({"id":id,"code":1,"error":error,"stderr":error,"outputPath":null}));
+                let _ = std::fs::remove_dir_all(&download_dir);
                 return Err(error);
             }
         }
@@ -189,10 +197,7 @@ pub async fn ytdl_run(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value
     let conversion = RunSpec { id: id.clone(), program: ffmpeg, args, output_path: output.clone(), cleanup_paths: vec![output], event_prefix: "cli", duration: None, discover_output: None, emit_exit: true };
     let outcome = jobs::run(app.clone(), jobs.inner().clone(), conversion).await;
     let _ = std::fs::remove_dir_all(&download_dir);
-    if let Err(error) = outcome {
-        let _ = app.emit("cli-exit", json!({"id":id,"code":1,"stderr":error,"outputPath":null}));
-        return Err(error);
-    }
+    outcome?;
     Ok(())
 }
 
