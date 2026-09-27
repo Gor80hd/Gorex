@@ -27,17 +27,18 @@ Measured on the same Mac with both apps showing the empty source view. RSS is a 
 
 | Metric | Electron 2.4.0 | Tauri 3.0.0 |
 | --- | ---: | ---: |
-| macOS `.app` on disk | 392 MiB | 289 MiB |
-| macOS `.dmg` | 179 MiB | 162 MiB |
+| macOS `.app` on disk | 392 MiB | 328 MiB with GPL FFmpeg |
+| macOS `.dmg` | 179 MiB | 179.2 MiB with GPL FFmpeg |
 | Idle RSS | 474 MiB across four Electron processes | about 188 MiB including the Gorex process and three WebKit services started with it |
 
-The same conversion file and a controlled cold-launch timing have not yet been measured. Tool-update network requests were running during startup and should be excluded from a final timing protocol.
+The memory sample used the earlier Tauri tool bundle; it must be repeated with the current binaries. The same conversion file and a controlled cold-launch timing have not yet been measured. Tool-update network requests were running during startup and should be excluded from a final timing protocol.
 
 ## Remaining release gates
 
 - The earlier macOS test bundle inherited FFmpeg/ffprobe with `--enable-nonfree`. The bundling script now uses GPLv3 builds without `--enable-nonfree`, with license texts bundled. A full source/license audit is still required before public distribution.
-- The product declares macOS 11.0, but the current FFmpeg, ffprobe, Deno, and TwitchDownloaderCLI binaries declare macOS 12.0. Compatible binaries and runtime validation on macOS 11 are required. Existing package size and memory measurements above used the earlier binaries and must be repeated.
+- The product declares macOS 11.0, but the current FFmpeg, ffprobe, Deno, and TwitchDownloaderCLI binaries declare macOS 12.0. Compatible binaries and runtime validation on macOS 11 are required.
 - Build and exercise the NSIS installer on Windows 10/11 x64, including migration over GorexSetup, Chrome extension behavior, hardware encoding, media preview, cookies, tray, and repeated launch.
 - Test the same full scenario matrix on macOS, especially Twitch VOD and chat, subtitle files, YouTube login and cookie export, and installation over the old app.
-- Move queue ownership fully into Rust and complete strict TypeScript conversion of the remaining JSX modules. Electron and its build scripts remain until parity is established.
+- Move queue ownership fully into Rust and complete strict TypeScript conversion of `App.jsx`, `GlobalSettings.jsx`, `ListPage.jsx`, and `SettingsPage.jsx`. Electron and its build scripts remain until parity is established.
+- Confirm Windows pause/resume and process-tree cancellation on a real Windows installation. A Windows-only process-control smoke test now runs in CI, but user-facing behavior remains unverified.
 - Measure controlled cold startup, total idle memory, installer size, and conversion duration on both platforms; fix regressions before replacing Electron in the release workflow.

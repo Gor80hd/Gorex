@@ -182,9 +182,16 @@ fn signal(pid: u32, action: &str) -> Result<(), String> {
     {
         let status = if action == "stop" {
             std::process::Command::new("taskkill").args(["/F", "/T", "/PID", &pid.to_string()]).status()
+        } else if matches!(action, "pause" | "resume") {
+            let script = format!(
+                "$GorexRootProcessId = {pid}; $GorexControlAction = '{action}';\n{}",
+                include_str!("../windows/process-control.ps1")
+            );
+            std::process::Command::new("powershell.exe")
+                .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+                .status()
         } else {
-            let verb = if action == "pause" { "Suspend-Process" } else { "Resume-Process" };
-            std::process::Command::new("powershell").args(["-NoProfile", "-Command", &format!("{verb} -Id {pid}")]).status()
+            return Err("Unknown action".into());
         }.map_err(|error| error.to_string())?;
         if status.success() { Ok(()) } else { Err(format!("{action} failed: {status}")) }
     }
@@ -215,4 +222,19 @@ mod tests {
     fn parses_ytdlp_progress() { assert_eq!(progress_from_ytdlp("[download]  42.0% of 100MiB"), Some(42.0)); }
     #[test]
     fn parses_twitch_progress() { assert_eq!(progress_from_twitch("Downloading 40.5% complete"), Some(40.5)); }
+
+    #[cfg(windows)]
+    #[test]
+    fn pauses_and_resumes_a_real_windows_process() {
+        use std::{process::Command, thread, time::Duration};
+        let mut child = Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 30"])
+            .spawn()
+            .expect("start Windows test process");
+        thread::sleep(Duration::from_millis(250));
+        let result = super::signal(child.id(), "pause").and_then(|_| super::signal(child.id(), "resume"));
+        let _ = super::signal(child.id(), "stop");
+        let _ = child.wait();
+        assert!(result.is_ok(), "Windows process control failed: {result:?}");
+    }
 }
