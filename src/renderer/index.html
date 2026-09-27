@@ -6,12 +6,13 @@
     <title>Gorex</title>
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; media-src 'self' gorex-media:;" />
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src http://127.0.0.1:* https://www.youtube.com https://www.youtube-nocookie.com; media-src 'self' gorex-media: http://127.0.0.1:*; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* https:;" />
 </head>
 
 <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div id="root">Загрузка Gorex…</div>
+    <script type="module" src="/src/bootDiagnostics.ts"></script>
+    <script type="module" src="/src/main.tsx"></script>
 </body>
 
 </html>

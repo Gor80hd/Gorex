@@ -1,16 +1,12 @@
+import { appStorage } from './storage'
 import { useState, useEffect, useRef } from 'react'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import TitleBar from './components/TitleBar/TitleBar'
 import CliConsole from './components/CliConsole/CliConsole'
+import TwitchChatViewer from './components/TwitchChatViewer'
+import { applyJobProgress, finishJob, hasActiveJobs, startConversion } from './queueState'
 import { useLanguage } from './i18n'
 import { getMissingToolStatus, isToolUpdateAlreadyRunningError, shouldAutoDownloadMissingTool, shouldAutoUpdateExistingTool } from './toolAutoUpdatePolicy.mjs'
-
-// Register CLI output IPC listeners at module level so they survive HMR without
-// needing useEffect to re-run. The callback ref is wired inside the component.
-const _cliLogEmitter = { callback: null }
-window.api.onCliOutput(data => _cliLogEmitter.callback?.({ type: 'out', text: data }))
-window.api.onCliError(data => _cliLogEmitter.callback?.({ type: 'err', text: data }))
-window.api.onYtdlOutput(({ data }) => _cliLogEmitter.callback?.({ type: 'ytdl', text: data }))
-window.api.onTwitchOutput?.(({ data }) => _cliLogEmitter.callback?.({ type: 'twitch', text: data }))
 import SourcePage from './pages/SourcePage/SourcePage'
 import ListPage from './pages/ListPage/ListPage'
 import AboutPage from './pages/AboutPage/AboutPage'
@@ -146,102 +142,6 @@ function isTwitchToolUpdateAvailable(currentVersion, latestVersion) {
     return compareTwitchToolVersions(latestVersion, currentVersion) > 0
 }
 
-function TwitchChatViewer({ theme, viewer, query, onQueryChange, onClose, onExport, onLoadFull, onRetry, exporting, t }) {
-    if (!viewer) return null
-    const allMessages = Array.isArray(viewer.messages) ? viewer.messages : []
-    const q = query.trim().toLowerCase()
-    const messages = q
-        ? allMessages.filter(message => (`${message.timeLabel} ${message.username} ${message.body}`).toLowerCase().includes(q))
-        : allMessages
-    const controlsDisabled = viewer.loading || viewer.loadingFull || !!viewer.error
-    return (
-        <div className={`twitch-chat-overlay ${theme}`} onClick={onClose} role="presentation">
-            <div
-                className="twitch-chat-panel"
-                onClick={e => e.stopPropagation()}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="twitch-chat-dialog-title"
-            >
-                <div className="twitch-chat-header">
-                    <div className="twitch-chat-title">
-                        <i className="bi bi-twitch"></i>
-                        <span id="twitch-chat-dialog-title" title={viewer.video?.title || t('twitchChatTitle')}>
-                            {viewer.video?.title || t('twitchChatTitle')}
-                        </span>
-                    </div>
-                    <button className="twitch-chat-close" onClick={onClose} title={t('close')} aria-label={t('close')}>
-                        <i className="bi bi-x-lg"></i>
-                    </button>
-                </div>
-                <div className="twitch-chat-tools">
-                    <div className="twitch-chat-search">
-                        <i className="bi bi-search"></i>
-                        <input
-                            value={query}
-                            onChange={e => onQueryChange(e.target.value)}
-                            placeholder={t('twitchChatSearch')}
-                            spellCheck={false}
-                            disabled={controlsDisabled}
-                        />
-                    </div>
-                    <button className="twitch-chat-action" onClick={() => onExport('json')} disabled={controlsDisabled || !!exporting}>
-                        <i className="bi bi-braces"></i>
-                        {exporting === 'json' ? t('loading') : 'JSON'}
-                    </button>
-                    <button className="twitch-chat-action" onClick={() => onExport('txt')} disabled={controlsDisabled || !!exporting}>
-                        <i className="bi bi-filetype-txt"></i>
-                        {exporting === 'txt' ? t('loading') : 'TXT'}
-                    </button>
-                </div>
-                <div className="twitch-chat-meta">
-                    <span className="twitch-chat-count">
-                        {viewer.loading ? t('twitchChatPreparing') : `${messages.length} / ${allMessages.length}`}
-                    </span>
-                    {!viewer.loading && !viewer.error && (
-                        viewer.isComplete
-                            ? <span className="twitch-chat-complete"><i className="bi bi-check-circle"></i>{t('twitchChatComplete')}</span>
-                            : (
-                                <div className="twitch-chat-preview-note">
-                                    <span>{t('twitchChatPreviewNote').replace('{minutes}', viewer.previewMinutes || 15)}</span>
-                                    <button type="button" onClick={onLoadFull} disabled={viewer.loadingFull}>
-                                        {viewer.loadingFull ? t('twitchChatLoadingFull') : t('twitchChatLoadFull')}
-                                    </button>
-                                </div>
-                            )
-                    )}
-                </div>
-                <div className="twitch-chat-list">
-                    {viewer.loading && (
-                        <div className="twitch-chat-state">
-                            <span className="twitch-chat-spinner"></span>
-                            <strong>{t('twitchChatPreparing')}</strong>
-                            <span>{t('twitchChatCacheSession')}</span>
-                        </div>
-                    )}
-                    {viewer.error && (
-                        <div className="twitch-chat-state twitch-chat-state--error">
-                            <i className="bi bi-exclamation-triangle"></i>
-                            <strong>{t('twitchChatLoadFailed')}</strong>
-                            <span>{viewer.error}</span>
-                            <button type="button" onClick={onRetry}>{t('twitchChatRetry')}</button>
-                        </div>
-                    )}
-                    {!viewer.loading && !viewer.error && messages.map(message => (
-                        <div key={message.id} className="twitch-chat-message">
-                            <span className="twitch-chat-time">{message.timeLabel}</span>
-                            <span className="twitch-chat-user">{message.username || 'unknown'}</span>
-                            <span className="twitch-chat-body">{message.body}</span>
-                        </div>
-                    ))}
-                    {!viewer.loading && !viewer.error && messages.length === 0 && (
-                        <div className="twitch-chat-empty">{t('twitchChatNoMatches')}</div>
-                    )}
-                </div>
-            </div>
-        </div>
-    )
-}
 function normalizeYtdlVersion(version) {
     return String(version || '').trim().replace(/^yt-dlp\s+/i, '').replace(/^v/i, '')
 }
@@ -300,25 +200,33 @@ function App() {
     const videosRef = useRef([])
     const pendingAutoStartRef = useRef(false)
 
-    // Wire the module-level IPC emitter to the React state setter
+    // Keep streaming listeners scoped to the mounted root, including during HMR.
     useEffect(() => {
-        _cliLogEmitter.callback = (entry) => setCliLogs(prev => [...prev, entry])
-        return () => { _cliLogEmitter.callback = null }
-    }, [])    // Tracks last-seen progress per video to prevent backward movement
-    const progressStateRef = useRef(new Map())
+        const appendLog = entry => setCliLogs(prev => [...prev.slice(-999), entry])
+        const subscriptions = [
+            window.api.onCliOutput(data => appendLog({ type: 'out', text: data })),
+            window.api.onCliError(data => appendLog({ type: 'err', text: data })),
+            window.api.onYtdlOutput(({ data }) => appendLog({ type: 'ytdl', text: data })),
+            window.api.onTwitchOutput?.(({ data }) => appendLog({ type: 'twitch', text: data })),
+        ]
+        return () => {
+            subscriptions.forEach(unsubscribe => unsubscribe?.())
+        }
+    }, [])
+
     // Track IDs stopped by user so cli-exit/ytdl-exit doesn't set them to 'error'
     const stoppedJobsRef = useRef(new Set())
     const [themeMode, setThemeMode] = useState(() => {
-        const saved = localStorage.getItem('theme')
+        const saved = appStorage.getItem('theme')
         return (saved === 'dark' || saved === 'light') ? saved : 'auto'
     })
     const [theme, setTheme] = useState(() => {
-        const saved = localStorage.getItem('theme')
+        const saved = appStorage.getItem('theme')
         if (saved === 'dark' || saved === 'light') return saved
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     })
     const [accentTheme, setAccentTheme] = useState(() => {
-        const saved = localStorage.getItem('gorex-accent-theme')
+        const saved = appStorage.getItem('gorex-accent-theme')
         // migrate old 'black' value to 'white'
         if (saved === 'black') return 'white'
         return saved || 'purple'
@@ -330,14 +238,14 @@ function App() {
     // User-configured folder (from settings/onboarding) OR system Videos fallback
     const [defaultOutputDir, setDefaultOutputDir] = useState(() => {
         try {
-            const s = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
+            const s = JSON.parse(appStorage.getItem('gorex-app-config') || '{}')
             return s.defaultOutputDir || s.defaultCustomOutputDir || ''
         } catch { return '' }
     })
     const [appSettings, setAppSettings] = useState(null)
     const [gpuVendor, setGpuVendor] = useState('unknown')
     const [systemPlatform, setSystemPlatform] = useState(() => window.api.platform || 'unknown')
-    const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('gorex-onboarding-done'))
+    const [showOnboarding, setShowOnboarding] = useState(() => !appStorage.getItem('gorex-onboarding-done'))
     const [appVersion, setAppVersion] = useState('')
     const [showWhatsNew, setShowWhatsNew] = useState(false)
     const [updateInfo, setUpdateInfo] = useState(null)
@@ -364,7 +272,7 @@ function App() {
                 const cleanVersion = String(version || '').trim()
                 if (!cleanVersion) return
                 setAppVersion(cleanVersion)
-                if (localStorage.getItem(WHATS_NEW_STORAGE_KEY) !== cleanVersion) {
+                if (appStorage.getItem(WHATS_NEW_STORAGE_KEY) !== cleanVersion) {
                     setShowWhatsNew(true)
                 }
             })
@@ -410,6 +318,27 @@ function App() {
             setLoadingMessage(null)
         }
     }
+
+    const addDroppedFilesRef = useRef(loadAndAddVideos)
+    addDroppedFilesRef.current = loadAndAddVideos
+    useEffect(() => {
+        if (!('__TAURI_INTERNALS__' in window)) return undefined
+        let active = true
+        let unlisten
+        getCurrentWebview().onDragDropEvent(event => {
+            if (!active) return
+            if (event.payload.type === 'over') {
+                setIsDragging(true)
+                setIsDraggingOnList(true)
+            } else {
+                setIsDragging(false)
+                setIsDraggingOnList(false)
+                if (event.payload.type === 'drop') void addDroppedFilesRef.current(event.payload.paths)
+            }
+        }).then(stop => { if (active) unlisten = stop; else stop() })
+            .catch(error => console.error('Could not listen for file drops:', error))
+        return () => { active = false; unlisten?.() }
+    }, [])
 
     const handleVideoDataCancel = () => {
         window.api.cancelVideoData()
@@ -543,7 +472,7 @@ function App() {
             queryparams: () => t('loadingStageQueryparams'),
             retry:       () => t('loadingStageRetry'),
         }
-        window.api.onYtdlFetchProgress(({ stage, total }) => {
+        const stopFetchProgress = window.api.onYtdlFetchProgress(({ stage, total }) => {
             if (stage === 'retry') {
                 const subtitle = total > 1
                     ? t('loadingStageRetryMany').replace('{n}', total)
@@ -614,6 +543,7 @@ function App() {
             _cliLogEmitter.callback?.({ type: 'err', text: errText })
             setYtdlFetchError(err.message || t('dlErrorDefault'))
         } finally {
+            stopFetchProgress?.()
             setIsLoading(false)
             setLoadingMessage(null)
         }
@@ -817,7 +747,7 @@ function App() {
     const toggleTheme = () => {
         setTheme(prev => {
             const next = prev === 'dark' ? 'light' : 'dark'
-            localStorage.setItem('theme', next)
+            appStorage.setItem('theme', next)
             setThemeMode(next)
             return next
         })
@@ -826,18 +756,18 @@ function App() {
     const handleSetThemeMode = (mode) => {
         setThemeMode(mode)
         if (mode === 'auto') {
-            localStorage.removeItem('theme')
+            appStorage.removeItem('theme')
             const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
             setTheme(sys)
         } else {
-            localStorage.setItem('theme', mode)
+            appStorage.setItem('theme', mode)
             setTheme(mode)
         }
     }
 
     const handleSetAccentTheme = (accent) => {
         setAccentTheme(accent)
-        localStorage.setItem('gorex-accent-theme', accent)
+        appStorage.setItem('gorex-accent-theme', accent)
     }
 
     useEffect(() => {
@@ -868,7 +798,6 @@ function App() {
         setIsEncoding(false)
         setIsPaused(false)
         setEncodingStartTime(null)
-        progressStateRef.current.clear()
         setVideos(prev => prev.map(v =>
             ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status)
                 ? { ...v, status: isDownloadItem(v) ? 'format_select' : 'ready', progress: 0, startTime: null, endTime: null, outputPath: null }
@@ -885,10 +814,10 @@ function App() {
         const normalizedEncodingSettings = normalizeEncoderSettings(encodingSettings)
         delete cleanAppConfig.ytdlDeepFormatSearch
         // Persist encoding defaults
-        localStorage.setItem('gorex-default-settings', JSON.stringify(normalizedEncodingSettings))
+        appStorage.setItem('gorex-default-settings', JSON.stringify(normalizedEncodingSettings))
         setSelectedSettings(normalizedEncodingSettings)
         // Persist app config (renderer-side)
-        localStorage.setItem('gorex-app-config', JSON.stringify(cleanAppConfig))
+        appStorage.setItem('gorex-app-config', JSON.stringify(cleanAppConfig))
         // User-set folder becomes the new default; fall back to system Videos if cleared
         if (cleanAppConfig.defaultOutputDir) {
             setDefaultOutputDir(cleanAppConfig.defaultOutputDir)
@@ -901,11 +830,11 @@ function App() {
     }
 
     const handleOutputDirChange = async (dir) => {
-        const existing = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
+        const existing = JSON.parse(appStorage.getItem('gorex-app-config') || '{}')
         const existingConfig = { ...existing }
         delete existingConfig.ytdlDeepFormatSearch
         const updated = { ...existingConfig, defaultOutputDir: dir || '' }
-        localStorage.setItem('gorex-app-config', JSON.stringify(updated))
+        appStorage.setItem('gorex-app-config', JSON.stringify(updated))
         await window.api.saveAppSettings(updated)
         setAppSettings(prev => ({ ...(prev || {}), defaultOutputDir: dir || '' }))
         if (dir) {
@@ -1150,7 +1079,7 @@ function App() {
 
     const handleDismissWhatsNew = () => {
         if (appVersion) {
-            localStorage.setItem(WHATS_NEW_STORAGE_KEY, appVersion)
+            appStorage.setItem(WHATS_NEW_STORAGE_KEY, appVersion)
         }
         setShowWhatsNew(false)
     }
@@ -1179,8 +1108,9 @@ function App() {
     const handleDrop = (e) => {
         e.preventDefault()
         setIsDragging(false)
+        if ('__TAURI_INTERNALS__' in window) return
         if (e.dataTransfer.files.length > 0) {
-            const paths = Array.from(e.dataTransfer.files).map(f => window.electron.webUtils.getPathForFile(f)).filter(Boolean)
+            const paths = Array.from(e.dataTransfer.files).map(f => window.electron?.webUtils?.getPathForFile(f)).filter(Boolean)
             loadAndAddVideos(paths)
         }
     }
@@ -1205,8 +1135,9 @@ function App() {
         e.preventDefault()
         listDragCounter.current = 0
         setIsDraggingOnList(false)
+        if ('__TAURI_INTERNALS__' in window) return
         if (e.dataTransfer.files.length > 0) {
-            const paths = Array.from(e.dataTransfer.files).map(f => window.electron.webUtils.getPathForFile(f)).filter(Boolean)
+            const paths = Array.from(e.dataTransfer.files).map(f => window.electron?.webUtils?.getPathForFile(f)).filter(Boolean)
             loadAndAddVideos(paths)
         }
     }
@@ -1216,7 +1147,6 @@ function App() {
         setIsEncoding(true)
         setIsPaused(false)
         setEncodingStartTime(now)
-        progressStateRef.current.clear()
         // Reset progress for already-finished videos so they get re-encoded
         setVideos(prev => prev.map(v =>
             v.status === 'done' || v.status === 'error'
@@ -1281,8 +1211,7 @@ function App() {
         window.api.checkForUpdates().then(info => { if (info) setUpdateInfo(info) }).catch(() => {})
     }, [])
     useEffect(() => {
-        if (window.api.onYtdlUpdateProgress) {
-            window.api.onYtdlUpdateProgress((payload = {}) => {
+        const stopYtdlUpdates = window.api.onYtdlUpdateProgress?.((payload = {}) => {
                 setYtdlTool(prev => {
                     const isError = payload.stage === 'error'
                     const isDone = payload.stage === 'done'
@@ -1304,9 +1233,7 @@ function App() {
                     }
                 })
             })
-        }
-        if (window.api.onTwitchUpdateProgress) {
-            window.api.onTwitchUpdateProgress((payload = {}) => {
+        const stopTwitchUpdates = window.api.onTwitchUpdateProgress?.((payload = {}) => {
                 setTwitchTool(prev => {
                     const isError = payload.stage === 'error'
                     const isDone = payload.stage === 'done'
@@ -1328,14 +1255,17 @@ function App() {
                     }
                 })
             })
-        }
         refreshTwitchToolInfo({ autoUpdate: true })
         refreshYtdlToolInfo({ autoUpdate: true })
+        return () => {
+            stopYtdlUpdates?.()
+            stopTwitchUpdates?.()
+        }
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     // ─── Chrome extension integration ─────────────────────────────────────────────
     useEffect(() => {
-        window.api.onExtensionAddToQueue(async (data) => {
+        return window.api.onExtensionAddToQueue(async (data) => {
             const { url, formatId, audioOnly, clipStart, clipEnd, convertAfterDownload } = data
             if (!url) return
             // Detect service
@@ -1364,7 +1294,7 @@ function App() {
 
     // ─── Extension: remove queue item ─────────────────────────────────────────────
     useEffect(() => {
-        window.api.onExtensionRemoveFromQueue((data) => {
+        return window.api.onExtensionRemoveFromQueue((data) => {
             if (data?.id != null) handleRemoveVideo(data.id)
         })
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1392,7 +1322,7 @@ function App() {
                 setSystemPlatform(info.platform || 'unknown')
                 saveGpuVendor(accelerationVendor)
                 // Apply GPU-specific encoder only if user has no saved settings
-                const hasSaved = !!localStorage.getItem('gorex-default-settings')
+                const hasSaved = !!appStorage.getItem('gorex-default-settings')
                 if (!hasSaved) {
                     setSelectedSettings(getDefaultSettingsForGpu(accelerationVendor))
                 } else if (info.platform === 'darwin') {
@@ -1421,59 +1351,36 @@ function App() {
     }, [theme, accentTheme])
 
     useEffect(() => {
-        window.api.onCliProgress(({ id, progress }) => {
+        const offCliProgress = window.api.onCliProgress(({ id, progress }) => {
             if (stoppedJobsRef.current.has(id)) return
-            const ps = progressStateRef.current
-            const state = ps.get(id) || { current: 0 }
-            // Progress is already multi-pass-aware (linearized in main process),
-            // so only apply forward movement to avoid any stray backward updates.
-            if (progress < state.current) return
-            ps.set(id, { current: progress })
-            setVideos(prev => prev.map(v =>
-                v.id === id
-                    ? { ...v, progress, status: 'encoding', startTime: v.startTime ?? Date.now() }
-                    : v
-            ))
+            setVideos(prev => applyJobProgress(prev, id, progress, 'encoding'))
         })
 
-        window.api.onYtdlProgress(({ id, progress, subsPhase, sponsorBlockPhase, sponsorBlockProbePhase }) => {
+        const offYtdlProgress = window.api.onYtdlProgress(({ id, progress, subsPhase, sponsorBlockPhase, sponsorBlockProbePhase }) => {
             if (stoppedJobsRef.current.has(id)) return
             const newStatus = subsPhase ? 'downloading-subs'
                 : sponsorBlockProbePhase ? 'probing-keyframes'
                 : sponsorBlockPhase ? 'cutting-sponsors'
                 : 'downloading'
-            setVideos(prev => prev.map(v =>
-                v.id === id
-                    ? { ...v, progress, status: newStatus, startTime: v.startTime ?? Date.now() }
-                    : v
-            ))
+            setVideos(prev => applyJobProgress(prev, id, progress, newStatus))
         })
 
-        window.api.onTwitchProgress?.(({ id, progress }) => {
+        const offTwitchProgress = window.api.onTwitchProgress?.(({ id, progress }) => {
             if (stoppedJobsRef.current.has(id)) return
-            setVideos(prev => prev.map(v =>
-                v.id === id
-                    ? { ...v, progress, status: 'downloading', startTime: v.startTime ?? Date.now() }
-                    : v
-            ))
+            setVideos(prev => applyJobProgress(prev, id, progress, 'downloading'))
         })
 
-        window.api.onTwitchExit?.(({ id, code, converting, error, stderr, outputPath }) => {
+        const offTwitchExit = window.api.onTwitchExit?.(({ id, code, converting, error, stderr, outputPath }) => {
             if (stoppedJobsRef.current.has(id)) {
                 stoppedJobsRef.current.delete(id)
                 return
             }
             if (converting) {
-                setVideos(prev => prev.map(v =>
-                    v.id === id ? { ...v, progress: 0, status: 'converting', startTime: Date.now(), outputPath: null } : v
-                ))
+                setVideos(prev => startConversion(prev, id))
             } else {
                 setVideos(prev => {
-                    const updated = prev.map(v => v.id === id
-                        ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now(), outputPath: code === 0 ? (outputPath || v.outputPath || null) : null }
-                        : v
-                    )
-                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status))) {
+                    const updated = finishJob(prev, id, code, outputPath)
+                    if (!hasActiveJobs(updated)) {
                         setIsEncoding(false)
                         setEncodingStartTime(null)
                     }
@@ -1487,23 +1394,18 @@ function App() {
                 }
             }
         })
-        window.api.onYtdlExit(({ id, code, converting, error, stderr, outputPath }) => {
+        const offYtdlExit = window.api.onYtdlExit(({ id, code, converting, error, stderr, outputPath }) => {
             if (stoppedJobsRef.current.has(id)) {
                 stoppedJobsRef.current.delete(id)
                 return
             }
             if (converting) {
                 // Download finished, conversion phase starting
-                setVideos(prev => prev.map(v =>
-                    v.id === id ? { ...v, progress: 0, status: 'converting', startTime: Date.now(), outputPath: null } : v
-                ))
+                setVideos(prev => startConversion(prev, id))
             } else {
                 setVideos(prev => {
-                    const updated = prev.map(v => v.id === id
-                        ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now(), outputPath: code === 0 ? (outputPath || v.outputPath || null) : null }
-                        : v
-                    )
-                    if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status))) {
+                    const updated = finishJob(prev, id, code, outputPath)
+                    if (!hasActiveJobs(updated)) {
                         setIsEncoding(false)
                         setEncodingStartTime(null)
                     }
@@ -1518,19 +1420,14 @@ function App() {
             }
         })
 
-        window.api.onCliExit(({ id, code, stderr, outputPath }) => {
+        const offCliExit = window.api.onCliExit(({ id, code, stderr, outputPath }) => {
             if (stoppedJobsRef.current.has(id)) {
                 stoppedJobsRef.current.delete(id)
-                progressStateRef.current.delete(id)
                 return
             }
-            progressStateRef.current.delete(id)
             setVideos(prev => {
-                const updated = prev.map(v => v.id === id
-                    ? { ...v, progress: 100, status: code === 0 ? 'done' : 'error', endTime: Date.now(), outputPath: code === 0 ? (outputPath || v.outputPath || null) : null }
-                    : v
-                )
-                if (!updated.some(v => ['encoding', 'downloading', 'downloading-subs', 'probing-keyframes', 'cutting-sponsors', 'converting'].includes(v.status))) {
+                const updated = finishJob(prev, id, code, outputPath)
+                if (!hasActiveJobs(updated)) {
                     setIsEncoding(false)
                     setEncodingStartTime(null)
                 }
@@ -1543,6 +1440,8 @@ function App() {
                 setCliErrors(prev => [...prev, { title, stderr: (stderr || '').trim() || t('noOutput'), hint }])
             }
         })
+        return () => [offCliProgress, offYtdlProgress, offTwitchProgress, offTwitchExit, offYtdlExit, offCliExit]
+            .forEach(unsubscribe => unsubscribe?.())
     }, [])
 
     const handleOpenOutputLocation = async (outputPath) => {
@@ -1913,22 +1812,22 @@ function App() {
                             window.api.saveAppSettings(newAppSettings)
                             window.api.setBackgroundMode(newAppSettings.backgroundMode)
                             setAppSettings(prev => ({ ...(prev || {}), ...newAppSettings }))
-                            // Sync outputDir to localStorage and session state
-                            const existingConfig = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
+                            // Sync outputDir to appStorage and session state
+                            const existingConfig = JSON.parse(appStorage.getItem('gorex-app-config') || '{}')
                             const cleanExistingConfig = { ...existingConfig }
                             delete cleanExistingConfig.ytdlDeepFormatSearch
-                            localStorage.setItem('gorex-app-config', JSON.stringify({ ...cleanExistingConfig, ...newAppSettings }))
+                            appStorage.setItem('gorex-app-config', JSON.stringify({ ...cleanExistingConfig, ...newAppSettings }))
                             if (settings.outputDir) {
                                 setDefaultOutputDir(settings.outputDir)
                             }
                             if (settings.encoder) {
-                                const cur = JSON.parse(localStorage.getItem('gorex-default-settings') || '{}')
+                                const cur = JSON.parse(appStorage.getItem('gorex-default-settings') || '{}')
                                 const updated = normalizeEncoderSettings({ ...cur, encoder: settings.encoder })
-                                localStorage.setItem('gorex-default-settings', JSON.stringify(updated))
+                                appStorage.setItem('gorex-default-settings', JSON.stringify(updated))
                                 setSelectedSettings(prev => normalizeEncoderSettings({ ...prev, encoder: settings.encoder }))
                             }
                         }
-                        localStorage.setItem('gorex-onboarding-done', '1')
+                        appStorage.setItem('gorex-onboarding-done', '1')
                         setShowOnboarding(false)
                     }}
                 />

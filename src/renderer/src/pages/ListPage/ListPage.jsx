@@ -375,6 +375,10 @@ function parseTimeInput(str) {
 // ─── YouTube iframe postMessage helpers ─────────────────────────────────────
 function ytSeek(iframeEl, sec) {
     if (!iframeEl?.contentWindow) return
+    if (iframeEl.src.startsWith('http://127.0.0.1:')) {
+        iframeEl.contentWindow.postMessage({ type: 'gorex-seek', seconds: Math.max(0, sec) }, new URL(iframeEl.src).origin)
+        return
+    }
     iframeEl.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: 'seekTo', args: [Math.max(0, sec), true] }),
         'https://www.youtube-nocookie.com'
@@ -391,7 +395,7 @@ function getYouTubeId(url) {
     return null
 }
 
-function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, videoUrl, localPath, onChange }) {
+function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, videoUrl, localPath, localPreviewUrl, onChange }) {
     const { t } = useLanguage()
     const trackRef = useRef(null)
     const draggingRef = useRef(null) // 'start' | 'end'
@@ -411,10 +415,33 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
     const [hoverTime, setHoverTime] = useState(null)
     const [hoverPct, setHoverPct] = useState(0)
     const [embedSec, setEmbedSec] = useState(null) // null = player hidden
+    const [playerSrc, setPlayerSrc] = useState(null)
+    const [playerError, setPlayerError] = useState(false)
     const [localPlayerSec, setLocalPlayerSec] = useState(null) // null = local player hidden
     const [currentTime, setCurrentTime] = useState(null) // playhead position
 
-    const localFileUrl = localPath ? 'gorex-media:///' + localPath.replace(/\\/g, '/') : null
+    const localFileUrl = localPreviewUrl || (localPath ? 'gorex-media:///' + localPath.replace(/\\/g, '/') : null)
+    const ytId = videoUrl ? getYouTubeId(videoUrl) : null
+
+    useEffect(() => {
+        if (embedSec === null || !ytId) {
+            setPlayerSrc(null)
+            setPlayerError(false)
+            return
+        }
+        let active = true
+        const directUrl = `https://www.youtube-nocookie.com/embed/${ytId}?start=${Math.floor(embedSec)}&autoplay=1&enablejsapi=1&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`
+        if (!window.api.getYoutubePlayerUrl) {
+            setPlayerSrc(directUrl)
+            return
+        }
+        window.api.getYoutubePlayerUrl(ytId, embedSec).then(url => {
+            if (active) { setPlayerSrc(url); setPlayerError(false) }
+        }).catch(() => {
+            if (active) { setPlayerSrc(null); setPlayerError(true) }
+        })
+        return () => { active = false }
+    }, [embedSec, ytId])
 
     // Sync inputs when external values change
     useEffect(() => { setStartInput(timeToInput(clipStart ?? 0)) }, [clipStart])
@@ -432,7 +459,8 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
         setCurrentTime(embedSec)
 
         const onMessage = (e) => {
-            if (e.origin !== 'https://www.youtube.com' && e.origin !== 'https://www.youtube-nocookie.com') return
+            const localOrigin = playerSrc?.startsWith('http://127.0.0.1:') ? new URL(playerSrc).origin : null
+            if (e.origin !== 'https://www.youtube.com' && e.origin !== 'https://www.youtube-nocookie.com' && e.origin !== localOrigin) return
             let data
             try { data = JSON.parse(e.data) } catch { return }
             if (data.event === 'onStateChange') {
@@ -452,7 +480,7 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
             window.removeEventListener('message', onMessage)
             clearInterval(pollRef.current)
         }
-    }, [embedSec, dur])
+    }, [embedSec, dur, playerSrc])
 
     // Cleanup on unmount
     useEffect(() => () => { clearInterval(pollRef.current) }, [])
@@ -565,8 +593,6 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
     const startPct = (effectiveStart / dur) * 100
     const endPct   = (effectiveEnd   / dur) * 100
 
-    const ytId = videoUrl ? getYouTubeId(videoUrl) : null
-
     const openAtTime = (sec) => {
         if (!videoUrl) return
         let url = videoUrl
@@ -582,14 +608,18 @@ function TimeRangeSelector({ duration, chapters, clipStart, clipEnd, thumbnail, 
                     {/* YouTube iframe embed – shown when a preview button is clicked */}
                     {ytId && embedSec !== null ? (
                         <div className="trs-embed-wrap">
-                            <iframe
-                                ref={iframeRef}
-                                className="trs-embed"
-                                src={`https://www.youtube-nocookie.com/embed/${ytId}?start=${Math.floor(embedSec)}&autoplay=1&enablejsapi=1&controls=1&rel=0&origin=${encodeURIComponent(window.location.origin)}`}
-                                allow="autoplay; encrypted-media; picture-in-picture"
-                                allowFullScreen
-                                title="Preview"
-                            />
+                            {playerSrc ? (
+                                <iframe
+                                    ref={iframeRef}
+                                    className="trs-embed"
+                                    src={playerSrc}
+                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                    allowFullScreen
+                                    title="Preview"
+                                />
+                            ) : playerError ? (
+                                <a href={videoUrl} target="_blank" rel="noopener noreferrer">{t('trsOpenOnYouTube')}</a>
+                            ) : null}
                             <button
                                 className="trs-embed-close"
                                 onClick={() => setEmbedSec(null)}
@@ -1473,6 +1503,7 @@ function VideoSettingsPanel({ video, globalSettings, systemPlatform, onClose, on
                                                 thumbnail={video.thumbnail}
                                                 videoUrl={null}
                                                 localPath={video.path}
+                                                localPreviewUrl={video.previewUrl}
                                                 onChange={(s, e) => onLocalClipChange && onLocalClipChange(video.id, s, e)}
                                             />
                                         </div>

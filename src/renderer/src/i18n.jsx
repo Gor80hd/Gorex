@@ -1,3 +1,4 @@
+import { appStorage } from './storage'
 import { createContext, useContext, useState } from 'react'
 
 // ─── Translation dictionaries ──────────────────────────────────────────────────
@@ -598,6 +599,7 @@ const TRANSLATIONS = {
         // TimeRangeSelector
         trsFullVideo: 'Полное видео',
         trsClosePlayer: 'Закрыть плеер',
+        trsOpenOnYouTube: 'Открыть видео на YouTube',
         trsFrom: 'С',
         trsTo: 'По',
         trsRemoveClip: 'Убрать обрезку',
@@ -1312,6 +1314,7 @@ const TRANSLATIONS = {
         // TimeRangeSelector
         trsFullVideo: 'Full video',
         trsClosePlayer: 'Close player',
+        trsOpenOnYouTube: 'Open video on YouTube',
         trsFrom: 'From',
         trsTo: 'To',
         trsRemoveClip: 'Remove clip',
@@ -1440,12 +1443,12 @@ const LanguageContext = createContext({
 
 export function LanguageProvider({ children }) {
     const [lang, setLangState] = useState(() => {
-        const saved = localStorage.getItem('gorex-language')
+        const saved = appStorage.getItem('gorex-language')
         return saved === 'ru' ? 'ru' : 'en'
     })
 
     const setLang = (newLang) => {
-        localStorage.setItem('gorex-language', newLang)
+        appStorage.setItem('gorex-language', newLang)
         setLangState(newLang)
     }
 

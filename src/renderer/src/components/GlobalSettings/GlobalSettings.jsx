@@ -1,3 +1,4 @@
+import { appStorage } from '../../storage'
 import { useState, useRef, useEffect } from 'react'
 import { useLanguage } from '../../i18n'
 import {
@@ -343,22 +344,22 @@ export function getDefaultSettingsForGpu(vendor) {
 }
 
 export function getStoredGpuVendor() {
-    try { return localStorage.getItem('gorex-gpu-vendor') || null } catch { return null }
+    try { return appStorage.getItem('gorex-gpu-vendor') || null } catch { return null }
 }
 
 export function saveGpuVendor(vendor) {
-    try { localStorage.setItem('gorex-gpu-vendor', vendor) } catch {}
+    try { appStorage.setItem('gorex-gpu-vendor', vendor) } catch {}
 }
 
 // ─── Default settings initializer (respects saved GPU vendor) ─────────────────
 export function initDefaultSettings() {
     try {
-        const saved = localStorage.getItem('gorex-default-settings')
+        const saved = appStorage.getItem('gorex-default-settings')
         if (saved) {
             const parsed = JSON.parse(saved)
             const stored = normalizeEncoderSettings(parsed)
             if (stored.encoderSpeed !== parsed.encoderSpeed) {
-                localStorage.setItem('gorex-default-settings', JSON.stringify(stored))
+                appStorage.setItem('gorex-default-settings', JSON.stringify(stored))
             }
             return normalizeEncoderSettings({ ...DEFAULT_SETTINGS, ...stored })
         }

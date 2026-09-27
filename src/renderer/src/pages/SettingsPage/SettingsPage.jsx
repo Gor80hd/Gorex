@@ -1,3 +1,4 @@
+import { appStorage } from '../../storage'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
     GsSelect,
@@ -281,7 +282,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     // App-level config (output folder)
     const [appConfig, setAppConfig] = useState(() => {
         try {
-            const s = JSON.parse(localStorage.getItem('gorex-app-config') || '{}')
+            const s = JSON.parse(appStorage.getItem('gorex-app-config') || '{}')
             return {
                 defaultOutputDir: s.defaultOutputDir || '',
                 ytdlCookiesFile: s.ytdlCookiesFile || '',
@@ -654,7 +655,7 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
     const handleClearCache = () => setShowResetConfirm(true)
     const handleConfirmReset = async () => {
         await window.api.clearAllSettings()
-        localStorage.clear()
+        appStorage.clear()
         window.api.relaunchApp()
     }
 
