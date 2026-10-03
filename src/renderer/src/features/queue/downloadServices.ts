@@ -47,4 +47,3 @@ export function detectService(raw: string) {
 export function isValidUrl(raw: string) {
     try { new URL(raw); return true } catch { return false }
 }
-

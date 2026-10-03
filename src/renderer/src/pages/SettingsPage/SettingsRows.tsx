@@ -58,4 +58,3 @@ export function SectionHeader({ icon, title }: { icon: string; title: string }) 
         </div>
     )
 }
-

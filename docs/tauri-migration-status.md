@@ -16,6 +16,7 @@ This document tracks the migration until the Electron runtime can be removed. Th
 - Processing queue lifecycle now belongs to Rust. Commands are serialized against a new start; cancellation waits for the batch to drain, progress events carry revisions, and task metadata supports WebView recovery.
 - `App`, `ListPage`, and `SettingsPage` are TypeScript modules split into feature hooks, models and UI components. SCSS is unchanged.
 - Default npm development/build/distribution commands use Tauri; explicit `:electron` commands retain the comparison baseline until parity gates pass.
+- The final local macOS `.app` and `.dmg` 3.0.0 are built. DMG size: 188,641,780 bytes (179.90 MiB); disk-image checksums verify. Cross-platform CI for implementation commit `03af7da` passed: https://github.com/Gor80hd/Gorex/actions/runs/37135218821. Windows passed 22 Rust tests (including real-process pause/resume), 33 JavaScript tests, media-tool smoke, and a silent NSIS install/uninstall to a custom directory. NSIS size: 181,980,626 bytes (173.55 MiB); the installer is saved at `dist/tauri/windows/Gorex_3.0.0_x64-setup.exe`.
 - These results cover automated code and tool checks. The current GUI still needs revalidation; the Mac control tool reports a locked screen.
 
 ## Earlier checks completed on macOS Apple Silicon

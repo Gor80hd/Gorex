@@ -32,4 +32,3 @@ export const EIGHT_BIT_ONLY_ENCODERS = new Set([
     'vp8', 'theora',
     'mpeg4', 'mpeg2video', 'mpeg1video', 'mjpeg', 'wmv2', 'wmv1', 'h263p', 'h263', 'flv1',
 ])
-
