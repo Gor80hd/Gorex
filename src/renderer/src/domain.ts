@@ -53,7 +53,7 @@ export interface YtdlOptions {
     noAudio: boolean; downloadSubs: boolean; autoSubs: boolean; subLangs: string; subFormat: string
     audioFormat: string; sponsorBlock: boolean; sponsorBlockCats: string[]
 }
-export interface ToolInfo { found: boolean; version?: string | null; path?: string | null; error?: string; source?: string; latest?: LatestToolInfo }
+export interface ToolInfo { found: boolean; version?: string | null; path?: string | null; error?: string; source?: string; latest?: LatestToolInfo; encoders?: string[] | null }
 export interface LatestToolInfo { latestVersion?: string; downloadUrl?: string; releaseUrl?: string; assetName?: string; publishedAt?: string; [key: string]: unknown }
 export interface ToolState {
     status: string; info: ToolInfo | null; latest: LatestToolInfo | null; progress: number | null

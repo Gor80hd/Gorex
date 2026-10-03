@@ -3,6 +3,18 @@ import assert from 'node:assert/strict'
 import { getEncoderErrorHint } from '../src/renderer/src/features/encoding/encoderErrorHint.ts'
 import { isTwitchUrl, normalizeTwitchSelectedQuality } from '../src/renderer/src/features/twitch/twitchQueue.ts'
 import { isTwitchToolUpdateAvailable, isYtdlUpdateAvailable } from '../src/renderer/src/features/tools/updateHelpers.ts'
+import { getAudioCodecOptions } from '../src/renderer/src/features/encoding/encodingOptions.ts'
+
+test('GPL FFmpeg disables missing FDK encoders while preserving AAC and passthrough', () => {
+    const options = getAudioCodecOptions(new Set(['aac', 'libmp3lame']), () => 'unavailable')
+    assert.equal(options.find(option => option.value === 'av_aac').disabled, false)
+    assert.equal(options.find(option => option.value === 'fdk_aac').disabled, true)
+    assert.equal(options.find(option => option.value === 'fdk_haac').disabled, true)
+    assert.equal(options.find(option => option.value === 'copy:aac').disabled, false)
+    assert.match(options.find(option => option.value === 'fdk_aac').label, /unavailable/)
+    const custom = getAudioCodecOptions(new Set(['libfdk_aac']), key => key)
+    assert.equal(custom.find(option => option.value === 'fdk_haac').disabled, false)
+})
 
 test('version checks handle prefixed CLI versions and reject equal releases', () => {
     assert.equal(isTwitchToolUpdateAvailable('TwitchDownloaderCLI 1.56.4+hash', '1.56.4'), false)

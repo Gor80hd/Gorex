@@ -12,12 +12,15 @@ This document tracks the migration until the Electron runtime can be removed. Th
 
 ## Current refactor (2026-10-03)
 
-- Strict TypeScript checks, 33 JavaScript tests, 21 Rust tests in release profile, Vite web build, and FFmpeg/ffprobe smoke pass.
+- Strict TypeScript checks, 34 JavaScript tests, 23 Rust tests in release profile, Vite web build, and FFmpeg/ffprobe smoke pass locally after the follow-up fixes.
 - Processing queue lifecycle now belongs to Rust. Commands are serialized against a new start; cancellation waits for the batch to drain, progress events carry revisions, and task metadata supports WebView recovery.
 - `App`, `ListPage`, and `SettingsPage` are TypeScript modules split into feature hooks, models and UI components. SCSS is unchanged.
 - Default npm development/build/distribution commands use Tauri; explicit `:electron` commands retain the comparison baseline until parity gates pass.
 - The final local macOS `.app` and `.dmg` 3.0.0 are built. DMG size: 188,641,780 bytes (179.90 MiB); disk-image checksums verify. Cross-platform CI for implementation commit `03af7da` passed: https://github.com/Gor80hd/Gorex/actions/runs/37135218821. Windows passed 22 Rust tests (including real-process pause/resume), 33 JavaScript tests, media-tool smoke, and a silent NSIS install/uninstall to a custom directory. NSIS size: 181,980,626 bytes (173.55 MiB); the installer is saved at `dist/tauri/windows/Gorex_3.0.0_x64-setup.exe`.
-- These results cover automated code and tool checks. The current GUI still needs revalidation; the Mac control tool reports a locked screen.
+- The follow-up macOS `.app` and `.dmg` build and disk-image verification pass; the current DMG is 188,658,288 bytes (179.92 MiB). The Windows artifact and CI results above belong to the preceding implementation commit; these follow-up changes require a new Windows build.
+- Development now resolves the same prepared Tauri tool bundle as production. It no longer falls back to Electron's older FFmpeg/ffprobe packages.
+- FFmpeg reports its available encoders to the typed client. Both audio codec selectors disable unavailable encoders with localized explanations, including FDK AAC and HE-AAC, instead of submitting commands that the bundled GPL FFmpeg cannot run. FDK output remains unavailable in the current distributable build; full codec parity is still a release decision/gate.
+- Current GUI checks: file selection and local HEVC VideoToolbox conversion complete; `ffprobe` confirms HEVC + AAC, 640×360, 12 seconds, and the extension queue reports `done`/100%. The rebuilt app launches again, the native Settings menu opens the correct screen, and the FDK options are visibly disabled. The YouTube window loads YouTube and the Google sign-in form. Authenticated cookie export still awaits a manual account sign-in. Screen locking interrupted the rest of the interactive scenarios.
 
 ## Earlier checks completed on macOS Apple Silicon
 
@@ -41,7 +44,13 @@ Measured on the same Mac with both apps showing the empty source view. RSS is a 
 | macOS `.dmg` | 179 MiB | 179.2 MiB with GPL FFmpeg |
 | Idle RSS | 474 MiB across four Electron processes | about 188 MiB including the Gorex process and three WebKit services started with it |
 
-The memory sample used the earlier Tauri tool bundle; it must be repeated with the current binaries. The same conversion file and a controlled cold-launch timing have not yet been measured. Tool-update network requests were running during startup and should be excluded from a final timing protocol.
+The memory sample used the earlier Tauri tool bundle; it must be repeated with the current binaries. That earlier sample did not measure same-file conversion or controlled cold launch. Tool-update network requests were running during startup and should be excluded from a final timing protocol.
+
+### Controlled FFmpeg conversion sample (2026-10-03)
+
+On this Apple M5 Mac, a generated 60-second 1920×1080/30fps H.264 + AAC input was converted with identical `libx264`, `medium`, CRF 23, AAC 160k arguments. Each binary had one warmup followed by three alternating measured runs; the Rust build had already finished before this sample. Median process wall time was **9.658 seconds** for Electron's FFmpeg 6.0 and **9.524 seconds** for Tauri's FFmpeg 9.0.2 (−1.39%). This small difference does not establish a meaningful encoding speed improvement from Tauri: it compares the tool versions, includes disk output, and excludes application queue/UI overhead. Cold launch, current idle memory, and Windows measurements remain outstanding.
+
+Raw measurements, input hash and all arguments: [macos-conversion-2026-10-03.json](benchmarks/macos-conversion-2026-10-03.json). Reproduce on either platform with `node scripts/benchmark-conversion.mjs INPUT ELECTRON_FFMPEG TAURI_FFMPEG`; Windows accepts paths to the respective `.exe` files.
 
 The local Electron 2.4.0 Windows installer is 197,487,195 bytes (188.34 MiB). The first Tauri 3.0.0 NSIS installer was 214,588,736 bytes (204.65 MiB). Using Gyan's full GPLv3 FFmpeg build for codecs and the same-version essentials ffprobe reduced the successful CI installer to 181,848,515 bytes (173.42 MiB): 32,740,221 bytes smaller than the first Tauri package and 15,638,680 bytes (7.92%) smaller than Electron. The full FFmpeg retains SVT-AV1 and hardware encoders. CI has confirmed H.264 and AV1 encoding and probing with this combination.
 
@@ -54,4 +63,4 @@ The local Electron 2.4.0 Windows installer is 197,487,195 bytes (188.34 MiB). Th
 - Test the same full scenario matrix on macOS, especially Twitch VOD and chat, subtitle files, YouTube login and cookie export, and installation over the old app.
 - Queue ownership and strict TypeScript conversion of all renderer JSX modules are implemented. The current refactor requires real-device parity validation before removing the remaining Electron baseline. See `tauri-refactor.md` for the new module map and automated checks.
 - Confirm Windows pause/resume and process-tree cancellation on a real Windows installation. A Windows-only process-control smoke test now runs in CI, but user-facing behavior remains unverified.
-- Measure controlled cold startup, total idle memory, installer size, and conversion duration on both platforms; fix regressions before replacing Electron in the release workflow.
+- Measure controlled cold startup and current total idle memory on both platforms, Windows conversion duration, and application-level conversion overhead; fix regressions before replacing Electron in the release workflow. The macOS FFmpeg-only conversion sample and installer sizes are recorded above.

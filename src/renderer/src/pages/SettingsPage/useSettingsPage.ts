@@ -11,7 +11,6 @@ export interface SettingsPageProps {
 }
 interface ToolUpdateState { status: string; message: string; stageMessage: string; progress: number | null; receivedBytes: number; totalBytes: number | null }
 interface AppUpdateState { status: string; message: string; currentVersion: string; latestVersion: string; downloadUrl: string }
-import { AUDIO_CODECS, EIGHT_BIT_ONLY_ENCODERS } from '../../features/encoding/encodingOptions'
 import { appStorage } from '../../storage'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {

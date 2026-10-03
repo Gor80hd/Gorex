@@ -2,7 +2,8 @@ import { Toggle, Row, PathRow, SectionHeader } from './SettingsRows'
 import type { ReactNode, CSSProperties } from 'react'
 import type { Theme, ThemeMode, SettingsTab, AppConfig, EncodingSettings, GpuInfo, ToolInfo, ToolState, YoutubeAuth } from '../../domain'
 import { errorMessage } from '../../domain'
-import { AUDIO_CODECS, EIGHT_BIT_ONLY_ENCODERS } from '../../features/encoding/encodingOptions'
+import { EIGHT_BIT_ONLY_ENCODERS } from '../../features/encoding/encodingOptions'
+import { useAudioCodecs } from '../../features/encoding/useAudioCodecs'
 import { appStorage } from '../../storage'
 import {
     GsSelect,
@@ -25,6 +26,7 @@ import './SettingsPage.scss'
 
 import { useSettingsPage, getGpuMeta, createYtdlUpdateState, type SettingsPageProps } from './useSettingsPage'
 function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave, onOutputDirChange, initialTab, ytdlTool, onUpdateYtdl, onRefreshYtdl, twitchTool, onUpdateTwitch, onRefreshTwitch }: SettingsPageProps) {
+    const audioCodecs = useAudioCodecs()
     const { t, lang, setLang, activeSection, setActiveSection, savedFlash, setSavedFlash, gpuInfo, setGpuInfo, TABS, appConfig, setAppConfig, enc, setEnc, cliStatus, setCliStatus, cliVersion, setCliVersion, cliPath, setCliPath, ytdlInfo, setYtdlInfo, ytdlUpdateState, setYtdlUpdateState, gorexUpdateState, setGorexUpdateState, youtubeAuthStatus, setYoutubeAuthStatus, youtubeAuthBusy, setYoutubeAuthBusy, youtubeAuthError, setYoutubeAuthError, resolvedOutputDir, setResolvedOutputDir, contentRef, sectionRefs, isScrollingRef, scrollToSection, refreshYoutubeAuthStatus, updateEnc, updateApp, getYtdlUpdateStageText, refreshYtdlInfo, handleSave, handleReset, handleBrowseOutputDir, handleResetOutputDir, handleBrowseCookiesFile, handleClearCookiesFile, handleCheckGorexUpdates, handleOpenGorexRelease, handleYoutubeLogin, handleExportYoutubeCookies, handleClearYoutubeAuth, handleUpdateYtdl, handleOpenTemp, showResetConfirm, setShowResetConfirm, handleClearCache, handleConfirmReset, rfTable, speedPresets, isMac, platformEncoderGroups, supportsMultiPass, isHWEncoder, isPassthru, effectiveYtdlInfo, effectiveYtdlUpdateState, ytdlVersionText, ytdlSourceText, ytdlUpdateProgress, ytdlUpdateBytesText, showYtdlUpdateProgress, ytdlUpdateIndeterminate, effectiveTwitchInfo, effectiveTwitchUpdateState, twitchVersionText, twitchSourceText, twitchUpdateProgress, twitchUpdateBytesText, showTwitchUpdateProgress, twitchUpdateIndeterminate, gorexVersionTag, gorexUpdateAvailable, sectionRef } = useSettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAccentThemeChange, onBack, appSettings, onSave, onOutputDirChange, initialTab, ytdlTool, onUpdateYtdl, onRefreshYtdl, twitchTool, onUpdateTwitch, onRefreshTwitch })
 
     return (
@@ -443,9 +445,9 @@ function SettingsPage({ theme, themeMode, onThemeModeChange, accentTheme, onAcce
                         <Row label={t('rowAudioCodec')} hint={t('hintAudioCodec')}>
                             <GsSelect
                                 value={enc.audioCodec || 'av_aac'}
-                                options={AUDIO_CODECS.map(c => ({
+                                options={audioCodecs.map(c => ({
                                     ...c,
-                                    disabled: enc.format === 'av_webm' && !WEBM_COMPATIBLE_AUDIO.has(c.value) && !c.value.startsWith('copy'),
+                                    disabled: c.disabled || enc.format === 'av_webm' && !WEBM_COMPATIBLE_AUDIO.has(c.value) && !c.value.startsWith('copy'),
                                 }))}
                                 onChange={v => updateEnc('audioCodec', v)}
                             />

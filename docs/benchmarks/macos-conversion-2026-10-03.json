@@ -1,0 +1,54 @@
+{
+  "measuredAt": "2026-10-03T16:45:26.299Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "osRelease": "27.0.0",
+  "cpu": "Apple M5",
+  "input": "/tmp/gorex-benchmark-1080p.mp4",
+  "inputSha256": "fefdfa65d37df5146d4f7f3f0830324066e83074bc284a4e90efad693bf8d405",
+  "method": "FFmpeg process wall time including disk output; one warmup and three alternating runs per binary. Does not measure UI/queue overhead or cold launch.",
+  "arguments": [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-y",
+    "-i",
+    "/tmp/gorex-benchmark-1080p.mp4",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "medium",
+    "-crf",
+    "23",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "160k",
+    "<temporary-output.mp4>"
+  ],
+  "tools": [
+    {
+      "runtime": "Electron baseline",
+      "path": "/Users/egor/Developer/Apps/Gorex/node_modules/ffmpeg-static/ffmpeg",
+      "seconds": [
+        9.662579458999996,
+        9.605681125000002,
+        9.658134291000001
+      ],
+      "version": "ffmpeg version 6.0 Copyright (c) 2000-2023 the FFmpeg developers",
+      "medianSeconds": 9.658134291000001
+    },
+    {
+      "runtime": "Tauri",
+      "path": "/Users/egor/Developer/Apps/Gorex/src-tauri/binaries/ffmpeg",
+      "seconds": [
+        9.523890708,
+        9.515281333999999,
+        9.882523749999994
+      ],
+      "version": "ffmpeg version 9.0.2-https://www.martin-riedl.de Copyright (c) 2000-2026 the FFmpeg developers",
+      "medianSeconds": 9.523890708
+    }
+  ],
+  "tauriTimeChangePercent": -1.3899535764904103
+}

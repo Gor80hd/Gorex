@@ -2,7 +2,8 @@ import { useState, useEffect, type ReactNode } from 'react'
 import type { EncodingSettings } from '../../domain'
 import type { SelectProps, SelectGroup, SelectOption } from '../../components/GlobalSettings/GlobalSettings'
 import type { VideoSettingsPanelProps } from './types'
-import { EIGHT_BIT_ONLY_ENCODERS, AUDIO_CODECS } from '../../features/encoding/encodingOptions'
+import { EIGHT_BIT_ONLY_ENCODERS } from '../../features/encoding/encodingOptions'
+import { useAudioCodecs } from '../../features/encoding/useAudioCodecs'
 import { SUB_LANG_LABELS, buildYtdlFormatGroups, resolveYtdlFormat } from './listModel'
 import TimeRangeSelector from './TimeRangeSelector'
 interface SettingsDraft extends EncodingSettings {
@@ -70,6 +71,7 @@ function normalizeSettingsForPlatform<T extends EncodingSettings>(settings: T, p
 
 // ─── Video Settings Panel ──────────────────────────────────────────────────────
 function VideoSettingsPanel({ video, globalSettings, systemPlatform, onClose, onSave, onReset, onYtdlFormatChange, onYtdlConvertToggle, onYtdlClipChange, onYtdlOptionsChange, onLocalClipChange, onOpenSettings }: VideoSettingsPanelProps) {
+    const audioCodecs = useAudioCodecs()
     const { t } = useLanguage()
     const VSP_TABS = [
         { id: 'video',     label: t('tabVideo'),     icon: 'bi-camera-video' },
@@ -718,9 +720,9 @@ function VideoSettingsPanel({ video, globalSettings, systemPlatform, onClose, on
                                 <VspRow label={t('rowAudioCodec')} hint={t('hintAudioCodec')}>
                                     <PanelSelect
                                         value={draft.audioCodec || 'av_aac'}
-                                        options={AUDIO_CODECS.map(c => ({
+                                        options={audioCodecs.map(c => ({
                                             ...c,
-                                            disabled: (draft.format === 'av_webm' && !WEBM_COMPATIBLE_AUDIO.has(c.value) && !c.value.startsWith('copy')) || (audioOnly && !isAudioCodecCompatibleWithFormat(draft.format, c.value)),
+                                            disabled: c.disabled || (draft.format === 'av_webm' && !WEBM_COMPATIBLE_AUDIO.has(c.value) && !c.value.startsWith('copy')) || (audioOnly && !isAudioCodecCompatibleWithFormat(draft.format, c.value)),
                                         }))}
                                         onChange={v => update('audioCodec', v)}
                                     />
