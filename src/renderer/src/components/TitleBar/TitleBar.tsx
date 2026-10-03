@@ -4,20 +4,13 @@ import logoDark from '../../assets/images/logo.svg'
 import { useLanguage } from '../../i18n'
 import './TitleBar.scss'
 
-interface ToolState {
-    status?: string
-    message?: string
-    stageMessage?: string
-    progress?: number | null
-    info?: { version?: string } | null
-    latest?: { latestVersion?: string; publishedAt?: string } | null
-}
+import type { ToolState, View } from '../../domain'
 
 interface Props {
     onOpen: () => void
     theme: 'dark' | 'light'
     toggleTheme: () => void
-    onViewChange: (view: string) => void
+    onViewChange: (view: View) => void
     currentView: string
     isEncoding: boolean
     isPaused: boolean

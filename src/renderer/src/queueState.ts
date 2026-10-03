@@ -11,8 +11,8 @@ export interface QueueTask {
   id: TaskId
   status: TaskStatus
   progress: number
-  startTime?: number
-  endTime?: number
+  startTime?: number | null
+  endTime?: number | null
   outputPath?: string | null
 }
 

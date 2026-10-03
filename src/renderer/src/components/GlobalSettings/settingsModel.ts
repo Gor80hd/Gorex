@@ -1,11 +1,12 @@
 import { appStorage } from '../../storage'
+import type { EncodingSettings } from '../../domain'
 import {
     getDefaultEncoderSpeed as resolveDefaultEncoderSpeed,
     normalizeEncoderSettings as normalizeSettingsForEncoder,
 } from './settingsNormalization.mjs'
 
 type Translate = (key: string) => string
-type EncoderSettings = { encoder?: string; encoderSpeed?: string; [key: string]: unknown }
+type EncoderSettings = { encoder?: string; encoderSpeed?: string }
 type QualityTable = { high: number; medium: number; low: number; potato: number; min: number; max: number }
 type EstimateVideo = { size?: string; resolution?: string; fps?: string; duration?: string; bitrate?: string }
 type EstimateSettings = {
@@ -19,7 +20,7 @@ type EstimateSettings = {
 }
 
 // ─── RF quality tables per encoder ────────────────────────────────────────────
-export const CODEC_RF = {
+export const CODEC_RF: Record<string, QualityTable> = {
     x264:          { high: 18, medium: 23, low: 30, potato: 51, min: 0, max: 51 },
     x264_10bit:    { high: 18, medium: 23, low: 30, potato: 51, min: 0, max: 51 },
     x265:          { high: 20, medium: 26, low: 34, potato: 51, min: 0, max: 51 },
@@ -156,7 +157,7 @@ const DNXHD_PROFILES = [
     { value: 'dnxhr_444', label: 'DNxHR 444', desc: { ru: 'DNxHR 444 — полное 4:4:4 цветовое пространство для хроматики.', en: 'DNxHR 444 — full 4:4:4 color space for chroma.' } },
 ]
 
-export const ENCODER_PRESETS = {
+export const ENCODER_PRESETS: Record<string, { value: string; label: string; desc?: { ru: string; en: string }; recommended?: boolean }[]> = {
     x264:          X264_X265_SPEEDS,
     x264_10bit:    X264_X265_SPEEDS,
     x265:          X264_X265_SPEEDS,
@@ -300,7 +301,7 @@ export function getFormatOptionGroups(t?: Translate) {
     ]
 }
 // ─── Default settings ──────────────────────────────────────────────────────────
-export const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS: EncodingSettings = {
     // Video
     format: 'av_mp4',
     resolution: 'source',
@@ -363,7 +364,7 @@ export function saveGpuVendor(vendor: string) {
 }
 
 // ─── Default settings initializer (respects saved GPU vendor) ─────────────────
-export function initDefaultSettings() {
+export function initDefaultSettings(): EncodingSettings {
     try {
         const saved = appStorage.getItem('gorex-default-settings')
         if (saved) {
@@ -544,7 +545,7 @@ export const MULTI_PASS_ENCODERS = new Set([
 ])
 
 // ─── Per-encoder disabled formats ─────────────────────────────────────────────────
-export const ENCODER_DISABLED_FORMATS = {
+export const ENCODER_DISABLED_FORMATS: Record<string, Set<string>> = {
     // VP8 / VP9 — несовместимы с MP4, MOV и legacy контейнерами
     vp8:        new Set(['av_mp4', 'av_mov', 'av_avi', 'av_flv', 'av_ts', 'av_3gp']),
     vp9:        new Set(['av_mp4', 'av_mov', 'av_avi', 'av_flv', 'av_ts', 'av_3gp']),

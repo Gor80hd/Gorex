@@ -13,8 +13,8 @@ import './GlobalSettings.scss'
 
 type Translate = (key: string) => string
 type Settings = Omit<typeof DEFAULT_SETTINGS, 'encoderSpeed'> & { encoderSpeed?: string; noAudio?: boolean }
-type SelectTag = { key: string; cls: string; icon: string; label: string }
-type SelectOption = {
+export type SelectTag = { key: string; cls: string; icon: string; label: string }
+export type SelectOption = {
     value: string
     label: string
     desc?: string | { ru?: string; en?: string }
@@ -23,8 +23,8 @@ type SelectOption = {
     recommended?: boolean
     tags?: SelectTag[]
 }
-type SelectGroup = { label: string; options: SelectOption[] }
-type SelectProps = {
+export type SelectGroup = { label: string; options: SelectOption[] }
+export type SelectProps = {
     value?: string
     onChange: (value: string) => void
     options?: SelectOption[]

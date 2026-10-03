@@ -1,3 +1,5 @@
+import type { DownloadService } from '../../domain'
+import { detectService, isValidUrl } from '../../features/queue/downloadServices'
 import { useState, useMemo, useRef, useEffect, useCallback, type DragEvent, type MouseEvent, type KeyboardEvent, type ChangeEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import logoWhite from '../../assets/images/logo_white.svg'
@@ -6,11 +8,6 @@ import { useLanguage } from '../../i18n'
 import './SourcePage.scss'
 
 // Supported services: hostname (without www.) → { name, color }
-interface DownloadService {
-    name: string
-    color: string
-}
-
 interface SourcePageProps {
     theme: 'dark' | 'light'
     isDragging: boolean
@@ -20,58 +17,6 @@ interface SourcePageProps {
     onDrop: (event: DragEvent<HTMLDivElement>) => void
     onDownload: (url: string, service: DownloadService | null) => Promise<void>
     isLoading: boolean
-}
-
-const SERVICE_MAP: Record<string, DownloadService> = {
-    'youtube.com':     { name: 'YouTube',      color: '#ff0000' },
-    'youtu.be':        { name: 'YouTube',      color: '#ff0000' },
-    'twitter.com':     { name: 'Twitter / X',  color: '#ffffff' },
-    'x.com':           { name: 'Twitter / X',  color: '#ffffff' },
-    't.co':            { name: 'Twitter / X',  color: '#ffffff' },
-    'instagram.com':   { name: 'Instagram',    color: '#e1306c' },
-    'ddinstagram.com': { name: 'Instagram',    color: '#e1306c' },
-    'reddit.com':      { name: 'Reddit',       color: '#ff4500' },
-    'redd.it':         { name: 'Reddit',       color: '#ff4500' },
-    'vimeo.com':       { name: 'Vimeo',        color: '#1ab7ea' },
-    'soundcloud.com':  { name: 'SoundCloud',   color: '#ff5500' },
-    'twitch.tv':       { name: 'Twitch',       color: '#9146ff' },
-    'facebook.com':    { name: 'Facebook',     color: '#1877f2' },
-    'fb.watch':        { name: 'Facebook',     color: '#1877f2' },
-    'pinterest.com':   { name: 'Pinterest',    color: '#e60023' },
-    'pin.it':          { name: 'Pinterest',    color: '#e60023' },
-    'tumblr.com':      { name: 'Tumblr',       color: '#35465c' },
-    'snapchat.com':    { name: 'Snapchat',     color: '#fffc00' },
-    'tiktok.com':      { name: 'TikTok',       color: '#ff0050' },
-    'vt.tiktok.com':   { name: 'TikTok',       color: '#ff0050' },
-    'bilibili.com':    { name: 'Bilibili',     color: '#00a1d6' },
-    'b23.tv':          { name: 'Bilibili',     color: '#00a1d6' },
-    'ok.ru':           { name: 'OK',           color: '#f7931e' },
-    'vk.com':          { name: 'VKontakte',    color: '#4a76a8' },
-    'vk.ru':           { name: 'VKontakte',    color: '#4a76a8' },
-    'vkvideo.ru':      { name: 'VK Видео',     color: '#4a76a8' },
-    'rutube.ru':       { name: 'Rutube',       color: '#ff5c00' },
-    'dailymotion.com': { name: 'Dailymotion',  color: '#0066dc' },
-    'bsky.app':        { name: 'Bluesky',      color: '#0085ff' },
-    'xiaohongshu.com': { name: 'Xiaohongshu',  color: '#ff2442' },
-    'xhslink.com':     { name: 'Xiaohongshu',  color: '#ff2442' },
-    'loom.com':        { name: 'Loom',         color: '#625df5' },
-    'newgrounds.com':  { name: 'Newgrounds',   color: '#f6a623' },
-    'streamable.com':  { name: 'Streamable',   color: '#41b883' },
-}
-
-function detectService(raw: string): DownloadService | null {
-    if (!raw) return null
-    try {
-        const u = new URL(raw)
-        const host = u.hostname.replace(/^www\./, '')
-        return SERVICE_MAP[host] ?? null
-    } catch {
-        return null
-    }
-}
-
-function isValidUrl(raw: string): boolean {
-    try { new URL(raw); return true } catch { return false }
 }
 
 function FaviconImg({ url, className }: { url: string; className?: string }) {

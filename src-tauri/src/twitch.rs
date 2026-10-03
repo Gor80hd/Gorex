@@ -1,35 +1,82 @@
+use crate::{
+    encoding,
+    jobs::{self, Jobs, RunOutcome, RunSpec},
+    tools::{locate, Tool},
+};
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::Arc};
 use tauri::{AppHandle, Emitter, Manager, State};
-use crate::{encoding, jobs::{self, Jobs, RunSpec}, tools::{locate, Tool}};
 
 fn field<'a>(value: &'a Value, key: &str, fallback: &'a str) -> &'a str {
-    value.get(key).and_then(Value::as_str).filter(|text| !text.is_empty()).unwrap_or(fallback)
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|text| !text.is_empty())
+        .unwrap_or(fallback)
 }
-fn bool_field(value: &Value, key: &str) -> bool { value.get(key).and_then(Value::as_bool).unwrap_or(false) }
+fn bool_field(value: &Value, key: &str) -> bool {
+    value.get(key).and_then(Value::as_bool).unwrap_or(false)
+}
 
 fn parse_url(raw: &str) -> Result<Value, String> {
     let url = url::Url::parse(raw).map_err(|_| "Некорректная ссылка Twitch")?;
-    if url.scheme() != "https" && url.scheme() != "http" { return Err("Некорректная ссылка Twitch".into()); }
-    let host = url.host_str().unwrap_or("").trim_start_matches("www.").trim_start_matches("m.");
-    let parts = url.path_segments().ok_or("Некорректная ссылка Twitch")?.filter(|part| !part.is_empty()).collect::<Vec<_>>();
-    if host == "clips.twitch.tv" && !parts.is_empty() {
-        return Ok(json!({"ok":true,"type":"clip","id":parts[0],"slug":parts[0],"sourceUrl":url.to_string()}));
+    if url.scheme() != "https" && url.scheme() != "http" {
+        return Err("Некорректная ссылка Twitch".into());
     }
-    if host != "twitch.tv" { return Err("Неподдерживаемая ссылка Twitch".into()); }
-    if parts.len() >= 2 && parts[0] == "videos" && parts[1].chars().all(|character| character.is_ascii_digit()) {
+    let host = url
+        .host_str()
+        .unwrap_or("")
+        .trim_start_matches("www.")
+        .trim_start_matches("m.");
+    let parts = url
+        .path_segments()
+        .ok_or("Некорректная ссылка Twitch")?
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    if host == "clips.twitch.tv" && !parts.is_empty() {
+        return Ok(
+            json!({"ok":true,"type":"clip","id":parts[0],"slug":parts[0],"sourceUrl":url.to_string()}),
+        );
+    }
+    if host != "twitch.tv" {
+        return Err("Неподдерживаемая ссылка Twitch".into());
+    }
+    if parts.len() >= 2
+        && parts[0] == "videos"
+        && parts[1].chars().all(|character| character.is_ascii_digit())
+    {
         return Ok(json!({"ok":true,"type":"vod","id":parts[1],"sourceUrl":url.to_string()}));
     }
     if parts.len() >= 2 && parts[0] == "clip" {
-        return Ok(json!({"ok":true,"type":"clip","id":parts[1],"slug":parts[1],"sourceUrl":url.to_string()}));
+        return Ok(
+            json!({"ok":true,"type":"clip","id":parts[1],"slug":parts[1],"sourceUrl":url.to_string()}),
+        );
     }
     if parts.len() >= 3 && parts[1] == "clip" {
-        return Ok(json!({"ok":true,"type":"clip","id":parts[2],"slug":parts[2],"channel":parts[0],"sourceUrl":url.to_string()}));
+        return Ok(
+            json!({"ok":true,"type":"clip","id":parts[2],"slug":parts[2],"channel":parts[0],"sourceUrl":url.to_string()}),
+        );
     }
-    if parts.len() == 1 && parts[0].len() >= 3 && parts[0].len() <= 25 && parts[0].chars().all(|character| character.is_ascii_alphanumeric() || character == '_') {
-        let reserved = ["videos", "clips", "directory", "search", "settings", "login", "about"];
+    if parts.len() == 1
+        && parts[0].len() >= 3
+        && parts[0].len() <= 25
+        && parts[0]
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '_')
+    {
+        let reserved = [
+            "videos",
+            "clips",
+            "directory",
+            "search",
+            "settings",
+            "login",
+            "about",
+        ];
         if !reserved.contains(&parts[0].to_ascii_lowercase().as_str()) {
-            return Ok(json!({"ok":true,"type":"channel","id":parts[0],"channel":parts[0],"sourceUrl":format!("https://www.twitch.tv/{}",parts[0])}));
+            return Ok(
+                json!({"ok":true,"type":"channel","id":parts[0],"channel":parts[0],"sourceUrl":format!("https://www.twitch.tv/{}",parts[0])}),
+            );
         }
     }
     Err("Неподдерживаемая ссылка Twitch".into())
@@ -38,17 +85,51 @@ fn parse_url(raw: &str) -> Result<Value, String> {
 async fn graphql(app: &AppHandle, query: &str, variables: Value) -> Result<Value, String> {
     let body = json!({"query":query,"variables":variables}).to_string();
     let output = tokio::process::Command::new("curl")
-        .args(["--fail", "--silent", "--show-error", "--location", "--max-time", "20", "-X", "POST", "-H", "Client-ID: kimne78kx3ncx6brgo4mv6wki5h1ko", "-H", "Content-Type: application/json", "-H", &format!("User-Agent: Gorex-App/{}", app.package_info().version), "--data-binary", &body, "https://gql.twitch.tv/gql"])
-        .output().await.map_err(|error| error.to_string())?;
-    if !output.status.success() { return Err(String::from_utf8_lossy(&output.stderr).trim().into()); }
-    let response: Value = serde_json::from_slice(&output.stdout).map_err(|error| error.to_string())?;
-    if let Some(errors) = response["errors"].as_array() { return Err(errors.iter().filter_map(|error| error["message"].as_str()).collect::<Vec<_>>().join("; ")); }
+        .args([
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--location",
+            "--max-time",
+            "20",
+            "-X",
+            "POST",
+            "-H",
+            "Client-ID: kimne78kx3ncx6brgo4mv6wki5h1ko",
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            &format!("User-Agent: Gorex-App/{}", app.package_info().version),
+            "--data-binary",
+            &body,
+            "https://gql.twitch.tv/gql",
+        ])
+        .output()
+        .await
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().into());
+    }
+    let response: Value =
+        serde_json::from_slice(&output.stdout).map_err(|error| error.to_string())?;
+    if let Some(errors) = response["errors"].as_array() {
+        return Err(errors
+            .iter()
+            .filter_map(|error| error["message"].as_str())
+            .collect::<Vec<_>>()
+            .join("; "));
+    }
     Ok(response["data"].clone())
 }
 
 fn duration_label(seconds: f64) -> String {
     let seconds = seconds.max(0.0) as u64;
-    format!("{}:{:02}:{:02}", seconds / 3600, (seconds / 60) % 60, seconds % 60)
+    format!(
+        "{}:{:02}:{:02}",
+        seconds / 3600,
+        (seconds / 60) % 60,
+        seconds % 60
+    )
 }
 
 fn quality_options() -> Value {
@@ -64,9 +145,19 @@ fn quality_options() -> Value {
 }
 
 fn normalize_video(node: &Value, kind: &str, source_url: &str, channel: &str) -> Value {
-    let seconds = node["durationSeconds"].as_f64().or_else(|| node["lengthSeconds"].as_f64()).unwrap_or_default();
-    let id = node["slug"].as_str().or_else(|| node["id"].as_str()).unwrap_or("");
-    let url = if source_url.is_empty() { format!("https://www.twitch.tv/videos/{id}") } else { source_url.into() };
+    let seconds = node["durationSeconds"]
+        .as_f64()
+        .or_else(|| node["lengthSeconds"].as_f64())
+        .unwrap_or_default();
+    let id = node["slug"]
+        .as_str()
+        .or_else(|| node["id"].as_str())
+        .unwrap_or("");
+    let url = if source_url.is_empty() {
+        format!("https://www.twitch.tv/videos/{id}")
+    } else {
+        source_url.into()
+    };
     json!({
         "id":id,"type":kind,"url":url,
         "title":node["title"].as_str().unwrap_or(if kind == "clip" { "Twitch Clip" } else { "Twitch VOD" }),
@@ -80,9 +171,14 @@ fn normalize_video(node: &Value, kind: &str, source_url: &str, channel: &str) ->
 
 #[tauri::command]
 pub async fn twitch_resolve_url(app: AppHandle, url: String) -> Value {
-    let parsed = match parse_url(&url) { Ok(parsed) => parsed, Err(error) => return json!({"ok":false,"error":error}) };
+    let parsed = match parse_url(&url) {
+        Ok(parsed) => parsed,
+        Err(error) => return json!({"ok":false,"error":error}),
+    };
     let kind = field(&parsed, "type", "");
-    if kind == "channel" { return json!({"ok":true,"type":"channel","channel":parsed["channel"],"parsed":parsed}); }
+    if kind == "channel" {
+        return json!({"ok":true,"type":"channel","channel":parsed["channel"],"parsed":parsed});
+    }
     let id = field(&parsed, "id", "");
     let response = if kind == "vod" {
         graphql(&app, "query GorexVod($id: ID!) { video(id: $id) { id title lengthSeconds createdAt previewThumbnailURL(width: 320, height: 180) owner { login displayName } } }", json!({"id":id})).await.map(|data| data["video"].clone())
@@ -95,13 +191,29 @@ pub async fn twitch_resolve_url(app: AppHandle, url: String) -> Value {
 }
 
 #[tauri::command]
-pub async fn twitch_get_channel_videos(app: AppHandle, channel: String, limit: Option<u32>) -> Value {
+pub async fn twitch_get_channel_videos(
+    app: AppHandle,
+    channel: String,
+    limit: Option<u32>,
+) -> Value {
     let limit = limit.unwrap_or(30).clamp(1, 60);
     let result = graphql(&app, "query GorexChannelVideos($login: String!, $limit: Int!) { user(login: $login) { login displayName profileImageURL(width:70) videos(first:$limit,sort:TIME,type:ARCHIVE) { edges { node { id title lengthSeconds createdAt previewThumbnailURL(width:320,height:180) owner { login displayName } } } } } }", json!({"login":channel,"limit":limit})).await;
     match result {
         Ok(data) if data["user"].is_object() => {
             let user = &data["user"];
-            let videos = user["videos"]["edges"].as_array().into_iter().flatten().map(|edge| normalize_video(&edge["node"], "vod", "", field(user, "displayName", &channel))).collect::<Vec<_>>();
+            let videos = user["videos"]["edges"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|edge| {
+                    normalize_video(
+                        &edge["node"],
+                        "vod",
+                        "",
+                        field(user, "displayName", &channel),
+                    )
+                })
+                .collect::<Vec<_>>();
             json!({"ok":true,"channel":user["login"].as_str().unwrap_or(&channel),"displayName":user["displayName"],"avatar":user["profileImageURL"],"videos":videos})
         }
         Ok(_) => json!({"ok":false,"error":format!("Канал Twitch не найден: {channel}")}),
@@ -111,77 +223,237 @@ pub async fn twitch_get_channel_videos(app: AppHandle, channel: String, limit: O
 
 fn unique_output(directory: &std::path::Path, base: &str, ext: &str) -> PathBuf {
     for index in 0..100_000 {
-        let name = if index == 0 { format!("{base}.{ext}") } else { format!("{base} ({index}).{ext}") };
+        let name = if index == 0 {
+            format!("{base}.{ext}")
+        } else {
+            format!("{base} ({index}).{ext}")
+        };
         let path = directory.join(name);
-        if !path.exists() { return path; }
+        if !path.exists() {
+            return path;
+        }
     }
-    directory.join(format!("{base}-{}.{ext}",std::process::id()))
+    directory.join(format!("{base}-{}.{ext}", std::process::id()))
 }
 
 fn safe_name(raw: &str) -> String {
-    let name = raw.chars().map(|character| if character.is_control() || "<>:\"/\\|?*".contains(character) { '_' } else { character }).collect::<String>();
+    let name = raw
+        .chars()
+        .map(|character| {
+            if character.is_control() || "<>:\"/\\|?*".contains(character) {
+                '_'
+            } else {
+                character
+            }
+        })
+        .collect::<String>();
     let name = name.trim_end_matches('.').trim();
-    if name.is_empty() { "twitch_video".into() } else { name.into() }
+    if name.is_empty() {
+        "twitch_video".into()
+    } else {
+        name.into()
+    }
 }
 
 #[tauri::command]
-pub async fn twitch_run(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
+pub async fn twitch_run(
+    app: AppHandle,
+    jobs: State<'_, Arc<Jobs>>,
+    request: Value,
+) -> Result<(), String> {
     let id = request["id"].clone();
-    let result = twitch_run_inner(app.clone(), jobs, request).await;
+    let result = execute(app.clone(), jobs.inner().clone(), request)
+        .await
+        .map(|_| ());
     if let Err(error) = &result {
-        let _ = app.emit("twitch-exit", json!({"id": id, "code": 1, "error": error, "stderr": error, "outputPath": null}));
+        let _ = app.emit(
+            "twitch-exit",
+            json!({"id": id, "code": 1, "error": error, "stderr": error, "outputPath": null}),
+        );
     }
     result
 }
 
-async fn twitch_run_inner(app: AppHandle, jobs: State<'_, Arc<Jobs>>, request: Value) -> Result<(), String> {
+pub async fn execute(
+    app: AppHandle,
+    jobs: Arc<Jobs>,
+    request: Value,
+) -> Result<RunOutcome, String> {
     let id = request["id"].clone();
-    if id.is_null() { return Err("Job ID is required".into()); }
+    if id.is_null() {
+        return Err("Job ID is required".into());
+    }
     let kind = field(&request, "type", "vod");
-    let mode = match kind { "vod" => "videodownload", "clip" => "clipdownload", _ => return Err("Unsupported Twitch item".into()) };
+    let mode = match kind {
+        "vod" => "videodownload",
+        "clip" => "clipdownload",
+        _ => return Err("Unsupported Twitch item".into()),
+    };
     let url = field(&request, "url", "");
     let parsed = parse_url(url)?;
-    let dir = request["outputDir"].as_str().filter(|path| !path.is_empty()).map(PathBuf::from).unwrap_or_else(|| app.path().video_dir().unwrap_or_else(|_| std::env::temp_dir()));
+    let dir = request["outputDir"]
+        .as_str()
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            app.path()
+                .video_dir()
+                .unwrap_or_else(|_| std::env::temp_dir())
+        });
     std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
     let convert = bool_field(&request, "convertAfterDownload");
-    let download_dir = if convert { crate::platform::temp_download_dir() } else { dir.clone() };
-    std::fs::create_dir_all(&download_dir).map_err(|error| error.to_string())?;
+    let stage = crate::workspace::StagingDirectory::new("twitch")?;
+    let download_dir = stage.path().to_path_buf();
     let name = safe_name(field(&request, "outputName", "twitch_video"));
-    let download_name = if convert { format!("gorex_twitch_{}_{}", id, std::process::id()) } else { name.clone() };
+    let download_name = name.clone();
     let output = unique_output(&download_dir, &download_name, "mp4");
     let ffmpeg = locate(&app, Tool::Ffmpeg)?;
-    let mut args = vec![mode.into(), "--id".into(), field(&parsed,"sourceUrl",url).into(), "-o".into(), output.to_string_lossy().into_owned(), "--collision".into(), "Rename".into(), "--banner=false".into(), "--temp-path".into(), download_dir.to_string_lossy().into_owned(), "--ffmpeg-path".into(), ffmpeg.to_string_lossy().into_owned()];
+    let mut args = vec![
+        mode.into(),
+        "--id".into(),
+        field(&parsed, "sourceUrl", url).into(),
+        "-o".into(),
+        output.to_string_lossy().into_owned(),
+        "--collision".into(),
+        "Rename".into(),
+        "--banner=false".into(),
+        "--temp-path".into(),
+        download_dir.to_string_lossy().into_owned(),
+        "--ffmpeg-path".into(),
+        ffmpeg.to_string_lossy().into_owned(),
+    ];
     let quality = field(&request, "twitchQuality", "Source");
-    if !matches!(quality.to_ascii_lowercase().as_str(), "source" | "best" | "auto") { args.extend(["--quality".into(),quality.into()]); }
-    if let Some(start) = request["clipStart"].as_f64().filter(|start| *start > 0.0) { args.extend(["--beginning".into(), format!("{}",duration_label(start))]); }
-    if let Some(end) = request["clipEnd"].as_f64() { args.extend(["--ending".into(), format!("{}",duration_label(end))]); }
-    let spec = RunSpec { id: id.clone(), program: locate(&app, Tool::Twitch)?, args, output_path: output.clone(), cleanup_paths: vec![output], event_prefix: "twitch", duration: None, discover_output: Some((download_dir.clone(),download_name)), emit_exit: !convert };
-    let result = jobs::run(app.clone(), jobs.inner().clone(), spec).await?;
-    if !convert || result.code != 0 || result.cancelled {
-        if convert { let _ = app.emit("twitch-exit", json!({"id":id,"code":result.code,"stderr":result.stderr,"outputPath":null})); }
-        return Ok(());
+    if !matches!(
+        quality.to_ascii_lowercase().as_str(),
+        "source" | "best" | "auto"
+    ) {
+        args.extend(["--quality".into(), quality.into()]);
     }
-    let _ = app.emit("twitch-exit", json!({"id":id,"code":0,"converting":true,"outputPath":result.output_path}));
+    if let Some(start) = request["clipStart"].as_f64().filter(|start| *start > 0.0) {
+        args.extend(["--beginning".into(), format!("{}", duration_label(start))]);
+    }
+    if let Some(end) = request["clipEnd"].as_f64() {
+        args.extend(["--ending".into(), format!("{}", duration_label(end))]);
+    }
+    let spec = RunSpec {
+        id: id.clone(),
+        program: locate(&app, Tool::Twitch)?,
+        args,
+        output_path: output.clone(),
+        cleanup_paths: vec![output],
+        event_prefix: "twitch",
+        duration: None,
+        discover_output: Some((download_dir.clone(), download_name)),
+        emit_exit: false,
+    };
+    let result = jobs::run(app.clone(), jobs.clone(), spec).await?;
+    if result.code != 0 || result.cancelled {
+        {
+            let _ = app.emit(
+                "twitch-exit",
+                json!({"id":id,"code":result.code,"stderr":result.stderr,"outputPath":null}),
+            );
+        }
+        return Ok(result);
+    }
+    if !convert {
+        let output = crate::downloads::move_download_with_sidecars(
+            &download_dir,
+            &result.output_path,
+            &dir,
+            &name,
+        )?;
+        let _ = app.emit(
+            "twitch-exit",
+            json!({"id":id,"code":0,"stderr":result.stderr,"outputPath":output}),
+        );
+        return Ok(RunOutcome {
+            output_path: output,
+            ..result
+        });
+    }
+    crate::queue::report_conversion(&app, &id);
+    let _ = app.emit(
+        "twitch-exit",
+        json!({"id":id,"code":0,"converting":true,"outputPath":result.output_path}),
+    );
     let settings = &request["conversionSettings"];
-    let final_path = unique_output(&dir, &format!("{}_converted", name.trim_end_matches("_converted")), encoding::output_extension(field(settings,"format","av_mp4")));
-    let args = encoding::build_args(&result.output_path.to_string_lossy(), &final_path.to_string_lossy(), settings, request["videoResolution"].as_str(), None, None);
-    let convert_spec = RunSpec { id, program: ffmpeg, args, output_path: final_path.clone(), cleanup_paths: vec![final_path], event_prefix: "cli", duration: None, discover_output: None, emit_exit: true };
-    let converted = jobs::run(app, jobs.inner().clone(), convert_spec).await;
+    let mut reserved = crate::workspace::OutputFile::reserve(
+        &dir,
+        &format!("{}_converted", name.trim_end_matches("_converted")),
+        encoding::output_extension(field(settings, "format", "av_mp4")),
+    )?;
+    let final_path = reserved.path().to_path_buf();
+    let args = encoding::build_args(
+        &result.output_path.to_string_lossy(),
+        &final_path.to_string_lossy(),
+        settings,
+        request["videoResolution"].as_str(),
+        None,
+        None,
+    );
+    let convert_spec = RunSpec {
+        id,
+        program: ffmpeg,
+        args,
+        output_path: final_path.clone(),
+        cleanup_paths: vec![final_path],
+        event_prefix: "cli",
+        duration: encoding::duration(&app, &result.output_path.to_string_lossy()).await,
+        discover_output: None,
+        emit_exit: true,
+    };
+    let converted = jobs::run(app, jobs.clone(), convert_spec).await;
+    if converted
+        .as_ref()
+        .is_ok_and(|outcome| outcome.code == 0 && !outcome.cancelled)
+    {
+        reserved.keep();
+    }
     let _ = std::fs::remove_file(result.output_path);
-    converted?;
-    Ok(())
+    converted
 }
 
 #[tauri::command]
 pub async fn get_twitch_info(app: AppHandle) -> Value {
     match locate(&app, Tool::Twitch) {
-        Ok(path) => match tokio::process::Command::new(&path).env("DOTNET_BUNDLE_EXTRACT_BASE_DIR", crate::tools::twitch_extract_dir(&app).unwrap_or_else(|_| std::env::temp_dir())).arg("--version").output().await {
-            Ok(output) if String::from_utf8_lossy(&output.stderr).starts_with("TwitchDownloaderCLI ") || String::from_utf8_lossy(&output.stdout).starts_with("TwitchDownloaderCLI ") => {
-                let raw = if output.stdout.is_empty() { String::from_utf8_lossy(&output.stderr) } else { String::from_utf8_lossy(&output.stdout) };
-                let version = raw.split_whitespace().nth(1).unwrap_or("").split('+').next().unwrap_or("");
-                let source = if path.to_string_lossy().contains("/tools/twitch/current/") || path.to_string_lossy().contains("\\tools\\twitch\\current\\") { "user" } else { "bundled" };
+        Ok(path) => match tokio::process::Command::new(&path)
+            .env(
+                "DOTNET_BUNDLE_EXTRACT_BASE_DIR",
+                crate::tools::twitch_extract_dir(&app).unwrap_or_else(|_| std::env::temp_dir()),
+            )
+            .arg("--version")
+            .output()
+            .await
+        {
+            Ok(output)
+                if String::from_utf8_lossy(&output.stderr).starts_with("TwitchDownloaderCLI ")
+                    || String::from_utf8_lossy(&output.stdout)
+                        .starts_with("TwitchDownloaderCLI ") =>
+            {
+                let raw = if output.stdout.is_empty() {
+                    String::from_utf8_lossy(&output.stderr)
+                } else {
+                    String::from_utf8_lossy(&output.stdout)
+                };
+                let version = raw
+                    .split_whitespace()
+                    .nth(1)
+                    .unwrap_or("")
+                    .split('+')
+                    .next()
+                    .unwrap_or("");
+                let source = if path.to_string_lossy().contains("/tools/twitch/current/")
+                    || path
+                        .to_string_lossy()
+                        .contains("\\tools\\twitch\\current\\")
+                {
+                    "user"
+                } else {
+                    "bundled"
+                };
                 json!({"found":true,"version":version,"path":path,"source":source})
-            },
+            }
             _ => json!({"found":false,"version":null,"path":path}),
         },
         Err(_) => json!({"found":false,"version":null,"path":null}),
@@ -191,34 +463,83 @@ pub async fn get_twitch_info(app: AppHandle) -> Value {
 fn chat_identity(request: &Value) -> Result<String, String> {
     if let Some(url) = request["url"].as_str().filter(|url| !url.is_empty()) {
         let parsed = parse_url(url)?;
-        if parsed["type"] == "channel" { return Err("Нужна ссылка на запись или клип Twitch".into()); }
+        if parsed["type"] == "channel" {
+            return Err("Нужна ссылка на запись или клип Twitch".into());
+        }
         return Ok(field(&parsed, "sourceUrl", url).into());
     }
-    request["id"].as_str().filter(|id| !id.is_empty()).map(str::to_owned).ok_or_else(|| "Невозможно определить Twitch VOD/Clip для чата".into())
+    request["id"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| "Невозможно определить Twitch VOD/Clip для чата".into())
 }
 
 fn chat_cache_file(app: &AppHandle, identity: &str, full: bool) -> Result<PathBuf, String> {
-    let directory = app.path().app_cache_dir().map_err(|error| error.to_string())?.join("twitch-chat");
+    let directory = app
+        .path()
+        .app_cache_dir()
+        .map_err(|error| error.to_string())?
+        .join("twitch-chat");
     std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
-    let key = identity.rsplit('/').next().unwrap_or(identity).split('?').next().unwrap_or("chat");
-    Ok(directory.join(format!("{}.{}.json", safe_name(key), if full { "full" } else { "preview" })))
+    let key = identity
+        .rsplit('/')
+        .next()
+        .unwrap_or(identity)
+        .split('?')
+        .next()
+        .unwrap_or("chat");
+    Ok(directory.join(format!(
+        "{}.{}.json",
+        safe_name(key),
+        if full { "full" } else { "preview" }
+    )))
 }
 
-async fn fetch_chat(app: &AppHandle, identity: &str, path: &PathBuf, full: bool) -> Result<(), String> {
+async fn fetch_chat(
+    app: &AppHandle,
+    identity: &str,
+    path: &PathBuf,
+    full: bool,
+) -> Result<(), String> {
     let cli = locate(app, Tool::Twitch)?;
     let mut command = tokio::process::Command::new(cli);
-    command.env("DOTNET_BUNDLE_EXTRACT_BASE_DIR", crate::tools::twitch_extract_dir(app)?);
-    command.args(["chatdownload", "--id", identity, "-o", &path.to_string_lossy(), "--collision", "Overwrite", "--banner=false"]);
-    if !full { command.args(["--ending", "15m"]); }
-    let output = tokio::time::timeout(std::time::Duration::from_secs(600), command.output()).await
-        .map_err(|_| "Twitch chat request timed out".to_owned())?.map_err(|error| error.to_string())?;
-    if !output.status.success() { return Err(String::from_utf8_lossy(&output.stderr).trim().into()); }
+    command.env(
+        "DOTNET_BUNDLE_EXTRACT_BASE_DIR",
+        crate::tools::twitch_extract_dir(app)?,
+    );
+    command.args([
+        "chatdownload",
+        "--id",
+        identity,
+        "-o",
+        &path.to_string_lossy(),
+        "--collision",
+        "Overwrite",
+        "--banner=false",
+    ]);
+    if !full {
+        command.args(["--ending", "15m"]);
+    }
+    let output = tokio::time::timeout(std::time::Duration::from_secs(600), command.output())
+        .await
+        .map_err(|_| "Twitch chat request timed out".to_owned())?
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().into());
+    }
     Ok(())
 }
 
 fn parse_chat(raw: &str) -> Result<Vec<Value>, String> {
     let data: Value = serde_json::from_str(raw).map_err(|error| error.to_string())?;
-    let comments = if let Some(comments) = data.as_array() { comments } else { data["comments"].as_array().ok_or("Twitch chat has no comments")? };
+    let comments = if let Some(comments) = data.as_array() {
+        comments
+    } else {
+        data["comments"]
+            .as_array()
+            .ok_or("Twitch chat has no comments")?
+    };
     let messages = comments.iter().enumerate().filter_map(|(index, comment)| {
         let message = &comment["message"];
         let body = message["body"].as_str().or_else(||message["text"].as_str()).map(str::to_owned)
@@ -256,23 +577,53 @@ pub async fn twitch_export_chat(app: AppHandle, request: Value) -> Value {
     let result = async {
         let identity = chat_identity(&request)?;
         let cache = chat_cache_file(&app, &identity, true)?;
-        if !cache.is_file() { fetch_chat(&app, &identity, &cache, true).await?; }
-        let directory = request["outputDir"].as_str().filter(|path| !path.is_empty()).map(PathBuf::from)
-            .unwrap_or_else(||app.path().video_dir().unwrap_or_else(|_| std::env::temp_dir()));
+        if !cache.is_file() {
+            fetch_chat(&app, &identity, &cache, true).await?;
+        }
+        let directory = request["outputDir"]
+            .as_str()
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                app.path()
+                    .video_dir()
+                    .unwrap_or_else(|_| std::env::temp_dir())
+            });
         std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
         let format = field(&request, "format", "json");
         let ext = if format == "txt" { "txt" } else { "json" };
-        let base = safe_name(identity.rsplit('/').next().unwrap_or("twitch_chat").split('?').next().unwrap_or("twitch_chat"));
+        let base = safe_name(
+            identity
+                .rsplit('/')
+                .next()
+                .unwrap_or("twitch_chat")
+                .split('?')
+                .next()
+                .unwrap_or("twitch_chat"),
+        );
         let output = unique_output(&directory, &format!("{base}_chat"), ext);
-        if ext == "json" { std::fs::copy(&cache, &output).map_err(|error| error.to_string())?; }
-        else {
+        if ext == "json" {
+            std::fs::copy(&cache, &output).map_err(|error| error.to_string())?;
+        } else {
             let raw = std::fs::read_to_string(&cache).map_err(|error| error.to_string())?;
             let messages = parse_chat(&raw)?;
-            let text = messages.iter().map(|message| format!("[{}] {}: {}", field(message,"timeLabel","0:00"), field(message,"username","unknown"), field(message,"body",""))).collect::<Vec<_>>().join("\n");
+            let text = messages
+                .iter()
+                .map(|message| {
+                    format!(
+                        "[{}] {}: {}",
+                        field(message, "timeLabel", "0:00"),
+                        field(message, "username", "unknown"),
+                        field(message, "body", "")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
             std::fs::write(&output, text).map_err(|error| error.to_string())?;
         }
         Ok::<Value, String>(json!({"ok":true,"outputPath":output}))
-    }.await;
+    }
+    .await;
     result.unwrap_or_else(|error| json!({"ok":false,"error":error}))
 }
 
@@ -281,9 +632,18 @@ mod tests {
     use super::parse_url;
     #[test]
     fn parses_vod_clip_and_channel() {
-        assert_eq!(parse_url("https://www.twitch.tv/videos/12345").unwrap()["type"],"vod");
-        assert_eq!(parse_url("https://clips.twitch.tv/GreatClip").unwrap()["type"],"clip");
-        assert_eq!(parse_url("https://www.twitch.tv/example").unwrap()["type"],"channel");
+        assert_eq!(
+            parse_url("https://www.twitch.tv/videos/12345").unwrap()["type"],
+            "vod"
+        );
+        assert_eq!(
+            parse_url("https://clips.twitch.tv/GreatClip").unwrap()["type"],
+            "clip"
+        );
+        assert_eq!(
+            parse_url("https://www.twitch.tv/example").unwrap()["type"],
+            "channel"
+        );
         assert!(parse_url("https://twitch.tv.evil.example/videos/123").is_err());
     }
 }

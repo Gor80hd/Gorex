@@ -62,7 +62,8 @@ pub fn app_quit(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn relaunch_app(app: AppHandle) {
+pub async fn relaunch_app(app: AppHandle) {
+    crate::jobs::shutdown(app.clone()).await;
     app.restart();
 }
 

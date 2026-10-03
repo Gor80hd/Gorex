@@ -1,3 +1,4 @@
+import type { ThemeMode } from '../../domain'
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { useLanguage } from '../../i18n'
 import logoWhite from '../../assets/images/logo_white.svg'
@@ -25,9 +26,9 @@ interface OnboardingSettings {
 
 interface OnboardingProps {
     theme: 'dark' | 'light'
-    themeMode: string
+    themeMode: ThemeMode
     accentTheme: string
-    onThemeModeChange: (mode: string) => void
+    onThemeModeChange: (mode: ThemeMode) => void
     onAccentThemeChange: (accent: string) => void
     onDone: (settings: OnboardingSettings | null) => void
 }
@@ -317,7 +318,7 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
                 || (window.api.platform === 'darwin' ? 'apple' : (typeof info.vendor === 'string' ? info.vendor : ''))
                 || 'unknown'
             const gpus = Array.isArray(info.gpus)
-                ? info.gpus.filter((gpu): gpu is string | { name: string } => typeof gpu === 'string' || (gpu !== null && typeof gpu === 'object' && typeof gpu.name === 'string'))
+                ? info.gpus.filter(gpu => typeof gpu === 'string')
                 : []
             setGpuInfo({ vendor, gpus })
             const opts = CODEC_OPTIONS[vendor] || CODEC_OPTIONS.unknown
@@ -446,7 +447,7 @@ export default function OnboardingScreen({ theme, themeMode, accentTheme, onThem
                                         { v: 'light', icon: 'bi-sun-fill',    label: L.themeLight },
                                         { v: 'auto',  icon: 'bi-circle-half', label: L.themeAuto },
                                     ].map(({ v, icon, label }) => (
-                                        <button key={v} className={`ob-theme-card${themeMode === v ? ' selected' : ''}`} onClick={() => onThemeModeChange(v)}>
+                                        <button key={v} className={`ob-theme-card${themeMode === v ? ' selected' : ''}`} onClick={() => onThemeModeChange(v as ThemeMode)}>
                                             <i className={`bi ${icon}`} />
                                             <span>{label}</span>
                                         </button>

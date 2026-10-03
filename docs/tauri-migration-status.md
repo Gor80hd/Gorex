@@ -6,11 +6,19 @@ This document tracks the migration until the Electron runtime can be removed. Th
 
 - Desktop commands: `src/preload/index.js` exposes file and folder dialogs, FFmpeg and yt-dlp jobs, Twitch jobs and chat, settings, tool updates, YouTube login and cookies, system windows and menus, and extension queue events. `src/renderer/src/desktopBridge.ts` keeps the same method names for the Tauri renderer. The Rust implementations are grouped in `src-tauri/src/` by feature.
 - Streaming events: `cli-*`, `ytdl-*`, `twitch-*`, `native-menu-action`, and `extension-*-queue` retain their renderer event names. Listeners return unsubscribe functions.
-- Queue states: `ready`, `format_select`, `encoding`, `downloading`, `downloading-subs`, `probing-keyframes`, `cutting-sponsors`, `converting`, `done`, `error`. `src/renderer/src/queueState.ts` defines shared active-state transitions; the Rust `Jobs` registry owns running processes and their cancellation.
+- Queue states: `ready`, `format_select`, `encoding`, `downloading`, `downloading-subs`, `probing-keyframes`, `cutting-sponsors`, `converting`, `done`, `error`. `src/renderer/src/queueState.ts` defines shared active-state transitions; the Rust `Queue` owns batch lifecycle and state snapshots; `Jobs` owns running processes and their cancellation.
 - Chrome extension: loopback ports `19870` through `19875` and `/gorex-api/ping`, `/queue`, `/formats`, `/queue/add`, `/queue/remove` remain available. The local media endpoint is an additional token-based route for preview with byte ranges.
 - Bundled tools: platform-specific FFmpeg, ffprobe, yt-dlp, Deno, and TwitchDownloaderCLI are prepared by `npm run prepare:tauri-binaries`. The download script checks SHA-256 digests.
 
-## Checks completed on macOS Apple Silicon
+## Current refactor (2026-10-03)
+
+- Strict TypeScript checks, 33 JavaScript tests, 21 Rust tests in release profile, Vite web build, and FFmpeg/ffprobe smoke pass.
+- Processing queue lifecycle now belongs to Rust. Commands are serialized against a new start; cancellation waits for the batch to drain, progress events carry revisions, and task metadata supports WebView recovery.
+- `App`, `ListPage`, and `SettingsPage` are TypeScript modules split into feature hooks, models and UI components. SCSS is unchanged.
+- Default npm development/build/distribution commands use Tauri; explicit `:electron` commands retain the comparison baseline until parity gates pass.
+- These results cover automated code and tool checks. The current GUI still needs revalidation; the Mac control tool reports a locked screen.
+
+## Earlier checks completed on macOS Apple Silicon
 
 - The debug and release Tauri `.app` start and show the existing React interface.
 - A local video converted with VideoToolbox; local preview played and sought to a later position.
@@ -43,6 +51,6 @@ The local Electron 2.4.0 Windows installer is 197,487,195 bytes (188.34 MiB). Th
 - The yt-dlp EJS guide requires Deno 2.3.0 or newer. An inspected official Deno 2.0.0 Apple Silicon binary declares macOS 14.0, so simply pinning an old Deno 2 release does not solve macOS 11 support. A compatible bundled runtime must be identified or built and tested with real YouTube downloads. See `https://github.com/yt-dlp/yt-dlp/wiki/EJS`.
 - Exercise the NSIS installer interactively on Windows 10/11 x64, including migration over GorexSetup, Chrome extension behavior, hardware encoding, media preview, cookies, tray, and repeated launch. CI now covers a fresh silent install/uninstall in a custom directory.
 - Test the same full scenario matrix on macOS, especially Twitch VOD and chat, subtitle files, YouTube login and cookie export, and installation over the old app.
-- Move queue ownership fully into Rust and complete strict TypeScript conversion of `App.jsx`, `ListPage.jsx`, and `SettingsPage.jsx`. `GlobalSettings.tsx` and `settingsModel.ts` are complete. Electron and its build scripts remain until parity is established.
+- Queue ownership and strict TypeScript conversion of all renderer JSX modules are implemented. The current refactor requires real-device parity validation before removing the remaining Electron baseline. See `tauri-refactor.md` for the new module map and automated checks.
 - Confirm Windows pause/resume and process-tree cancellation on a real Windows installation. A Windows-only process-control smoke test now runs in CI, but user-facing behavior remains unverified.
 - Measure controlled cold startup, total idle memory, installer size, and conversion duration on both platforms; fix regressions before replacing Electron in the release workflow.

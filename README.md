@@ -4,7 +4,7 @@
 
 https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
-**Gorex** is a standalone open-source desktop application for video conversion and downloading. Built with Electron + React + Vite, it delivers a professional-grade, polished experience that makes powerful video processing accessible to everyone — no terminal, no config files, no headaches.
+**Gorex** is a standalone open-source desktop application for video conversion and downloading. Built with Tauri 2 + Rust + React + TypeScript + Vite, it delivers a professional-grade, polished experience that makes powerful video processing accessible to everyone — no terminal, no config files, no headaches.
 
 ---
 
@@ -40,23 +40,25 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
 | Layer          | Technology                              |
 |----------------|-----------------------------------------|
-| Shell          | Electron 28                             |
-| UI             | React 18 + Vite 5                       |
+| Shell          | Tauri 2 / Rust                             |
+| UI             | React 18 + TypeScript + Vite 6                       |
 | Styles         | SCSS + Bootstrap Icons                  |
 | Video engine   | FFmpeg (bundled)                        |
 | Downloader     | yt-dlp (bundled)                        |
-| Media info     | ffprobe / fluent-ffmpeg (bundled)       |
-| Build          | electron-vite + electron-builder        |
+| Media info     | ffprobe (bundled)       |
+| Build          | Tauri CLI / NSIS / DMG        |
 
 ---
 
 ## Requirements
 
-- **Node.js** ≥ 18
+- **Node.js** ≥ 22.18
 - **npm** ≥ 9
 - **Windows 10/11**, or **macOS 11+ on Apple Silicon**
 
 ---
+
+This branch builds Gorex 3 on Tauri 2. The migration and real-device verification checklist is in [docs/tauri-migration-status.md](docs/tauri-migration-status.md). Current macOS tool bundles require macOS 12; macOS 11 remains a release gate. Rust stable and platform Tauri build prerequisites are required. Run `npm run prepare:tauri-binaries` once before building. Legacy Electron commands have the `:electron` suffix until parity is verified.
 
 ## Development
 
@@ -68,7 +70,7 @@ cd Gorex
 # 2. Install dependencies
 npm install
 
-# 3. Start in dev mode (Electron + Vite HMR)
+# 3. Start in dev mode (Tauri 2 + Vite HMR)
 npm run dev
 ```
 
@@ -102,11 +104,11 @@ also be signed and notarized with Apple credentials.
 
 ```
 src/
-├── main/index.js          ← Electron main: IPC handlers, CLI launch, window management
-├── preload/index.js       ← Bridge: window.api → renderer
+├── main/index.js          ← [legacy] Electron main: IPC handlers, CLI launch, window management
+├── preload/index.js       ← [legacy] Bridge: window.api → renderer
 └── renderer/src/
-    ├── App.jsx            ← Root: state machine (view, queue, settings, theme)
-    ├── i18n.jsx           ← Translation dictionaries (ru / en)
+    ├── App.tsx            ← Root: state machine (view, queue, settings, theme)
+    ├── i18n.tsx           ← Translation dictionaries (ru / en)
     ├── components/
     │   ├── TitleBar/      ← Header, main menu, theme toggle, window controls
     │   ├── CliConsole/    ← CLI output debug panel

@@ -4,7 +4,7 @@
 
 https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
-**Gorex** — самостоятельное десктопное приложение для конвертации и загрузки видео с открытым исходным кодом. Построено на Electron + React + Vite и предлагает профессиональный, отшлифованный интерфейс, который делает мощную обработку видео доступной для каждого — без терминала, без конфигов, без лишних сложностей.
+**Gorex** — самостоятельное десктопное приложение для конвертации и загрузки видео с открытым исходным кодом. Построено на Tauri 2 + Rust + React + TypeScript + Vite и предлагает профессиональный, отшлифованный интерфейс, который делает мощную обработку видео доступной для каждого — без терминала, без конфигов, без лишних сложностей.
 
 ---
 
@@ -38,19 +38,19 @@ https://github.com/user-attachments/assets/9de1dbf9-ff2e-4f53-b424-2972f7036ba2
 
 | Слой           | Технология                              |
 |----------------|-----------------------------------------|
-| Оболочка       | Electron 28                             |
-| UI             | React 18 + Vite 5                       |
+| Оболочка       | Tauri 2 / Rust                             |
+| UI             | React 18 + TypeScript + Vite 6                       |
 | Стили          | SCSS + Bootstrap Icons                  |
 | Видеодвижок    | FFmpeg (bundled)                        |
 | Загрузка       | yt-dlp (bundled)                        |
-| Медиаинфо      | ffprobe / fluent-ffmpeg (bundled)       |
-| Сборка         | electron-vite + electron-builder        |
+| Медиаинфо      | ffprobe (bundled)       |
+| Сборка         | Tauri CLI / NSIS / DMG        |
 
 ---
 
 ## Требования
 
-- **Node.js** ≥ 18
+- **Node.js** ≥ 22.18
 - **npm** ≥ 9
 - **Windows 10/11** или **macOS 11+ на Apple Silicon**
 
@@ -66,7 +66,7 @@ cd Gorex
 # 2. Установить зависимости
 npm install
 
-# 3. Запустить в режиме разработки (Electron + Vite HMR)
+# 3. Запустить в режиме разработки (Tauri 2 + Vite HMR)
 npm run dev
 ```
 
@@ -100,11 +100,11 @@ macOS-сборка получает ad-hoc подпись для локальн�
 
 ```
 src/
-├── main/index.js          ← Electron main: IPC-хендлеры, запуск CLI, управление окном
-├── preload/index.js       ← Bridge: window.api → renderer
+├── main/index.js          ← [legacy] Electron main: IPC-хендлеры, запуск CLI, управление окном
+├── preload/index.js       ← [legacy] Bridge: window.api → renderer
 └── renderer/src/
-    ├── App.jsx            ← Root: state-машина (view, очередь, настройки, тема)
-    ├── i18n.jsx           ← Словари переводов (ru / en)
+    ├── App.tsx            ← Root: state-машина (view, очередь, настройки, тема)
+    ├── i18n.tsx           ← Словари переводов (ru / en)
     ├── components/
     │   ├── TitleBar/      ← Шапка, главное меню, тема, управление окном
     │   ├── CliConsole/    ← Панель отладки CLI-вывода
